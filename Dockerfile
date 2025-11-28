@@ -24,6 +24,6 @@ RUN python manage.py collectstatic --noinput || true
 # Expose port
 EXPOSE 8000
 
-# Start server (migrations run on startup to handle volume mount timing)
-CMD python manage.py migrate --noinput && gunicorn bridgio.wsgi:application --bind 0.0.0.0:8000
+# Start server (migrations and data load run on startup to handle volume mount timing)
+CMD python manage.py migrate --noinput && python manage.py load_initial_data --skip-if-exists && gunicorn bridgio.wsgi:application --bind 0.0.0.0:8000
 

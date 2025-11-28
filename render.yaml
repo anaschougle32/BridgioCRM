@@ -3,7 +3,7 @@ services:
     name: bridgiocrm
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py create_superuser --username admin --email admin@bridgio.com --password admin123 || true
+    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py load_initial_data --skip-if-exists && python manage.py collectstatic --noinput && python manage.py create_superuser --username admin --email admin@bridgio.com --password admin123 || true
     startCommand: gunicorn bridgio.wsgi:application --workers 1
     # Note: Use 1 worker for SQLite (SQLite doesn't support multiple concurrent writers)
     envVars:

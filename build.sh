@@ -11,6 +11,9 @@ mkdir -p $(dirname db.sqlite3) || true
 # Run migrations (create database if needed)
 python manage.py migrate --noinput
 
+# Load initial data from fixtures (if available)
+python manage.py load_initial_data --skip-if-exists || true
+
 # Collect static files
 python manage.py collectstatic --noinput
 
