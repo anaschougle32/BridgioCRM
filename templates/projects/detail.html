@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ project.name }} - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-heading font-bold text-olive-primary">{{ project.name }}</h1>
+            <p class="text-gray-600 mt-1">{{ project.builder_name }} • {{ project.location }}</p>
+        </div>
+        {% if user.is_super_admin or user.is_mandate_owner %}
+        <a href="{% url 'projects:edit' project.pk %}" 
+           class="bg-olive-primary text-white px-6 py-2 rounded-custom hover:bg-olive-secondary transition">
+            Edit Project
+        </a>
+        {% endif %}
+    </div>
+    
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ stats.total_leads }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ stats.new_visits_today }} new today</p>
+        </div>
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Bookings</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ stats.total_bookings }}</p>
+        </div>
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Revenue</h3>
+            <p class="text-3xl font-bold text-olive-primary">₹{{ stats.revenue|floatformat:0 }}</p>
+        </div>
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Pending OTP</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ stats.pending_otp }}</p>
+        </div>
+    </div>
+    
+    <!-- Project Details -->
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <h2 class="text-xl font-heading font-bold mb-4">Project Details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600">RERA ID</p>
+                <p class="font-medium">{{ project.rera_id|default:"-" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Project Type</p>
+                <p class="font-medium">{{ project.get_project_type_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Starting Price</p>
+                <p class="font-medium">₹{{ project.starting_price|floatformat:0|default:"-" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Default Commission</p>
+                <p class="font-medium">{{ project.default_commission_percent }}%</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Mandate Owner</p>
+                <p class="font-medium">{{ project.mandate_owner.username }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Site Head</p>
+                <p class="font-medium">{{ project.site_head.username|default:"Not Assigned" }}</p>
+            </div>
+            {% if project.latitude and project.longitude %}
+            <div>
+                <p class="text-sm text-gray-600">Coordinates</p>
+                <p class="font-medium">{{ project.latitude }}, {{ project.longitude }}</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if project.inventory_summary %}
+        <div class="mt-6">
+            <p class="text-sm text-gray-600 mb-2">Inventory Summary</p>
+            <p class="text-gray-800">{{ project.inventory_summary }}</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Configurations -->
+    {% if configurations %}
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <h2 class="text-xl font-heading font-bold mb-4">Configurations</h2>
+        <div class="flex flex-wrap gap-2">
+            {% for config in configurations %}
+            <span class="px-3 py-1 bg-gray-100 rounded-custom text-sm">{{ config.name }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Payment Milestones -->
+    {% if milestones %}
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <h2 class="text-xl font-heading font-bold mb-4">Payment Milestones</h2>
+        <div class="space-y-2">
+            {% for milestone in milestones %}
+            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-custom">
+                <span class="font-medium">{{ milestone.name }}</span>
+                {% if milestone.percentage %}
+                <span class="text-sm text-gray-600">{{ milestone.percentage }}%</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <h2 class="text-xl font-heading font-bold mb-4">Quick Actions</h2>
+        <div class="flex flex-wrap gap-4">
+            <a href="{% url 'leads:list' %}?project={{ project.id }}" 
+               class="bg-olive-primary text-white px-6 py-2 rounded-custom hover:bg-olive-secondary transition">
+                View Leads
+            </a>
+            <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+               class="bg-gray-200 text-gray-800 px-6 py-2 rounded-custom hover:bg-gray-300 transition">
+                View Bookings
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

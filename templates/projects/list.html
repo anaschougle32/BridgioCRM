@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Projects - Bridgio CRM{% endblock %}
+
+{% block page_title %}Projects{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Projects</h1>
+        {% if user.is_super_admin or user.is_mandate_owner %}
+        <a href="{% url 'projects:create' %}" 
+           class="bg-olive-primary text-white px-6 py-2 rounded-custom hover:bg-olive-secondary transition">
+            Create Project
+        </a>
+        {% endif %}
+    </div>
+    
+    <!-- Projects Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for project in projects %}
+        <div class="bg-white rounded-custom shadow-md p-6 hover:shadow-lg transition">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-xl font-heading font-bold text-olive-primary">{{ project.name }}</h3>
+                {% if project.is_active %}
+                <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Active</span>
+                {% else %}
+                <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Inactive</span>
+                {% endif %}
+            </div>
+            <p class="text-sm text-gray-600 mb-2">{{ project.builder_name }}</p>
+            <p class="text-xs text-gray-500 mb-4">{{ project.location }}</p>
+            
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                    <p class="text-xs text-gray-500">Leads</p>
+                    <p class="text-lg font-bold text-olive-primary">{{ project.lead_count|default:0 }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500">Bookings</p>
+                    <p class="text-lg font-bold text-olive-primary">{{ project.booking_count|default:0 }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500">Revenue</p>
+                    <p class="text-lg font-bold text-olive-primary">₹{{ project.revenue|floatformat:0|default:0 }}</p>
+                </div>
+            </div>
+            
+            <div class="flex space-x-2">
+                <a href="{% url 'projects:detail' project.pk %}" 
+                   class="flex-1 bg-olive-primary text-white px-4 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm">
+                    View Details
+                </a>
+                {% if user.is_super_admin or user.is_mandate_owner %}
+                <a href="{% url 'projects:edit' project.pk %}" 
+                   class="px-4 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition text-sm">
+                    Edit
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-12">
+            <p class="text-gray-500">No projects found</p>
+            {% if user.is_super_admin or user.is_mandate_owner %}
+            <a href="{% url 'projects:create' %}" class="text-olive-primary hover:text-olive-secondary mt-4 inline-block">
+                Create your first project
+            </a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

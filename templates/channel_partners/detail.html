@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ cp.cp_name }} - Channel Partner - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">{{ cp.cp_name }}</h1>
+        <a href="{% url 'channel_partners:list' %}" class="text-olive-primary hover:text-olive-secondary">← Back to CPs</a>
+    </div>
+    
+    <!-- CP Information -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+        <h2 class="text-xl font-heading font-bold mb-4 text-olive-primary">Channel Partner Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600">CP Unique ID</p>
+                <p class="font-medium text-lg font-mono text-olive-primary">{{ cp.cp_unique_id|default:"-" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Firm Name</p>
+                <p class="font-medium text-lg">{{ cp.firm_name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">CP Name</p>
+                <p class="font-medium text-lg">{{ cp.cp_name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Phone</p>
+                <p class="font-medium">{{ cp.phone }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Email</p>
+                <p class="font-medium">{{ cp.email|default:"-" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Type</p>
+                <p class="font-medium">{{ cp.get_cp_type_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">RERA ID</p>
+                <p class="font-medium">{{ cp.rera_id|default:"-" }}</p>
+            </div>
+            {% if cp.working_area %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600">Working Area</p>
+                <p class="font-medium">{{ cp.working_area }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6 text-center">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ leads_count }}</p>
+        </div>
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6 text-center">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Bookings</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ bookings_count }}</p>
+        </div>
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6 text-center">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Revenue</h3>
+            <p class="text-3xl font-bold text-olive-primary">₹{{ total_revenue|floatformat:0 }}</p>
+        </div>
+    </div>
+    
+    <!-- Project-wise Stats (for Sourcing Managers) -->
+    {% if is_sourcing_manager and project_stats %}
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+        <h2 class="text-xl font-heading font-bold mb-4 text-olive-primary">Project-wise Performance</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-olive-lighter">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-olive-primary uppercase">Project</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-olive-primary uppercase">Location</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-olive-primary uppercase">Visits</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-olive-primary uppercase">Bookings</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-olive-primary uppercase">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-card-bg divide-y divide-gray-200">
+                    {% for stat in project_stats %}
+                    <tr class="hover:bg-olive-lighter transition">
+                        <td class="px-4 py-3 font-medium">{{ stat.project.name }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ stat.project.location }}</td>
+                        <td class="px-4 py-3">{{ stat.leads_count }}</td>
+                        <td class="px-4 py-3">{{ stat.bookings_count }}</td>
+                        <td class="px-4 py-3 font-medium text-olive-primary">₹{{ stat.revenue|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Linked Projects -->
+    {% if linked_projects %}
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+        <h2 class="text-xl font-heading font-bold mb-4 text-olive-primary">Linked Projects</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for project in linked_projects %}
+            <div class="p-4 border border-gray-200 rounded-lg hover:border-olive-primary transition">
+                <p class="font-medium">{{ project.name }}</p>
+                <p class="text-sm text-gray-600">{{ project.location }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

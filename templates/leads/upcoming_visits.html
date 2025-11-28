@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Upcoming Visits - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Upcoming Visits</h1>
+        <a href="{% url 'dashboard' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-4">
+        <form method="get" class="flex flex-wrap gap-4">
+            <input type="text" 
+                   name="search" 
+                   placeholder="Search by name, phone, project..." 
+                   value="{{ search }}"
+                   class="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+            
+            <select name="project" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+                <option value="">All Projects</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>
+                    {{ project.name }}
+                </option>
+                {% endfor %}
+            </select>
+            
+            <button type="submit" class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+                Filter
+            </button>
+            <a href="{% url 'leads:upcoming_visits' %}" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+                Clear
+            </a>
+        </form>
+    </div>
+    
+    <!-- Leads List -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light overflow-hidden">
+        {% if leads %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-olive-lighter">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Client</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Phone</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Project</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">CP Details</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Created</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-card-bg divide-y divide-gray-200">
+                    {% for lead in leads %}
+                    <tr class="hover:bg-olive-lighter transition">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ lead.name }}</div>
+                            <div class="text-xs text-gray-500">{{ lead.email|default:"-" }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ lead.phone }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ lead.project.name }}</div>
+                            <div class="text-xs text-gray-500">{{ lead.project.location }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ lead.cp_firm_name|default:"-" }}</div>
+                            <div class="text-xs text-gray-500">{{ lead.cp_name|default:"-" }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ lead.created_at|date:"d M Y, h:i A" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <a href="{% url 'leads:detail' lead.id %}" 
+                               class="text-olive-primary hover:text-olive-secondary font-medium">
+                                View & Send OTP →
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if leads.has_other_pages %}
+        <div class="px-6 py-4 border-t border-gray-200">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                    Showing {{ leads.start_index }} to {{ leads.end_index }} of {{ leads.paginator.count }} results
+                </div>
+                <div class="flex gap-2">
+                    {% if leads.has_previous %}
+                    <a href="?page={{ leads.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}" 
+                       class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% endif %}
+                    {% if leads.has_next %}
+                    <a href="?page={{ leads.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}" 
+                       class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="p-12 text-center">
+            <p class="text-gray-500 text-lg">No upcoming visits found.</p>
+            <p class="text-gray-400 text-sm mt-2">All pretagged leads have been verified or no pretags are assigned to you.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

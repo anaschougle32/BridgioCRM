@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Closing Manager - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Closing Manager Dashboard</h1>
+        <span class="text-sm text-gray-600">Welcome, {{ user.get_full_name|default:user.username }}</span>
+    </div>
+    
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">My Leads</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ total_leads }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ new_visits_today }} new today</p>
+        </div>
+        
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Pending OTP Verification</h3>
+            <p class="text-3xl font-bold text-yellow-600">{{ pending_otp }}</p>
+            <a href="{% url 'leads:upcoming_visits' %}" class="text-xs text-olive-primary hover:underline mt-1">View Upcoming Visits →</a>
+        </div>
+        
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Today's Callbacks</h3>
+            <p class="text-3xl font-bold text-orange-600">{{ todays_callbacks|default:0 }}</p>
+            <a href="{% url 'leads:list' %}?reminder=today" class="text-xs text-olive-primary hover:underline mt-1">View Callbacks →</a>
+        </div>
+        
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Bookings</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ total_bookings }}</p>
+        </div>
+        
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Today's Visits</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ new_visits_today }}</p>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+        <h2 class="text-xl font-heading font-bold text-olive-primary mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'leads:upcoming_visits' %}" class="p-4 border border-gray-200 rounded-lg hover:border-olive-primary hover:bg-olive-lighter transition text-center">
+                <p class="font-semibold text-olive-primary">Upcoming Visits</p>
+                <p class="text-xs text-gray-600 mt-1">View pretagged leads for OTP verification</p>
+            </a>
+            <a href="{% url 'leads:list' %}" class="p-4 border border-gray-200 rounded-lg hover:border-olive-primary hover:bg-olive-lighter transition text-center">
+                <p class="font-semibold text-olive-primary">My Leads</p>
+                <p class="text-xs text-gray-600 mt-1">View all assigned leads</p>
+            </a>
+            <a href="{% url 'bookings:list' %}" class="p-4 border border-gray-200 rounded-lg hover:border-olive-primary hover:bg-olive-lighter transition text-center">
+                <p class="font-semibold text-olive-primary">Bookings</p>
+                <p class="text-xs text-gray-600 mt-1">View all bookings</p>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

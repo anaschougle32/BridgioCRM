@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Booking Details - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Booking Details</h1>
+        <a href="{% url 'bookings:list' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Bookings</a>
+    </div>
+    
+    <!-- Booking Information -->
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <h2 class="text-xl font-heading font-bold mb-4">Booking Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600">Lead Name</p>
+                <p class="font-medium text-lg">{{ booking.lead.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Phone</p>
+                <p class="font-medium font-mono">****{{ booking.lead.phone|slice:"-4:" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Project</p>
+                <p class="font-medium">{{ booking.project.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Unit Number</p>
+                <p class="font-medium">
+                    {% if booking.tower_wing %}{{ booking.tower_wing }} - {% endif %}{{ booking.unit_number }}
+                    {% if booking.floor %}(Floor {{ booking.floor }}){% endif %}
+                </p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Final Negotiated Price</p>
+                <p class="font-medium text-lg text-olive-primary">₹{{ booking.final_negotiated_price|floatformat:0 }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Token Amount</p>
+                <p class="font-medium">₹{{ booking.token_amount|floatformat:0 }}</p>
+            </div>
+            {% if booking.channel_partner %}
+            <div>
+                <p class="text-sm text-gray-600">Channel Partner</p>
+                <p class="font-medium">{{ booking.channel_partner.cp_name }} ({{ booking.channel_partner.firm_name }})</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">CP Commission</p>
+                <p class="font-medium">{{ booking.cp_commission_percent }}%</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Payment Summary -->
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-heading font-bold">Payment Summary</h2>
+            {% if user.is_closing_manager or user.is_super_admin or user.is_site_head or user.is_mandate_owner %}
+            <a href="{% url 'bookings:payment_create' booking.id %}" 
+               class="inline-flex items-center px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">
+                ➕ Add Payment
+            </a>
+            {% endif %}
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center p-4 bg-gray-50 rounded-custom">
+                <p class="text-sm text-gray-600 mb-2">Total Price</p>
+                <p class="text-2xl font-bold text-olive-primary">₹{{ booking.final_negotiated_price|floatformat:0 }}</p>
+            </div>
+            <div class="text-center p-4 bg-green-50 rounded-custom">
+                <p class="text-sm text-gray-600 mb-2">Total Paid</p>
+                <p class="text-2xl font-bold text-green-600">₹{{ total_paid|floatformat:0 }}</p>
+            </div>
+            <div class="text-center p-4 {% if remaining_balance > 0 %}bg-red-50{% else %}bg-green-50{% endif %} rounded-custom">
+                <p class="text-sm text-gray-600 mb-2">Remaining Balance</p>
+                <p class="text-2xl font-bold {% if remaining_balance > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                    ₹{{ remaining_balance|floatformat:0 }}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Payment History -->
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <h2 class="text-xl font-heading font-bold mb-4">Payment History</h2>
+        {% if payments %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Milestone</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for payment in payments %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">{{ payment.payment_date|date:"d M Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-medium">₹{{ payment.amount|floatformat:0 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ payment.get_payment_mode_display }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ payment.milestone.name|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ payment.reference_number|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-8">No payments recorded yet</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

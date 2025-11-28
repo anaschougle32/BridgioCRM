@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - Bridgio CRM{% endblock %}
+
+{% block login_content %}
+<div class="min-h-screen flex items-center justify-center bg-beige-bg">
+    <div class="max-w-md w-full bg-card-bg rounded-custom shadow-lg p-8">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary mb-6 text-center">Bridgio CRM</h1>
+        <h2 class="text-xl font-heading mb-6 text-center">Login</h2>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+            <div class="mb-4 p-4 bg-red-100 text-red-800 rounded-custom">
+                <ul>
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            <div class="mb-4">
+                <label for="id_username" class="block text-sm font-medium mb-2">Username</label>
+                <input type="text" name="username" id="id_username" required 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary focus:border-transparent">
+            </div>
+            
+            <div class="mb-6">
+                <label for="id_password" class="block text-sm font-medium mb-2">Password</label>
+                <input type="password" name="password" id="id_password" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary focus:border-transparent">
+            </div>
+            
+            <button type="submit" 
+                    class="w-full bg-olive-primary text-white py-2 px-4 rounded-custom hover:bg-olive-secondary transition font-medium">
+                Login
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+

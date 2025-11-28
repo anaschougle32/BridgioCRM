@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Leads - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Upload Leads</h1>
+        <a href="{% url 'leads:list' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Leads</a>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label class="block text-sm font-medium mb-2">Select Project *</label>
+                <select name="project" required class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                    <option value="">-- Select Project --</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}">{{ project.name }} ({{ project.location }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-2">Upload File (Excel/CSV) *</label>
+                <input type="file" name="file" accept=".xlsx,.xls,.csv" required 
+                       class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                <p class="text-xs text-gray-500 mt-1">Supported formats: .xlsx, .xls, .csv</p>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 class="font-semibold text-blue-900 mb-2">Required Columns:</h3>
+                <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                    <li><strong>Name</strong> (required)</li>
+                    <li><strong>Phone</strong> (required)</li>
+                    <li>Email, Age, Gender, Locality, Current Residence</li>
+                    <li>Occupation, Company Name, Designation</li>
+                    <li>Budget, Purpose, Visit Type, First Visit</li>
+                    <li>How did you hear, CP Firm Name, CP Name, CP Phone, CP RERA Number</li>
+                </ul>
+            </div>
+            
+            <div class="flex justify-end space-x-4">
+                <a href="{% url 'leads:list' %}" class="px-6 py-2 border border-border-light rounded-lg hover:bg-gray-50">Cancel</a>
+                <button type="submit" class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary">Upload Leads</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

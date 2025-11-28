@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Bridgio CRM{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <h1 class="text-3xl font-heading font-bold text-olive-primary">Dashboard</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Stats Cards -->
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ total_leads|default:0 }}</p>
+        </div>
+        
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">New Visits Today</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ new_visits_today|default:0 }}</p>
+        </div>
+        
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Bookings</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ total_bookings|default:0 }}</p>
+        </div>
+        
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Pending OTP</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ pending_otp|default:0 }}</p>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <h2 class="text-xl font-heading font-bold mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'leads:create' %}" 
+               class="bg-olive-primary text-white px-6 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                New Visit
+            </a>
+            {% if user.is_sourcing_manager %}
+            <a href="{% url 'leads:pretag' %}" 
+               class="bg-olive-secondary text-white px-6 py-3 rounded-custom hover:bg-olive-primary transition text-center">
+                Pretag Lead
+            </a>
+            {% endif %}
+            <a href="{% url 'leads:list' %}" 
+               class="bg-gray-200 text-gray-800 px-6 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                View All Leads
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

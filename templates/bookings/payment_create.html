@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Payment - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Add Payment</h1>
+        <a href="{% url 'bookings:detail' booking.id %}" class="text-olive-primary hover:text-olive-secondary">← Back to Booking</a>
+    </div>
+    
+    <!-- Booking Info -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-4">
+        <p class="text-sm text-gray-600">
+            Lead: <strong>{{ booking.lead.name }}</strong> | 
+            Unit: <strong>{{ booking.unit_number }}</strong> | 
+            Total Price: <strong>₹{{ booking.final_negotiated_price|floatformat:0 }}</strong> | 
+            Paid: <strong>₹{{ booking.total_paid|floatformat:0 }}</strong> | 
+            Remaining: <strong>₹{{ booking.remaining_balance|floatformat:0 }}</strong>
+        </p>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Amount (₹) *</label>
+                    <input type="number" name="amount" step="0.01" min="0.01" required class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Payment Mode *</label>
+                    <select name="payment_mode" required class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                        <option value="upi">UPI</option>
+                        <option value="cash">Cash</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="rtgs">RTGS</option>
+                        <option value="neft">NEFT</option>
+                        <option value="card">Card</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Payment Date *</label>
+                    <input type="date" name="payment_date" required value="{{ today|date:'Y-m-d' }}" class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Reference Number</label>
+                    <input type="text" name="reference_number" class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium mb-2">Receipt Proof</label>
+                    <input type="file" name="receipt_proof" accept="image/*,.pdf" class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium mb-2">Notes</label>
+                    <textarea name="notes" rows="3" class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary"></textarea>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-4">
+                <a href="{% url 'bookings:detail' booking.id %}" class="px-6 py-2 border border-border-light rounded-lg hover:bg-gray-50">Cancel</a>
+                <button type="submit" class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary">Add Payment</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

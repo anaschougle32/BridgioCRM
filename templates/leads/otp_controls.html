@@ -1,0 +1,65 @@
+{% load tz %}
+<div id="otp-controls">
+    {% if latest_otp and not latest_otp.is_verified %}
+        {% if latest_otp.expires_at > now %}
+            <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p class="text-sm text-blue-800 mb-2">
+                    <strong>Active OTP:</strong> Generated at {{ latest_otp.created_at|date:"h:i A" }}. 
+                    Expires at {{ latest_otp.expires_at|date:"h:i A" }}.
+                    <br>Attempts: {{ latest_otp.attempts }}/{{ latest_otp.max_attempts }}
+                </p>
+                {% if sms_link %}
+                <div class="mb-3">
+                    <a href="{{ sms_link }}" 
+                       target="_blank"
+                       class="inline-block bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition mb-2">
+                        📱 Open SMS App to Send OTP
+                    </a>
+                    <p class="text-xs text-gray-600 mt-1">
+                        OTP Code: <strong>{{ otp_code }}</strong> (copy this to SMS)
+                    </p>
+                </div>
+                {% endif %}
+                <form hx-post="{% url 'leads:verify_otp' lead.id %}" 
+                      hx-target="#otp-section" 
+                      hx-swap="outerHTML"
+                      hx-indicator="#otp-loading"
+                      class="flex gap-2">
+                    {% csrf_token %}
+                    <input type="text" 
+                           name="otp" 
+                           placeholder="Enter 6-digit OTP received from client" 
+                           maxlength="6" 
+                           pattern="[0-9]{6}"
+                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary"
+                           required>
+                    <button type="submit" 
+                            class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+                        Verify OTP
+                    </button>
+                </form>
+                <div id="otp-loading" class="htmx-indicator mt-2 text-sm text-gray-600">Verifying...</div>
+            </div>
+        {% else %}
+            <p class="text-sm text-red-600 mb-3">Previous OTP has expired. Please generate a new one.</p>
+            <button hx-post="{% url 'leads:send_otp' lead.id %}" 
+                    hx-target="#otp-controls" 
+                    hx-swap="innerHTML"
+                    hx-indicator="#otp-sending"
+                    class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+                Generate OTP
+            </button>
+            <div id="otp-sending" class="htmx-indicator mt-2 text-sm text-gray-600">Generating...</div>
+        {% endif %}
+    {% else %}
+        <button hx-post="{% url 'leads:send_otp' lead.id %}" 
+                hx-target="#otp-controls" 
+                hx-swap="innerHTML"
+                hx-indicator="#otp-sending"
+                class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+            Generate OTP
+        </button>
+        <div id="otp-sending" class="htmx-indicator mt-2 text-sm text-gray-600">Generating...</div>
+    {% endif %}
+</div>
+

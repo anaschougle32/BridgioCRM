@@ -1,0 +1,452 @@
+{% extends 'base.html' %}
+
+{% block title %}New Visit - Bridgio CRM{% endblock %}
+
+{% block page_title %}New Visit{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-heading font-semibold text-text-primary mb-2">New Visit</h1>
+        <p class="text-text-secondary">Create a new lead/visit. All user types can create new visits.</p>
+    </div>
+    
+    <!-- Progress Steps -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-olive-primary text-white font-bold" id="step-1-indicator">1</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-olive-primary">Client Information</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-1-2-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-2-indicator">2</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">OTP Verification</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-2-3-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-3-indicator">3</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">Requirements</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-3-4-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-4-indicator">4</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">CP (Optional)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form id="new-visit-form" method="post" class="space-y-8">
+            {% csrf_token %}
+            <input type="hidden" name="step" id="form-step" value="1">
+            
+            <!-- Step 1: Client Information -->
+            <div id="step-1" class="step-content">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Client Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Name *</label>
+                        <input type="text" name="name" id="name" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Phone *</label>
+                        <input type="tel" name="phone" id="phone" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Email</label>
+                        <input type="email" name="email" id="email"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Age</label>
+                        <input type="number" name="age" id="age" min="18" max="100"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Gender</label>
+                        <select name="gender" id="gender"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Locality</label>
+                        <input type="text" name="locality" id="locality"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Current Residence</label>
+                        <select name="current_residence" id="current_residence"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select</option>
+                            <option value="own">Own</option>
+                            <option value="rent">Rent</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Occupation</label>
+                        <select name="occupation" id="occupation"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Occupation</option>
+                            <option value="self_emp">Self Employed</option>
+                            <option value="service">Service</option>
+                            <option value="homemaker">Homemaker</option>
+                            <option value="business">Business</option>
+                            <option value="retired">Retired</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Company Name</label>
+                        <input type="text" name="company_name" id="company_name"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Designation</label>
+                        <input type="text" name="designation" id="designation"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <a href="{% url 'leads:list' %}" 
+                       class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
+                        Cancel
+                    </a>
+                    <button type="button" onclick="nextStep(1)" 
+                            class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
+                        Next: OTP Verification
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 2: OTP Verification -->
+            <div id="step-2" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">OTP Verification</h2>
+                <div class="space-y-6">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p class="text-sm text-blue-800 mb-3">
+                            An OTP will be sent to the phone number: <strong id="otp-phone-display"></strong>
+                        </p>
+                        <button type="button" onclick="sendOTP()" id="send-otp-btn"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            Send OTP via SMS
+                        </button>
+                    </div>
+                    
+                    <div id="otp-sent-section" class="hidden">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-green-800 mb-2">
+                                OTP sent! Check your SMS app. OTP Code: <strong id="otp-code-display"></strong>
+                            </p>
+                            <a id="sms-link" href="#" target="_blank" 
+                               class="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                                📱 Open SMS App
+                            </a>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-text-primary mb-2">Enter OTP *</label>
+                            <input type="text" name="otp" id="otp-input" maxlength="6" pattern="[0-9]{6}"
+                                   placeholder="Enter 6-digit OTP"
+                                   class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <p class="text-xs text-gray-500 mt-1">Enter the 6-digit OTP received on the phone</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-between space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(2)" 
+                            class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
+                        ← Previous
+                    </button>
+                    <button type="button" onclick="verifyOTP()" id="verify-otp-btn" disabled
+                            class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        Verify & Continue
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 3: Requirements -->
+            <div id="step-3" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Requirement Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Project *</label>
+                        <select name="project" id="project" required
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Project</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}">{{ project.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Budget (₹)</label>
+                        <input type="number" name="budget" id="budget" step="0.01"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Purpose</label>
+                        <select name="purpose" id="purpose"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Purpose</option>
+                            <option value="investment">Investment</option>
+                            <option value="first_home">First Home</option>
+                            <option value="second_home">Second Home</option>
+                            <option value="retirement_home">Retirement Home</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Visit Type</label>
+                        <select name="visit_type" id="visit_type"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select</option>
+                            <option value="family">Family</option>
+                            <option value="alone">Alone</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">First Visit or Revisit</label>
+                        <select name="is_first_visit" id="is_first_visit"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="true">First Visit</option>
+                            <option value="false">Revisit</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">How did you hear about us?</label>
+                        <input type="text" name="how_did_you_hear" id="how_did_you_hear"
+                               placeholder="e.g., Online, Hoarding, Referral, Walk-in, etc."
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+                <div class="flex justify-between space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(3)" 
+                            class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
+                        ← Previous
+                    </button>
+                    <button type="button" onclick="nextStep(3)" 
+                            class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
+                        Next: CP Details
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 4: CP (Optional) -->
+            <div id="step-4" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">
+                    Channel Partner Information <span class="text-text-secondary font-normal text-sm">(Optional)</span>
+                </h2>
+                <p class="text-sm text-text-secondary mb-4">CP details are optional for new visits. You can skip this step if not applicable.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">CP Firm Name</label>
+                        <input type="text" name="cp_firm_name" id="cp_firm_name"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">CP Name</label>
+                        <input type="text" name="cp_name" id="cp_name"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">CP Phone</label>
+                        <input type="tel" name="cp_phone" id="cp_phone"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">CP RERA Number</label>
+                        <input type="text" name="cp_rera_number" id="cp_rera_number"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+                <div class="flex justify-between space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(4)" 
+                            class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
+                        ← Previous
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
+                        Create New Visit
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentStep = 1;
+    
+    function updateStepIndicators(step) {
+        // Update step indicators
+        for (let i = 1; i <= 4; i++) {
+            const indicator = document.getElementById('step-' + i + '-indicator');
+            const line = document.getElementById('step-' + (i-1) + '-' + i + '-line');
+            
+            if (i < step) {
+                indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-green-600 text-white font-bold';
+                if (line) line.className = 'flex-1 h-1 mx-4 bg-green-600';
+            } else if (i === step) {
+                indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-olive-primary text-white font-bold';
+                if (line) line.className = 'flex-1 h-1 mx-4 bg-gray-200';
+            } else {
+                indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold';
+                if (line) line.className = 'flex-1 h-1 mx-4 bg-gray-200';
+            }
+        }
+    }
+    
+    function showStep(step) {
+        // Hide all steps
+        for (let i = 1; i <= 4; i++) {
+            document.getElementById('step-' + i).classList.add('hidden');
+        }
+        // Show current step
+        document.getElementById('step-' + step).classList.remove('hidden');
+        updateStepIndicators(step);
+        currentStep = step;
+    }
+    
+    function nextStep(fromStep) {
+        if (fromStep === 1) {
+            // Validate step 1
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            if (!name || !phone) {
+                alert('Name and Phone are required.');
+                return;
+            }
+            // Save step 1 data
+            submitStep(1);
+        } else if (fromStep === 3) {
+            // Validate step 3
+            const project = document.getElementById('project').value;
+            if (!project) {
+                alert('Project is required.');
+                return;
+            }
+            // Save step 3 data
+            submitStep(3);
+        }
+    }
+    
+    function previousStep(fromStep) {
+        showStep(fromStep - 1);
+    }
+    
+    function submitStep(step) {
+        const form = document.getElementById('new-visit-form');
+        const formData = new FormData(form);
+        formData.set('step', step);
+        
+        fetch('{% url "leads:create" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (step === 1) {
+                    showStep(2);
+                    document.getElementById('otp-phone-display').textContent = document.getElementById('phone').value;
+                } else if (step === 3) {
+                    showStep(4);
+                }
+            } else {
+                alert(data.error || 'An error occurred. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+    
+    function sendOTP() {
+        const phone = document.getElementById('phone').value;
+        if (!phone) {
+            alert('Phone number is required.');
+            return;
+        }
+        
+        const form = document.getElementById('new-visit-form');
+        const formData = new FormData();
+        formData.set('action', 'send_otp');
+        formData.set('phone', phone);
+        formData.set('csrfmiddlewaretoken', form.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "leads:create" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('otp-sent-section').classList.remove('hidden');
+                document.getElementById('otp-code-display').textContent = data.otp_code;
+                document.getElementById('sms-link').href = data.sms_link;
+                document.getElementById('verify-otp-btn').disabled = false;
+                document.getElementById('send-otp-btn').disabled = true;
+                document.getElementById('send-otp-btn').textContent = 'OTP Sent';
+            } else {
+                alert(data.error || 'Failed to send OTP. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+    
+    function verifyOTP() {
+        const otp = document.getElementById('otp-input').value;
+        if (!otp || otp.length !== 6) {
+            alert('Please enter a valid 6-digit OTP.');
+            return;
+        }
+        
+        const form = document.getElementById('new-visit-form');
+        const formData = new FormData();
+        formData.set('step', '2');
+        formData.set('otp', otp);
+        formData.set('csrfmiddlewaretoken', form.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "leads:create" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showStep(3);
+            } else {
+                alert(data.error || 'Invalid OTP. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+    
+    // Initialize
+    updateStepIndicators(1);
+</script>
+{% endblock %}

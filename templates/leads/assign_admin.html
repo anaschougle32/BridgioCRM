@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Assign Leads - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Assign Leads</h1>
+        <a href="{% url 'leads:list' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Leads</a>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+            
+            <!-- Project Selection -->
+            <div>
+                <label class="block text-sm font-medium mb-2">Select Project *</label>
+                <select name="project" id="project-select" required class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                    <option value="">-- Select Project --</option>
+                    {% for item in projects %}
+                    <option value="{{ item.project.id }}">
+                        {{ item.project.name }} ({{ item.unassigned_count }} unassigned leads)
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Daily Assignment Quotas -->
+            <div>
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Set Daily Assignment Quotas</h2>
+                <p class="text-sm text-gray-600 mb-4">Set the number of leads to assign daily to each employee. The system will automatically assign leads based on these quotas.</p>
+                {% if employees %}
+                <div class="space-y-4">
+                    {% for employee in employees %}
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-border-light">
+                        <div>
+                            <p class="font-medium">{{ employee.get_full_name|default:employee.username }}</p>
+                            <p class="text-sm text-gray-600">{{ employee.get_role_display }}</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <label class="text-sm text-gray-600">Daily quota:</label>
+                            <input type="number" name="quota_{{ employee.id }}" min="0" 
+                                   id="quota_{{ employee.id }}" 
+                                   value="0" 
+                                   class="w-24 px-3 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-8">No employees available for assignment.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Immediate Assignment Option -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <label class="flex items-center">
+                    <input type="checkbox" name="immediate_assign" value="true" class="mr-2">
+                    <span class="text-sm font-medium">Also assign leads immediately (in addition to saving daily quotas)</span>
+                </label>
+            </div>
+            
+            <div class="flex justify-end space-x-4">
+                <a href="{% url 'leads:list' %}" class="px-6 py-2 border border-border-light rounded-lg hover:bg-gray-50">Cancel</a>
+                <button type="submit" class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary">Save Quotas</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Load existing quotas when project is selected
+    const projectSelect = document.getElementById('project-select');
+    const projectQuotas = {{ project_quotas_json|safe }};
+    
+    function updateQuotas() {
+        const projectId = projectSelect.value;
+        if (projectId && projectQuotas[projectId]) {
+            const quotas = projectQuotas[projectId];
+            {% for employee in employees %}
+            const quotaInput{{ employee.id }} = document.getElementById('quota_{{ employee.id }}');
+            if (quotaInput{{ employee.id }} && quotas['{{ employee.id }}']) {
+                quotaInput{{ employee.id }}.value = quotas['{{ employee.id }}'];
+            } else if (quotaInput{{ employee.id }}) {
+                quotaInput{{ employee.id }}.value = 0;
+            }
+            {% endfor %}
+        } else {
+            // Reset all quotas to 0
+            {% for employee in employees %}
+            const quotaInput{{ employee.id }} = document.getElementById('quota_{{ employee.id }}');
+            if (quotaInput{{ employee.id }}) {
+                quotaInput{{ employee.id }}.value = 0;
+            }
+            {% endfor %}
+        }
+    }
+    
+    if (projectSelect) {
+        projectSelect.addEventListener('change', updateQuotas);
+        updateQuotas(); // Load on page load if project is pre-selected
+    }
+</script>
+{% endblock %}
+

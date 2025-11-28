@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+
+{% block title %}Check In - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Check In</h1>
+        <a href="{% url 'attendance:list' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Attendance</a>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form method="post" enctype="multipart/form-data" id="checkin-form" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label class="block text-sm font-medium mb-2">Project (Optional)</label>
+                <select name="project" id="project-select" class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                    <option value="">Office / General</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" data-lat="{{ project.latitude|default:'' }}" data-lng="{{ project.longitude|default:'' }}" data-name="{{ project.name }}">
+                        {{ project.name }} ({{ project.location }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Hidden fields for geo-location -->
+            <input type="hidden" name="latitude" id="latitude" required>
+            <input type="hidden" name="longitude" id="longitude" required>
+            <input type="hidden" name="accuracy_radius" id="accuracy_radius" value="100">
+            
+            <!-- Google Maps Display -->
+            <div>
+                <label class="block text-sm font-medium mb-2">Your Location (Auto-captured)</label>
+                <div id="map" class="w-full h-64 rounded-lg border border-border-light mb-3" style="display: none;"></div>
+                <div id="location-status" class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-sm text-yellow-800">⏳ Capturing your location automatically...</p>
+                </div>
+                <div id="location-address" class="mt-2 text-sm text-gray-600"></div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-2">Selfie Photo *</label>
+                <input type="file" name="selfie_photo" accept="image/*" capture="user" required 
+                       class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                <p class="text-xs text-gray-500 mt-1">Please take a selfie using your device camera</p>
+            </div>
+            
+            <div class="flex justify-end space-x-4">
+                <a href="{% url 'attendance:list' %}" class="px-6 py-2 border border-border-light rounded-lg hover:bg-gray-50">Cancel</a>
+                <button type="submit" id="submit-btn" disabled class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+                    Check In
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&libraries=places,geometry&callback=initMap" async defer></script>
+
+<script>
+    let map;
+    let userMarker;
+    let projectMarker;
+    let userLocation = null;
+    let projectLocation = null;
+    let watchId = null;
+    
+    // Auto-capture location on page load
+    window.addEventListener('load', function() {
+        if (navigator.geolocation) {
+            // Start watching position for live updates
+            watchId = navigator.geolocation.watchPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    userLocation = { lat, lng };
+                    
+                    document.getElementById('latitude').value = lat;
+                    document.getElementById('longitude').value = lng;
+                    document.getElementById('accuracy_radius').value = accuracy;
+                    
+                    // Update map if already initialized
+                    if (map) {
+                        map.setCenter(userLocation);
+                        if (userMarker) {
+                            userMarker.setPosition(userLocation);
+                        } else {
+                            userMarker = new google.maps.Marker({
+                                position: userLocation,
+                                map: map,
+                                title: 'Your Location',
+                                icon: {
+                                    url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                                }
+                            });
+                        }
+                        
+                        // Update accuracy circle
+                        if (window.accuracyCircle) {
+                            window.accuracyCircle.setMap(null);
+                        }
+                        window.accuracyCircle = new google.maps.Circle({
+                            center: userLocation,
+                            radius: accuracy,
+                            map: map,
+                            fillColor: '#4285F4',
+                            fillOpacity: 0.2,
+                            strokeColor: '#4285F4',
+                            strokeOpacity: 0.5,
+                            strokeWeight: 2
+                        });
+                        
+                        // Reverse geocode
+                        reverseGeocode(lat, lng);
+                        checkProjectLocation();
+                    }
+                    
+                    // Enable submit button
+                    document.getElementById('submit-btn').disabled = false;
+                    
+                    // Update status
+                    document.getElementById('location-status').innerHTML = '<p class="text-sm text-green-800">✓ Location captured: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</p>';
+                    document.getElementById('location-status').className = 'p-3 bg-green-50 border border-green-200 rounded-lg';
+                },
+                function(error) {
+                    document.getElementById('location-status').innerHTML = `<p class="text-sm text-red-800">Error: ${error.message}. Please enable location services.</p>`;
+                    document.getElementById('location-status').className = 'p-3 bg-red-50 border border-red-200 rounded-lg';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+    });
+    
+    // Initialize map
+    function initMap() {
+        // Default center (will be updated when location is obtained)
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: { lat: 19.0760, lng: 72.8777 }, // Default to Mumbai
+            zoom: 15,
+            mapTypeControl: false,
+            streetViewControl: false,
+        });
+        
+        // Get user's current location (if not already captured)
+        if (navigator.geolocation && !userLocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    userLocation = { lat, lng };
+                    
+                    document.getElementById('latitude').value = lat;
+                    document.getElementById('longitude').value = lng;
+                    document.getElementById('accuracy_radius').value = accuracy;
+                    
+                    // Center map on user location
+                    map.setCenter(userLocation);
+                    
+                    // Add user marker
+                    userMarker = new google.maps.Marker({
+                        position: userLocation,
+                        map: map,
+                        title: 'Your Location',
+                        icon: {
+                            url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                        }
+                    });
+                    
+                    // Add accuracy circle
+                    const accuracyCircle = new google.maps.Circle({
+                        center: userLocation,
+                        radius: accuracy,
+                        map: map,
+                        fillColor: '#4285F4',
+                        fillOpacity: 0.2,
+                        strokeColor: '#4285F4',
+                        strokeOpacity: 0.5,
+                        strokeWeight: 2
+                    });
+                    
+                    // Show map
+                    document.getElementById('map').style.display = 'block';
+                    
+                    // Reverse geocode to get address
+                    reverseGeocode(lat, lng);
+                    
+                    // Check project location if selected
+                    checkProjectLocation();
+                },
+                function(error) {
+                    document.getElementById('location-status').innerHTML = `<p class="text-sm text-red-800">Error: ${error.message}. Please enable location services.</p>`;
+                    document.getElementById('location-status').className = 'p-3 bg-red-50 border border-red-200 rounded-lg';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        } else {
+            document.getElementById('location-status').innerHTML = '<p class="text-sm text-red-800">Geolocation is not supported by your browser.</p>';
+            document.getElementById('location-status').className = 'p-3 bg-red-50 border border-red-200 rounded-lg';
+        }
+        
+        // Listen for project selection changes
+        document.getElementById('project-select').addEventListener('change', function() {
+            checkProjectLocation();
+        });
+    }
+    
+    // Reverse geocode to get address
+    function reverseGeocode(lat, lng) {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: { lat, lng } }, function(results, status) {
+            if (status === 'OK' && results[0]) {
+                document.getElementById('location-address').textContent = '📍 ' + results[0].formatted_address;
+            }
+        });
+    }
+    
+    // Check project location and validate distance
+    function checkProjectLocation() {
+        if (!userLocation) return;
+        
+        const projectSelect = document.getElementById('project-select');
+        const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+        const projectLat = selectedOption.getAttribute('data-lat');
+        const projectLng = selectedOption.getAttribute('data-lng');
+        const projectName = selectedOption.getAttribute('data-name');
+        
+        // Remove existing project marker
+        if (projectMarker) {
+            projectMarker.setMap(null);
+        }
+        
+        let statusText = 'Location captured successfully.';
+        let statusClass = 'bg-green-50 border-green-200 text-green-800';
+        
+        if (projectLat && projectLng) {
+            projectLocation = {
+                lat: parseFloat(projectLat),
+                lng: parseFloat(projectLng)
+            };
+            
+            // Add project marker
+            projectMarker = new google.maps.Marker({
+                position: projectLocation,
+                map: map,
+                title: projectName || 'Project Location',
+                icon: {
+                    url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                }
+            });
+            
+            // Add 20m radius circle around project
+            const projectCircle = new google.maps.Circle({
+                center: projectLocation,
+                radius: 20, // 20 meters
+                map: map,
+                fillColor: '#FF0000',
+                fillOpacity: 0.2,
+                strokeColor: '#FF0000',
+                strokeOpacity: 0.8,
+                strokeWeight: 2
+            });
+            
+            // Calculate distance using Google Maps Geometry library
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                new google.maps.LatLng(userLocation.lat, userLocation.lng),
+                new google.maps.LatLng(projectLocation.lat, projectLocation.lng)
+            );
+            
+            // Fit bounds to show both markers
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend(userLocation);
+            bounds.extend(projectLocation);
+            map.fitBounds(bounds);
+            
+            if (distance > 20) {
+                statusText = `⚠️ Warning: You are ${Math.round(distance)}m away from ${projectName || 'the project location'}. Check-in may be marked as invalid.`;
+                statusClass = 'bg-yellow-50 border-yellow-200 text-yellow-800';
+            } else {
+                statusText = `✅ Location verified! You are within 20m of ${projectName || 'the project location'}.`;
+                statusClass = 'bg-green-50 border-green-200 text-green-800';
+            }
+        } else {
+            // No project selected, just show user location
+            map.setCenter(userLocation);
+            map.setZoom(17);
+        }
+        
+        document.getElementById('location-status').innerHTML = `<p class="text-sm font-medium">${statusText}</p>`;
+        document.getElementById('location-status').className = `p-3 ${statusClass} rounded-lg`;
+        document.getElementById('submit-btn').disabled = false;
+    }
+    
+    // Fallback if Google Maps API fails to load
+    window.initMap = initMap;
+    
+    // Fallback distance calculation (Haversine formula) if Google Maps doesn't load
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Earth radius in meters
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180;
+        const Δλ = (lon2-lon1) * Math.PI/180;
+        
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        
+        return R * c; // Distance in meters
+    }
+</script>
+{% endblock %}
+

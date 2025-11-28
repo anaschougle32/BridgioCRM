@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Project - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Create Project</h1>
+        <a href="{% url 'projects:list' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Projects</a>
+    </div>
+    
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Basic Information -->
+            <div>
+                <h2 class="text-xl font-heading font-bold mb-4">Basic Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Project Name *</label>
+                        <input type="text" name="name" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Builder Name *</label>
+                        <input type="text" name="builder_name" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-2">Location *</label>
+                        <textarea name="location" rows="2" required
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">RERA ID</label>
+                        <input type="text" name="rera_id"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Project Type *</label>
+                        <select name="project_type" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                            <option value="">Select Type</option>
+                            {% for value, label in project_type_choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Starting Price (₹)</label>
+                        <input type="number" name="starting_price" step="0.01"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-2">Inventory Summary</label>
+                        <textarea name="inventory_summary" rows="3"
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tower and Unit Structure -->
+            <div>
+                <h2 class="text-xl font-heading font-bold mb-4">Tower and Unit Structure</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Number of Towers *</label>
+                        <input type="number" name="number_of_towers" value="1" min="1" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Floors per Tower *</label>
+                        <input type="number" name="floors_per_tower" value="1" min="1" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Units per Floor (Residential) *</label>
+                        <input type="number" name="units_per_floor" value="1" min="1" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" name="has_commercial" id="has_commercial"
+                               class="w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary"
+                               onchange="toggleCommercialFields()">
+                        <label for="has_commercial" class="ml-2 text-sm font-medium">Has Commercial Units</label>
+                    </div>
+                    <div id="commercial_fields" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Commercial Floors</label>
+                            <input type="number" name="commercial_floors" value="0" min="0"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Commercial Units per Floor</label>
+                            <input type="number" name="commercial_units_per_floor" value="0" min="0"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Location Coordinates -->
+            <div>
+                <h2 class="text-xl font-heading font-bold mb-4">Location Coordinates (for Attendance)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Latitude</label>
+                        <input type="number" name="latitude" step="0.000001"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Longitude</label>
+                        <input type="number" name="longitude" step="0.000001"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings -->
+            <div>
+                <h2 class="text-xl font-heading font-bold mb-4">Project Settings</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Default Commission %</label>
+                        <input type="number" name="default_commission_percent" step="0.01" value="0"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Auto Assignment Strategy</label>
+                        <select name="auto_assignment_strategy"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                            <option value="manual">Manual</option>
+                            <option value="round_robin">Round Robin</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Assignment -->
+            <div>
+                <h2 class="text-xl font-heading font-bold mb-4">Assignment</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% if mandate_owners %}
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Mandate Owner *</label>
+                        <select name="mandate_owner" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                            <option value="">Select Mandate Owner</option>
+                            {% for owner in mandate_owners %}
+                            <option value="{{ owner.id }}">{{ owner.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Site Head</label>
+                        <select name="site_head"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                            <option value="">None</option>
+                            {% for head in site_heads %}
+                            <option value="{{ head.id }}">{{ head.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submit -->
+            <div class="flex justify-end space-x-4">
+                <a href="{% url 'projects:list' %}" 
+                   class="px-6 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-6 py-2 bg-olive-primary text-white rounded-custom hover:bg-olive-secondary transition">
+                    Create Project
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleCommercialFields() {
+        const checkbox = document.getElementById('has_commercial');
+        const fields = document.getElementById('commercial_fields');
+        if (checkbox.checked) {
+            fields.classList.remove('hidden');
+        } else {
+            fields.classList.add('hidden');
+        }
+    }
+</script>
+{% endblock %}
+

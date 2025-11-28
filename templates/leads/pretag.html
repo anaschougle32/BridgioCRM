@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Pretag Lead - Bridgio CRM{% endblock %}
+
+{% block page_title %}Pretag Lead{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-heading font-semibold text-text-primary mb-2">Pretag Lead</h1>
+        <p class="text-text-secondary">Create a pretagged lead with Channel Partner details. These leads will be verified by Closing Managers via OTP when the client visits.</p>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+            
+            <!-- Client Information -->
+            <div>
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Client Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Name *</label>
+                        <input type="text" name="name" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Phone *</label>
+                        <input type="tel" name="phone" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Email</label>
+                        <input type="email" name="email"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Age</label>
+                        <input type="number" name="age" min="18" max="100"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Gender</label>
+                        <select name="gender"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Locality</label>
+                        <input type="text" name="locality"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Current Residence</label>
+                        <select name="current_residence"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select</option>
+                            <option value="own">Own</option>
+                            <option value="rent">Rent</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Occupation</label>
+                        <select name="occupation"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Occupation</option>
+                            <option value="self_emp">Self Employed</option>
+                            <option value="service">Service</option>
+                            <option value="homemaker">Homemaker</option>
+                            <option value="business">Business</option>
+                            <option value="retired">Retired</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Company Name</label>
+                        <input type="text" name="company_name"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Designation</label>
+                        <input type="text" name="designation"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Requirement Details -->
+            <div>
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Requirement Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">
+                            Select Projects * 
+                            <span class="text-xs text-gray-500 font-normal">(Select multiple for universal tagging - lead will be created for all selected projects)</span>
+                        </label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200 max-h-64 overflow-y-auto">
+                            {% for project in projects %}
+                            <label class="flex items-center space-x-2 p-2 hover:bg-white rounded cursor-pointer border border-gray-200">
+                                <input type="checkbox" name="projects" value="{{ project.id }}" 
+                                       class="rounded border-gray-300 text-olive-primary focus:ring-olive-primary">
+                                <span class="flex-1 text-sm">
+                                    <span class="font-medium">{{ project.name }}</span>
+                                    <span class="text-xs text-gray-500 block">{{ project.location }}</span>
+                                </span>
+                                <span class="text-yellow-500" title="Universal tagging - Lead will be created for this project too">⭐</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <p class="text-xs text-gray-600 mt-2">
+                            💡 <strong>Universal Tagging:</strong> When multiple projects are selected, the lead will be created for all selected projects. 
+                            This ensures CP leads are not wasted and can visit any of the selected projects.
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Configuration</label>
+                        <input type="text" name="configuration_text"
+                               placeholder="e.g., 2BHK, 3BHK"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        <p class="text-xs text-text-secondary mt-1">Note: Configuration will be stored as text for pretagged leads</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Budget (₹)</label>
+                        <input type="number" name="budget" step="0.01"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Purpose</label>
+                        <select name="purpose"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Purpose</option>
+                            <option value="investment">Investment</option>
+                            <option value="first_home">First Home</option>
+                            <option value="second_home">Second Home</option>
+                            <option value="retirement_home">Retirement Home</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Visit Type</label>
+                        <select name="visit_type"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select</option>
+                            <option value="family">Family</option>
+                            <option value="alone">Alone</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">First Visit or Revisit</label>
+                        <select name="is_first_visit"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="true">First Visit</option>
+                            <option value="false">Revisit</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">How did you hear about us?</label>
+                        <input type="text" name="how_did_you_hear"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Channel Partner Information (Mandatory for Pretag) -->
+            <div>
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">
+                    Channel Partner Information <span class="text-red-600">*</span>
+                </h2>
+                <p class="text-sm text-text-secondary mb-4">CP details are mandatory for pretagged leads.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">CP Firm Name *</label>
+                        <input type="text" name="cp_firm_name" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">CP Name *</label>
+                        <input type="text" name="cp_name" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">CP Phone *</label>
+                        <input type="tel" name="cp_phone" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">CP RERA Number</label>
+                        <input type="text" name="cp_rera_number"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submit -->
+            <div class="flex justify-end space-x-4 pt-4 border-t border-border-light">
+                <a href="{% url 'leads:list' %}" 
+                   class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
+                    Create Pretag
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

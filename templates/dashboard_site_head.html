@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Site Head - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Site Head Dashboard</h1>
+        <span class="text-sm text-gray-600">Welcome, {{ user.get_full_name|default:user.username }}</span>
+    </div>
+    
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ total_leads }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ new_visits_today }} new today</p>
+        </div>
+        
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Unassigned Leads</h3>
+            <p class="text-3xl font-bold text-orange-600">{{ unassigned_leads }}</p>
+            <a href="{% url 'leads:list' %}?assigned_to=" class="text-xs text-olive-primary hover:underline mt-1">View & Assign →</a>
+        </div>
+        
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Bookings</h3>
+            <p class="text-3xl font-bold text-olive-primary">{{ total_bookings }}</p>
+        </div>
+        
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Pending OTP Verification</h3>
+            <p class="text-3xl font-bold text-yellow-600">{{ pending_otp }}</p>
+            <a href="{% url 'leads:list' %}?pretag_status=pending_verification" class="text-xs text-olive-primary hover:underline mt-1">View Pretags →</a>
+        </div>
+    </div>
+    
+    <!-- Projects Overview -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+        <h2 class="text-xl font-heading font-bold text-olive-primary mb-4">My Projects</h2>
+        {% if projects %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for project in projects %}
+            <a href="{% url 'projects:detail' project.id %}" class="block p-4 border border-gray-200 rounded-lg hover:border-olive-primary hover:shadow-md transition">
+                <h3 class="font-semibold text-olive-primary">{{ project.name }}</h3>
+                <p class="text-sm text-gray-600 mt-1">{{ project.location }}</p>
+                <p class="text-xs text-gray-500 mt-2">Builder: {{ project.builder_name }}</p>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500">No projects assigned yet.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+        <h2 class="text-xl font-heading font-bold text-olive-primary mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'leads:list' %}?assigned_to=" class="p-4 border border-gray-200 rounded-lg hover:border-olive-primary hover:bg-olive-lighter transition text-center">
+                <p class="font-semibold text-olive-primary">Assign Leads</p>
+                <p class="text-xs text-gray-600 mt-1">Assign unassigned leads to employees</p>
+            </a>
+            <a href="{% url 'projects:list' %}" class="p-4 border border-gray-200 rounded-lg hover:border-olive-primary hover:bg-olive-lighter transition text-center">
+                <p class="font-semibold text-olive-primary">View Projects</p>
+                <p class="text-xs text-gray-600 mt-1">Manage project details</p>
+            </a>
+            <a href="{% url 'attendance:list' %}" class="p-4 border border-gray-200 rounded-lg hover:border-olive-primary hover:bg-olive-lighter transition text-center">
+                <p class="font-semibold text-olive-primary">View Attendance</p>
+                <p class="text-xs text-gray-600 mt-1">Check employee attendance</p>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
