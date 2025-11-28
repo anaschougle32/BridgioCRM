@@ -4,50 +4,50 @@
 
 {% block page_title %}Super Admin Dashboard{% endblock %}
 {% block content %}
-<div class="space-y-6">
-    <div class="flex justify-between items-center">
-        <h1 class="text-3xl font-heading font-bold text-olive-primary">Super Admin Dashboard</h1>
-        <div class="flex space-x-4">
+<div class="space-y-4 sm:space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+        <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Super Admin Dashboard</h1>
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
             <a href="{% url 'accounts:user_list' %}" 
-               class="bg-olive-primary text-white px-6 py-2 rounded-custom hover:bg-olive-secondary transition">
+               class="bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm sm:text-base">
                 Manage Users
             </a>
             <a href="{% url 'projects:list' %}" 
-               class="bg-olive-secondary text-white px-6 py-2 rounded-custom hover:bg-olive-primary transition">
+               class="bg-olive-secondary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-primary transition text-center text-sm sm:text-base">
                 Manage Projects
             </a>
         </div>
     </div>
     
     <!-- Key Metrics -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ total_leads|default:0 }}</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
+            <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ total_leads|default:0 }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ new_visits_today }} new today</p>
         </div>
         
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Bookings</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ total_bookings|default:0 }}</p>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Total Bookings</h3>
+            <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ total_bookings|default:0 }}</p>
             <p class="text-xs text-gray-500 mt-1">Across all projects</p>
         </div>
         
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Revenue</h3>
-            <p class="text-3xl font-bold text-olive-primary">₹{{ total_revenue|floatformat:0|default:0 }}</p>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Total Revenue</h3>
+            <p class="text-2xl sm:text-3xl font-bold text-olive-primary">₹{{ total_revenue|floatformat:0|default:0 }}</p>
             <p class="text-xs text-gray-500 mt-1">Avg: ₹{{ avg_booking_value|floatformat:0|default:0 }}</p>
         </div>
         
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Active Projects</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ total_projects|default:0 }}</p>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Active Projects</h3>
+            <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ total_projects|default:0 }}</p>
             <p class="text-xs text-gray-500 mt-1">{{ total_mandate_owners }} mandate owners</p>
         </div>
     </div>
     
     <!-- Project Performance -->
-    <div class="bg-white rounded-custom shadow-md p-6">
+    <div class="bg-white rounded-custom shadow-md p-4 sm:p-6 overflow-x-auto">
         <h2 class="text-xl font-heading font-bold mb-4">Top Projects by Revenue</h2>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">

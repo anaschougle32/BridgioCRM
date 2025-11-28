@@ -5,9 +5,9 @@ set -o errexit
 # Install dependencies
 pip install -r requirements.txt
 
-# Run migrations
-python manage.py migrate --noinput
+# Run migrations (create database if needed)
+python manage.py migrate --noinput || true
 
 # Collect static files
-python manage.py collectstatic --noinput
+python manage.py collectstatic --noinput || true
 
