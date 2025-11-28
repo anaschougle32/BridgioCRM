@@ -258,7 +258,7 @@ def lead_create(request):
         
         # Generate OTP
         otp_code = generate_otp()
-        sms_link = get_sms_deep_link(phone, otp_code)
+        whatsapp_link = get_sms_deep_link(phone, otp_code)  # Function name kept for compatibility, but returns WhatsApp link
         
         # Store OTP in session
         request.session['new_visit_otp'] = {
@@ -270,7 +270,7 @@ def lead_create(request):
         return JsonResponse({
             'success': True,
             'otp_code': otp_code,
-            'sms_link': sms_link,
+            'sms_link': whatsapp_link,  # Keep variable name for template compatibility
         })
     
     context = {
@@ -457,23 +457,23 @@ def send_otp(request, pk):
     
     if active_otp:
         # Return HTML for the OTP verification form
-        sms_link = get_sms_deep_link(lead.phone, active_otp.otp_code)
+        whatsapp_link = get_sms_deep_link(lead.phone, active_otp.otp_code)
         context = {
             'lead': lead,
             'latest_otp': active_otp,
             'now': now,
-            'sms_link': sms_link,
+            'sms_link': whatsapp_link,  # Keep variable name for template compatibility
             'otp_code': active_otp.otp_code,
         }
         html = render_to_string('leads/otp_controls.html', context, request=request)
-        # Add JavaScript to open SMS app if user wants to resend
+        # Add JavaScript to open WhatsApp if user wants to resend
         html += f'''
         <script>
-            // Option to open SMS app again if needed
-            const smsLink = '{sms_link}';
-            if (smsLink) {{
+            // Option to open WhatsApp again if needed
+            const whatsappLink = '{whatsapp_link}';
+            if (whatsappLink) {{
                 // Store link for manual opening if needed
-                window.currentSmsLink = smsLink;
+                window.currentWhatsAppLink = whatsappLink;
             }}
         </script>
         '''
@@ -495,29 +495,29 @@ def send_otp(request, pk):
         max_attempts=3,
     )
     
-    # Generate SMS deep link (opens phone's SMS app)
-    sms_link = get_sms_deep_link(lead.phone, otp_code)
+    # Generate WhatsApp deep link (opens WhatsApp)
+    whatsapp_link = get_sms_deep_link(lead.phone, otp_code)
     
-    # Return HTML for the OTP verification form with SMS link
-    # Include JavaScript to automatically open SMS app
+    # Return HTML for the OTP verification form with WhatsApp link
+    # Include JavaScript to automatically open WhatsApp
     context = {
         'lead': lead,
         'latest_otp': otp_log,
         'now': now,
-        'sms_link': sms_link,
-        'otp_code': otp_code,  # Show OTP for manual entry if SMS app doesn't open
+        'sms_link': whatsapp_link,  # Keep variable name for template compatibility
+        'otp_code': otp_code,  # Show OTP for manual entry if WhatsApp doesn't open
     }
     html = render_to_string('leads/otp_controls.html', context, request=request)
     
-    # Add JavaScript to automatically open SMS app
+    # Add JavaScript to automatically open WhatsApp
     html += f'''
     <script>
-        // Automatically open SMS app when OTP is generated
+        // Automatically open WhatsApp when OTP is generated
         (function() {{
-            const smsLink = '{sms_link}';
-            if (smsLink) {{
-                // Try to open SMS app
-                window.location.href = smsLink;
+            const whatsappLink = '{whatsapp_link}';
+            if (whatsappLink) {{
+                // Open WhatsApp in new tab/window
+                window.open(whatsappLink, '_blank');
             }}
         }})();
     </script>

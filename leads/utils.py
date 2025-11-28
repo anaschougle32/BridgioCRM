@@ -34,34 +34,34 @@ def verify_otp(otp, otp_hash, secret_key=None):
 
 def get_sms_deep_link(phone, otp):
     """
-    Generate SMS deep link to open phone's SMS app with pre-filled message
-    This avoids using SMS API and saves costs by using the phone's SMS app directly
+    Generate WhatsApp deep link to open WhatsApp with pre-filled message
+    This avoids using SMS API and saves costs by using WhatsApp directly
     
-    Format: sms:+91XXXXXXXXXX?body=MESSAGE
-    Note: URL encoding is needed for the message body
+    Format: https://wa.me/91XXXXXXXXXX?text=MESSAGE
     """
     from urllib.parse import quote
     
     # Clean phone number (remove spaces, dashes, etc.)
     clean_phone = phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
     
-    # Add country code if not present (assuming India +91)
-    if not clean_phone.startswith('+91') and not clean_phone.startswith('91'):
-        if clean_phone.startswith('0'):
-            clean_phone = '+91' + clean_phone[1:]
-        else:
-            clean_phone = '+91' + clean_phone
+    # Remove + or 91 prefix for WhatsApp (WhatsApp needs number without + or country code prefix)
+    if clean_phone.startswith('+91'):
+        clean_phone = clean_phone[3:]
+    elif clean_phone.startswith('91'):
+        clean_phone = clean_phone[2:]
+    elif clean_phone.startswith('0'):
+        clean_phone = clean_phone[1:]
     
-    # Create SMS message
-    message = f'Your OTP for Bridgio CRM is {otp}. Valid for 5 minutes.'
+    # Create WhatsApp message
+    message = f'Your OTP for Bridgio CRM is *{otp}*. Valid for 5 minutes.'
     
     # URL encode the message
     encoded_message = quote(message)
     
-    # Generate SMS deep link
-    sms_link = f'sms:{clean_phone}?body={encoded_message}'
+    # Generate WhatsApp deep link
+    whatsapp_link = f'https://wa.me/{clean_phone}?text={encoded_message}'
     
-    return sms_link
+    return whatsapp_link
 
 
 def get_phone_display(phone):
