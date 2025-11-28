@@ -244,7 +244,6 @@ def lead_create(request):
                 
                 messages.success(request, f'New visit created successfully! Lead #{lead.id} has been added.')
                 # Return JSON response for fetch/AJAX requests
-                from django.http import JsonResponse
                 return JsonResponse({
                     'success': True,
                     'message': f'New visit created successfully! Lead #{lead.id} has been added.',
