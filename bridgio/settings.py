@@ -95,32 +95,63 @@ WSGI_APPLICATION = 'bridgio.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# Using SQLite with Persistent Disk support on Render
-# Check if persistent disk is mounted (Render persistent disk path)
-PERSISTENT_DISK_PATH = os.environ.get('PERSISTENT_DISK_PATH', '/var/data')
+# Support multiple deployment platforms:
+# 1. PostgreSQL (Railway, Heroku, DigitalOcean) - via DATABASE_URL
+# 2. SQLite on persistent disk (Render, Fly.io) - via PERSISTENT_DISK_PATH or /data
+# 3. SQLite local (development)
 
-# Use persistent disk if it exists, otherwise use project directory
-if os.path.exists(PERSISTENT_DISK_PATH):
-    db_path = os.path.join(PERSISTENT_DISK_PATH, 'db.sqlite3')
-    db_dir = PERSISTENT_DISK_PATH
+# Check for PostgreSQL first (Railway, Heroku, etc.)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    try:
+        import dj_database_url
+        DATABASES = {
+            'default': dj_database_url.parse(DATABASE_URL)
+        }
+    except ImportError:
+        # Fallback to SQLite if dj_database_url not installed
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 else:
+    # Use SQLite with persistent disk support
+    # Check for persistent disk paths (Render: /var/data, Fly.io: /data)
+    PERSISTENT_DISK_PATH = os.environ.get('PERSISTENT_DISK_PATH', None)
+    
+    # Try common persistent disk paths
+    persistent_paths = []
+    if PERSISTENT_DISK_PATH:
+        persistent_paths.append(PERSISTENT_DISK_PATH)
+    persistent_paths.extend(['/var/data', '/data'])  # Render and Fly.io defaults
+    
+    db_path = None
+    for path in persistent_paths:
+        if os.path.exists(path):
+            db_path = os.path.join(path, 'db.sqlite3')
+            db_dir = path
+            break
+    
     # Fallback to project directory (for local development)
-    db_path = BASE_DIR / 'db.sqlite3'
-    db_dir = db_path.parent
-    if not db_dir.exists():
-        db_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(db_path)
-
-# Ensure the database directory exists
-if not os.path.exists(db_dir):
-    os.makedirs(db_dir, exist_ok=True)
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': db_path,
+    if not db_path:
+        db_path = BASE_DIR / 'db.sqlite3'
+        db_dir = db_path.parent
+        if not db_dir.exists():
+            db_dir.mkdir(parents=True, exist_ok=True)
+        db_path = str(db_path)
+    else:
+        # Ensure persistent disk directory exists
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+    
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': db_path,
+        }
     }
-}
 
 
 # Password validation
