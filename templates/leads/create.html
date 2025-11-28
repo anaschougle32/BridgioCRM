@@ -45,7 +45,7 @@
     </div>
     
     <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
-        <form id="new-visit-form" method="post" class="space-y-8">
+        <form id="new-visit-form" method="post" action="{% url 'leads:create' %}" class="space-y-8" onsubmit="return handleFormSubmit(event);">
             {% csrf_token %}
             <input type="hidden" name="step" id="form-step" value="1">
             
@@ -278,7 +278,7 @@
                             class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
                         ← Previous
                     </button>
-                    <button type="submit" 
+                    <button type="button" onclick="submitFinalForm()" 
                             class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
                         Create New Visit
                     </button>
@@ -449,6 +449,62 @@
             console.error('Error:', error);
             alert('An error occurred. Please try again.');
         });
+    }
+    
+    function submitFinalForm() {
+        // Submit step 4 (final step) via fetch
+        const form = document.getElementById('new-visit-form');
+        const formData = new FormData(form);
+        formData.set('step', '4');
+        
+        fetch('{% url "leads:create" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => {
+            // Check content type
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                // JSON response
+                return response.json().then(data => {
+                    if (data.success) {
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            window.location.href = '{% url "leads:list" %}';
+                        }
+                    } else {
+                        alert(data.error || 'An error occurred. Please try again.');
+                    }
+                });
+            } else {
+                // HTML response (redirect happened server-side)
+                // Follow the redirect
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    // Try to get redirect from response
+                    window.location.href = '{% url "leads:list" %}';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+    
+    function handleFormSubmit(event) {
+        // Prevent default form submission
+        event.preventDefault();
+        // Only handle if we're on step 4
+        if (currentStep === 4) {
+            submitFinalForm();
+        }
+        return false;
     }
     
     // Initialize

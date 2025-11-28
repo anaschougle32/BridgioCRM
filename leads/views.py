@@ -243,7 +243,13 @@ def lead_create(request):
                 request.session.pop('new_visit_otp_verified', None)
                 
                 messages.success(request, f'New visit created successfully! Lead #{lead.id} has been added.')
-                return redirect('leads:detail', pk=lead.id)
+                # Return JSON response for fetch/AJAX requests
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': True,
+                    'message': f'New visit created successfully! Lead #{lead.id} has been added.',
+                    'redirect_url': f'/leads/{lead.id}/'
+                })
                 
             except Project.DoesNotExist:
                 messages.error(request, 'Invalid project selected.')
