@@ -102,187 +102,175 @@ def dashboard(request):
         
         # Mandate Owner Dashboard
         elif hasattr(user, 'is_mandate_owner') and user.is_mandate_owner():
-        leads_qs = Lead.objects.filter(project__mandate_owner=user, is_archived=False)
-        bookings_qs = Booking.objects.filter(project__mandate_owner=user, is_archived=False)
-        projects = Project.objects.filter(mandate_owner=user, is_active=True)
-        
-        # Calculate revenue
-        total_revenue = Payment.objects.filter(booking__project__mandate_owner=user).aggregate(
-            total=Sum('amount')
-        )['total'] or 0
-        
-        # Project comparison with stats
-        project_comparison = projects.annotate(
-            lead_count=Count('leads', filter=Q(leads__is_archived=False)),
-            booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-            revenue=Sum('bookings__payments__amount')
-        ).order_by('-revenue', '-booking_count')
-        
-        # Employee stats
-        employees = User.objects.filter(mandate_owner=user, is_active=True)
-        employee_stats = employees.values('role').annotate(
-            count=Count('id')
-        ).order_by('role')
-        
-        context = {
-            'is_mandate_owner': True,
-            'total_leads': leads_qs.count(),
-            'new_visits_today': leads_qs.filter(created_at__date=today).count(),
-            'total_bookings': bookings_qs.count(),
-            'pending_otp': leads_qs.filter(
-                is_pretagged=True,
-                pretag_status='pending_verification'
-            ).count(),
-            'total_projects': projects.count(),
-            'total_revenue': total_revenue,
-            'project_comparison': project_comparison,
-            'employee_stats': employee_stats,
-            'total_employees': employees.count(),
-        }
+            leads_qs = Lead.objects.filter(project__mandate_owner=user, is_archived=False)
+            bookings_qs = Booking.objects.filter(project__mandate_owner=user, is_archived=False)
+            projects = Project.objects.filter(mandate_owner=user, is_active=True)
+            
+            # Calculate revenue
+            total_revenue = Payment.objects.filter(booking__project__mandate_owner=user).aggregate(
+                total=Sum('amount')
+            )['total'] or 0
+            
+            # Project comparison with stats
+            project_comparison = projects.annotate(
+                lead_count=Count('leads', filter=Q(leads__is_archived=False)),
+                booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
+                revenue=Sum('bookings__payments__amount')
+            ).order_by('-revenue', '-booking_count')
+            
+            # Employee stats
+            employees = User.objects.filter(mandate_owner=user, is_active=True)
+            employee_stats = employees.values('role').annotate(
+                count=Count('id')
+            ).order_by('role')
+            
+            context = {
+                'is_mandate_owner': True,
+                'total_leads': leads_qs.count(),
+                'new_visits_today': leads_qs.filter(created_at__date=today).count(),
+                'total_bookings': bookings_qs.count(),
+                'pending_otp': leads_qs.filter(
+                    is_pretagged=True,
+                    pretag_status='pending_verification'
+                ).count(),
+                'total_projects': projects.count(),
+                'total_revenue': total_revenue,
+                'project_comparison': project_comparison,
+                'employee_stats': employee_stats,
+                'total_employees': employees.count(),
+            }
             return render(request, 'dashboard_mandate_owner.html', context)
         
         # Site Head Dashboard
         elif hasattr(user, 'is_site_head') and user.is_site_head():
-        leads_qs = Lead.objects.filter(project__site_head=user, is_archived=False)
-        bookings_qs = Booking.objects.filter(project__site_head=user, is_archived=False)
-        projects = Project.objects.filter(site_head=user, is_active=True)
-        
-        # Unassigned leads
-        unassigned_leads = leads_qs.filter(assigned_to__isnull=True).count()
-        
-        # Employee stats
-        employees = User.objects.filter(
-            Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
-            mandate_owner=user.mandate_owner
-        )
-        
-        context = {
-            'is_site_head': True,
-            'total_leads': leads_qs.count(),
-            'new_visits_today': leads_qs.filter(created_at__date=today).count(),
-            'total_bookings': bookings_qs.count(),
-            'pending_otp': leads_qs.filter(
-                is_pretagged=True,
-                pretag_status='pending_verification'
-            ).count(),
-            'unassigned_leads': unassigned_leads,
-            'projects': projects,
-            'employees': employees,
-        }
+            leads_qs = Lead.objects.filter(project__site_head=user, is_archived=False)
+            bookings_qs = Booking.objects.filter(project__site_head=user, is_archived=False)
+            projects = Project.objects.filter(site_head=user, is_active=True)
+            
+            # Unassigned leads
+            unassigned_leads = leads_qs.filter(assigned_to__isnull=True).count()
+            
+            # Employee stats
+            employees = User.objects.filter(
+                Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
+                mandate_owner=user.mandate_owner
+            )
+            
+            context = {
+                'is_site_head': True,
+                'total_leads': leads_qs.count(),
+                'new_visits_today': leads_qs.filter(created_at__date=today).count(),
+                'total_bookings': bookings_qs.count(),
+                'pending_otp': leads_qs.filter(
+                    is_pretagged=True,
+                    pretag_status='pending_verification'
+                ).count(),
+                'unassigned_leads': unassigned_leads,
+                'projects': projects,
+                'employees': employees,
+            }
             return render(request, 'dashboard_site_head.html', context)
         
         # Closing Manager Dashboard
         elif hasattr(user, 'is_closing_manager') and user.is_closing_manager():
-        leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
-        bookings_qs = Booking.objects.filter(created_by=user, is_archived=False)
-        
-        # Today's callbacks
-        from leads.models import FollowUpReminder
-        todays_callbacks = FollowUpReminder.objects.filter(
-            lead__assigned_to=user,
-            reminder_date__date=today,
-            is_completed=False
-        ).count()
-        
-        context = {
-            'is_closing_manager': True,
-            'total_leads': leads_qs.count(),
-            'new_visits_today': leads_qs.filter(created_at__date=today).count(),
-            'total_bookings': bookings_qs.count(),
-            'pending_otp': leads_qs.filter(
-                is_pretagged=True,
-                pretag_status='pending_verification'
-            ).count(),
-            'todays_callbacks': todays_callbacks,
-        }
+            leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
+            bookings_qs = Booking.objects.filter(created_by=user, is_archived=False)
+            
+            # Today's callbacks
+            from leads.models import FollowUpReminder
+            todays_callbacks = FollowUpReminder.objects.filter(
+                lead__assigned_to=user,
+                reminder_date__date=today,
+                is_completed=False
+            ).count()
+            
+            context = {
+                'is_closing_manager': True,
+                'total_leads': leads_qs.count(),
+                'new_visits_today': leads_qs.filter(created_at__date=today).count(),
+                'total_bookings': bookings_qs.count(),
+                'pending_otp': leads_qs.filter(
+                    is_pretagged=True,
+                    pretag_status='pending_verification'
+                ).count(),
+                'todays_callbacks': todays_callbacks,
+            }
             return render(request, 'dashboard_closing_manager.html', context)
         
         # Sourcing Manager Dashboard
         elif hasattr(user, 'is_sourcing_manager') and user.is_sourcing_manager():
-        leads_qs = Lead.objects.filter(created_by=user, is_archived=False)
-        
-        context = {
-            'is_sourcing_manager': True,
-            'total_leads': leads_qs.count(),
-            'new_visits_today': leads_qs.filter(created_at__date=today).count(),
-            'pending_otp': leads_qs.filter(
-                is_pretagged=True,
-                pretag_status='pending_verification'
-            ).count(),
-        }
+            leads_qs = Lead.objects.filter(created_by=user, is_archived=False)
+            
+            context = {
+                'is_sourcing_manager': True,
+                'total_leads': leads_qs.count(),
+                'new_visits_today': leads_qs.filter(created_at__date=today).count(),
+                'pending_otp': leads_qs.filter(
+                    is_pretagged=True,
+                    pretag_status='pending_verification'
+                ).count(),
+            }
             return render(request, 'dashboard_sourcing_manager.html', context)
         
         # Telecaller Dashboard
         elif hasattr(user, 'is_telecaller') and user.is_telecaller():
-        leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
-        
-        # Today's callbacks
-        from leads.models import FollowUpReminder
-        todays_callbacks = FollowUpReminder.objects.filter(
-            lead__assigned_to=user,
-            reminder_date__date=today,
-            is_completed=False
-        ).count()
-        
-        # Active reminders
-        active_reminders = FollowUpReminder.objects.filter(
-            lead__assigned_to=user,
-            is_completed=False,
-            reminder_date__gte=timezone.now()
-        ).count()
-        
-        # Untouched leads (>24 hours)
-        from datetime import timedelta
-        yesterday = timezone.now() - timedelta(hours=24)
-        untouched_leads = leads_qs.filter(
-            status='new',
-            created_at__lt=yesterday
-        ).count()
-        
-        context = {
-            'is_telecaller': True,
-            'total_leads': leads_qs.count(),
-            'new_visits_today': leads_qs.filter(created_at__date=today).count(),
-            'todays_callbacks': todays_callbacks,
-            'active_reminders': active_reminders,
-            'untouched_leads': untouched_leads,
-        }
+            leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
+            
+            # Today's callbacks
+            from leads.models import FollowUpReminder
+            todays_callbacks = FollowUpReminder.objects.filter(
+                lead__assigned_to=user,
+                reminder_date__date=today,
+                is_completed=False
+            ).count()
+            
+            # Active reminders
+            active_reminders = FollowUpReminder.objects.filter(
+                lead__assigned_to=user,
+                is_completed=False,
+                reminder_date__gte=timezone.now()
+            ).count()
+            
+            # Untouched leads (>24 hours)
+            from datetime import timedelta
+            yesterday = timezone.now() - timedelta(hours=24)
+            untouched_leads = leads_qs.filter(
+                status='new',
+                created_at__lt=yesterday
+            ).count()
+            
+            context = {
+                'is_telecaller': True,
+                'total_leads': leads_qs.count(),
+                'new_visits_today': leads_qs.filter(created_at__date=today).count(),
+                'todays_callbacks': todays_callbacks,
+                'active_reminders': active_reminders,
+                'untouched_leads': untouched_leads,
+            }
             return render(request, 'dashboard_telecaller.html', context)
         
         # Default dashboard (fallback)
-        try:
-        try:
-            leads_qs = Lead.objects.filter(is_archived=False)
-        except Exception:
-            leads_qs = Lead.objects.none()
-        
-        try:
-            bookings_qs = Booking.objects.filter(is_archived=False)
-        except Exception:
-            bookings_qs = Booking.objects.none()
-        
-        context = {
-            'total_leads': leads_qs.count() if leads_qs else 0,
-            'new_visits_today': leads_qs.filter(created_at__date=today).count() if leads_qs else 0,
-            'total_bookings': bookings_qs.count() if bookings_qs else 0,
-            'pending_otp': leads_qs.filter(
-                is_pretagged=True,
-                pretag_status='pending_verification'
-            ).count() if leads_qs else 0,
-        }
-    except Exception as e:
-        # If database tables don't exist yet, provide empty context
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Dashboard error: {str(e)}", exc_info=True)
-        context = {
-            'total_leads': 0,
-            'new_visits_today': 0,
-            'total_bookings': 0,
-            'pending_otp': 0,
+        else:
+            try:
+                leads_qs = Lead.objects.filter(is_archived=False)
+            except Exception:
+                leads_qs = Lead.objects.none()
+            
+            try:
+                bookings_qs = Booking.objects.filter(is_archived=False)
+            except Exception:
+                bookings_qs = Booking.objects.none()
+            
+            context = {
+                'total_leads': leads_qs.count() if leads_qs else 0,
+                'new_visits_today': leads_qs.filter(created_at__date=today).count() if leads_qs else 0,
+                'total_bookings': bookings_qs.count() if bookings_qs else 0,
+                'pending_otp': leads_qs.filter(
+                    is_pretagged=True,
+                    pretag_status='pending_verification'
+                ).count() if leads_qs else 0,
             }
-        
-        return render(request, 'dashboard.html', context)
+            return render(request, 'dashboard.html', context)
     except Exception as e:
         # Catch any unexpected errors and show a safe fallback
         import logging
