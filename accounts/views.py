@@ -17,6 +17,18 @@ class CustomLoginView(LoginView):
     template_name = 'accounts/login.html'
     redirect_authenticated_user = True
     success_url = reverse_lazy('dashboard')
+    
+    def form_valid(self, form):
+        """Handle successful login"""
+        try:
+            return super().form_valid(form)
+        except Exception as e:
+            # Log error but don't expose it to user
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Login error: {str(e)}", exc_info=True)
+            # Return form with error
+            return self.form_invalid(form)
 
 
 @login_required
