@@ -99,9 +99,9 @@ def dashboard(request):
                 'user_stats': user_stats,
             }
             return render(request, 'dashboard_super_admin.html', context)
-    
-    # Mandate Owner Dashboard
-    elif hasattr(user, 'is_mandate_owner') and user.is_mandate_owner():
+        
+        # Mandate Owner Dashboard
+        elif hasattr(user, 'is_mandate_owner') and user.is_mandate_owner():
         leads_qs = Lead.objects.filter(project__mandate_owner=user, is_archived=False)
         bookings_qs = Booking.objects.filter(project__mandate_owner=user, is_archived=False)
         projects = Project.objects.filter(mandate_owner=user, is_active=True)
@@ -139,10 +139,10 @@ def dashboard(request):
             'employee_stats': employee_stats,
             'total_employees': employees.count(),
         }
-        return render(request, 'dashboard_mandate_owner.html', context)
-    
-    # Site Head Dashboard
-    elif hasattr(user, 'is_site_head') and user.is_site_head():
+            return render(request, 'dashboard_mandate_owner.html', context)
+        
+        # Site Head Dashboard
+        elif hasattr(user, 'is_site_head') and user.is_site_head():
         leads_qs = Lead.objects.filter(project__site_head=user, is_archived=False)
         bookings_qs = Booking.objects.filter(project__site_head=user, is_archived=False)
         projects = Project.objects.filter(site_head=user, is_active=True)
@@ -169,10 +169,10 @@ def dashboard(request):
             'projects': projects,
             'employees': employees,
         }
-        return render(request, 'dashboard_site_head.html', context)
-    
-    # Closing Manager Dashboard
-    elif hasattr(user, 'is_closing_manager') and user.is_closing_manager():
+            return render(request, 'dashboard_site_head.html', context)
+        
+        # Closing Manager Dashboard
+        elif hasattr(user, 'is_closing_manager') and user.is_closing_manager():
         leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
         bookings_qs = Booking.objects.filter(created_by=user, is_archived=False)
         
@@ -195,10 +195,10 @@ def dashboard(request):
             ).count(),
             'todays_callbacks': todays_callbacks,
         }
-        return render(request, 'dashboard_closing_manager.html', context)
-    
-    # Sourcing Manager Dashboard
-    elif hasattr(user, 'is_sourcing_manager') and user.is_sourcing_manager():
+            return render(request, 'dashboard_closing_manager.html', context)
+        
+        # Sourcing Manager Dashboard
+        elif hasattr(user, 'is_sourcing_manager') and user.is_sourcing_manager():
         leads_qs = Lead.objects.filter(created_by=user, is_archived=False)
         
         context = {
@@ -210,10 +210,10 @@ def dashboard(request):
                 pretag_status='pending_verification'
             ).count(),
         }
-        return render(request, 'dashboard_sourcing_manager.html', context)
-    
-    # Telecaller Dashboard
-    elif hasattr(user, 'is_telecaller') and user.is_telecaller():
+            return render(request, 'dashboard_sourcing_manager.html', context)
+        
+        # Telecaller Dashboard
+        elif hasattr(user, 'is_telecaller') and user.is_telecaller():
         leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
         
         # Today's callbacks
@@ -247,10 +247,10 @@ def dashboard(request):
             'active_reminders': active_reminders,
             'untouched_leads': untouched_leads,
         }
-        return render(request, 'dashboard_telecaller.html', context)
-    
-    # Default dashboard (fallback)
-    try:
+            return render(request, 'dashboard_telecaller.html', context)
+        
+        # Default dashboard (fallback)
+        try:
         try:
             leads_qs = Lead.objects.filter(is_archived=False)
         except Exception:
@@ -280,8 +280,23 @@ def dashboard(request):
             'new_visits_today': 0,
             'total_bookings': 0,
             'pending_otp': 0,
+            }
+        
+        return render(request, 'dashboard.html', context)
+    except Exception as e:
+        # Catch any unexpected errors and show a safe fallback
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Dashboard error: {str(e)}", exc_info=True)
+        
+        # Return a minimal dashboard
+        context = {
+            'total_leads': 0,
+            'new_visits_today': 0,
+            'total_bookings': 0,
+            'pending_otp': 0,
+            'error': str(e) if DEBUG else 'An error occurred. Please check the logs.',
         }
-    
-    return render(request, 'dashboard.html', context)
+        return render(request, 'dashboard.html', context)
 
 
