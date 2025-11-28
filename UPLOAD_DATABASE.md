@@ -1,6 +1,57 @@
 # How to Use Your Existing Database on Render
 
-## Option 1: Upload Database via Render Shell (Recommended for Testing)
+## Option 1: Use Persistent Disk (Recommended - Same as Your Other Project!)
+
+If your other Django project on Render uses SQLite without issues, you're likely using a **Persistent Disk**. This is the proper way to use SQLite on Render.
+
+### Step 1: Add Persistent Disk in Render Dashboard
+1. Go to Render Dashboard → Your Service → **Disks** tab
+2. Click **Add Disk**
+3. Set:
+   - **Mount Path**: `/var/data` (or any path you prefer)
+   - **Size**: 1GB (or more if needed)
+4. Save and wait for the disk to be attached
+
+### Step 2: Update Settings (Already Done!)
+The settings are already configured to use `/var/data` if it exists. The database will automatically be stored on the persistent disk.
+
+### Step 3: Upload Your Existing Database
+1. Go to Render Dashboard → Your Service → **Shell**
+2. Navigate to the persistent disk:
+   ```bash
+   cd /var/data
+   ```
+3. Upload your database using one of these methods:
+
+   **Method A: Using Base64 (easiest)**
+   
+   On your local machine (PowerShell):
+   ```powershell
+   cd "C:\Users\Dalvi Faiz\Downloads\BridgioCRM"
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("db.sqlite3")) | Out-File db_base64.txt
+   ```
+   - Open `db_base64.txt` and copy all the content
+   
+   In Render Shell:
+   ```bash
+   cd /var/data
+   # Paste the base64 content between quotes
+   echo "PASTE_BASE64_CONTENT_HERE" | base64 -d > db.sqlite3
+   chmod 644 db.sqlite3
+   ```
+
+   **Method B: Using SCP (if you have SSH access)**
+   ```bash
+   # From your local machine
+   scp db.sqlite3 render:/var/data/db.sqlite3
+   ```
+
+### Step 4: Restart Service
+- Go to Render Dashboard → Your Service → **Manual Deploy** → **Clear build cache & deploy**
+
+**✅ With Persistent Disk, your database will persist across redeploys!**
+
+## Option 2: Upload Database via Render Shell (Without Persistent Disk)
 
 ### Step 1: Prepare Your Database File
 1. Make sure your `db.sqlite3` file is up to date with all migrations
@@ -47,7 +98,7 @@ chmod 644 db.sqlite3
 ### Step 4: Restart Service
 - Go to Render Dashboard → Your Service → **Manual Deploy** → **Clear build cache & deploy**
 
-## Option 2: Include Database in Git (NOT RECOMMENDED for Production)
+## Option 3: Include Database in Git (NOT RECOMMENDED for Production)
 
 ⚠️ **Warning**: This will commit your database to version control, which is not secure for production.
 
@@ -63,7 +114,7 @@ git commit -m "Remove database from version control"
 git push
 ```
 
-## Option 3: Use PostgreSQL (Recommended for Production)
+## Option 4: Use PostgreSQL (Alternative for Production)
 
 For persistent storage, consider switching to PostgreSQL:
 
@@ -122,10 +173,10 @@ For persistent storage, consider switching to PostgreSQL:
 
 ## Important Notes
 
-### ⚠️ SQLite Limitations on Render Free Tier:
-- **Ephemeral Filesystem**: Your database will be **lost on every redeploy**
-- **No Persistence**: Data is not saved between deployments
-- **Single Process**: SQLite doesn't work well with multiple workers
+### ⚠️ SQLite on Render:
+- **Without Persistent Disk**: Database will be **lost on every redeploy** (ephemeral filesystem)
+- **With Persistent Disk**: Database **persists across redeploys** ✅ (recommended)
+- **Single Process**: SQLite doesn't work well with multiple workers (use 1 worker for SQLite)
 
 ### ✅ Recommended Solution:
 For production use, **switch to PostgreSQL** (Option 3) which provides:

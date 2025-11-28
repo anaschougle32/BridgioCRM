@@ -95,17 +95,30 @@ WSGI_APPLICATION = 'bridgio.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# Using SQLite (works on Render, but note: data may be lost on redeploy on free tier)
+# Using SQLite with Persistent Disk support on Render
+# Check if persistent disk is mounted (Render persistent disk path)
+PERSISTENT_DISK_PATH = os.environ.get('PERSISTENT_DISK_PATH', '/var/data')
+
+# Use persistent disk if it exists, otherwise use project directory
+if os.path.exists(PERSISTENT_DISK_PATH):
+    db_path = os.path.join(PERSISTENT_DISK_PATH, 'db.sqlite3')
+    db_dir = PERSISTENT_DISK_PATH
+else:
+    # Fallback to project directory (for local development)
+    db_path = BASE_DIR / 'db.sqlite3'
+    db_dir = db_path.parent
+    if not db_dir.exists():
+        db_dir.mkdir(parents=True, exist_ok=True)
+    db_path = str(db_path)
+
 # Ensure the database directory exists
-db_path = BASE_DIR / 'db.sqlite3'
-db_dir = db_path.parent
-if not db_dir.exists():
-    db_dir.mkdir(parents=True, exist_ok=True)
+if not os.path.exists(db_dir):
+    os.makedirs(db_dir, exist_ok=True)
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': str(db_path),
+        'NAME': db_path,
     }
 }
 

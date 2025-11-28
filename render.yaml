@@ -4,7 +4,8 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py create_superuser --username admin --email admin@bridgio.com --password admin123 || true
-    startCommand: gunicorn bridgio.wsgi:application
+    startCommand: gunicorn bridgio.wsgi:application --workers 1
+    # Note: Use 1 worker for SQLite (SQLite doesn't support multiple concurrent writers)
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -16,4 +17,11 @@ services:
         value: bridgiocrm.onrender.com,*.onrender.com
       - key: GOOGLE_MAPS_API_KEY
         value: AIzaSyCwcFvh1vVe979dldumRkBnV01VU3msn30
+      - key: PERSISTENT_DISK_PATH
+        value: /var/data
+    # To add persistent disk:
+    # 1. Go to Render Dashboard → Your Service → Disks
+    # 2. Click "Add Disk"
+    # 3. Mount Path: /var/data
+    # 4. Size: 1GB (or more)
 
