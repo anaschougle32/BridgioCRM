@@ -1,0 +1,2735 @@
+[
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$EYVCYaMXAX18kB5yk4wb77$pTWJA33PUT20zlBbk8JbpQbaBQ95miiNUL3/KJEj6IY=",
+    "last_login": "2025-11-28T10:43:22.766Z",
+    "is_superuser": true,
+    "username": "superadmin",
+    "first_name": "",
+    "last_name": "",
+    "email": "superadmin@bridgio.com",
+    "is_staff": true,
+    "date_joined": "2025-11-28T09:46:14Z",
+    "role": "super_admin",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T09:46:14.658Z",
+    "updated_at": "2025-11-28T10:11:04.632Z",
+    "mandate_owner": null,
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$imtv1TXia88fpCGcT5qqIk$LR60s2BtTcxInOe9CQZKWhlewaUQ6p0b1/UYgMYDMsI=",
+    "last_login": "2025-11-28T15:13:12.020Z",
+    "is_superuser": false,
+    "username": "anaschougle",
+    "first_name": "Mohammad Anas",
+    "last_name": "Chougle",
+    "email": "anas@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:12:23.407Z",
+    "role": "mandate_owner",
+    "phone": "9867975473",
+    "is_active": true,
+    "created_at": "2025-11-28T10:12:24.038Z",
+    "updated_at": "2025-11-28T10:12:24.038Z",
+    "mandate_owner": null,
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$oS4V42v4k8Gtqn2uqXdt5G$8oR10MP6BbK7Iip/CzFjJGIgkNMI3YqzsUnc9jDonWo=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "manishmore",
+    "first_name": "Manish ",
+    "last_name": "More",
+    "email": "manish@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:14:15.907Z",
+    "role": "mandate_owner",
+    "phone": "9867975473",
+    "is_active": true,
+    "created_at": "2025-11-28T10:14:16.535Z",
+    "updated_at": "2025-11-28T10:14:16.535Z",
+    "mandate_owner": null,
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$HXv8U5qARLLssbOkiLOOws$z9cHCk9/Hgfa/KLjc8va7nN6sSamrHosynpmFEJUGz0=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "malleshborate",
+    "first_name": "Mallesh",
+    "last_name": "Borate",
+    "email": "mallesh@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:15:06.953Z",
+    "role": "mandate_owner",
+    "phone": "9867975473",
+    "is_active": true,
+    "created_at": "2025-11-28T10:15:07.586Z",
+    "updated_at": "2025-11-28T10:15:07.586Z",
+    "mandate_owner": null,
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$toryZiBplnoN7TjhqdHBpC$DVIYFHOpCB5Nr271nGr1r7/fdivoYq7eSuveZCIOniI=",
+    "last_login": "2025-11-28T19:05:55.309Z",
+    "is_superuser": false,
+    "username": "sitehead1",
+    "first_name": "",
+    "last_name": "",
+    "email": "sitehead1@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:25:31.747Z",
+    "role": "site_head",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T10:25:32.029Z",
+    "updated_at": "2025-11-28T10:25:32.029Z",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$Y9SHqudW4MLAoBkoSs5EBx$SWKwHpZi19xuq9NtZOXesh9mnevksyidc+tqbDIICZA=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "sitehead2",
+    "first_name": "",
+    "last_name": "",
+    "email": "sitehead2@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:26:16.945Z",
+    "role": "site_head",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:17.339Z",
+    "updated_at": "2025-11-28T10:26:17.339Z",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$TGHgrfRV3VswT8wCWdqtix$y3h+ZI+TJ+4WWKH5MgHcvOcNj7W8XgfnttKRwbR9yWo=",
+    "last_login": "2025-11-28T19:11:51.351Z",
+    "is_superuser": false,
+    "username": "closer1",
+    "first_name": "",
+    "last_name": "",
+    "email": "closer1@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:26:17.350Z",
+    "role": "closing_manager",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:17.712Z",
+    "updated_at": "2025-11-28T10:26:17.712Z",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$0OvPLEy4WBpQkGUzp1cuVz$v8RCISOS6RawKNQuCPfbZ/U2yvQJBIAuR4+6aNrSfyQ=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "closer2",
+    "first_name": "",
+    "last_name": "",
+    "email": "closer2@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:26:17.745Z",
+    "role": "closing_manager",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:18.114Z",
+    "updated_at": "2025-11-28T10:26:18.114Z",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$tSbQrv7LVXR0fKKRCtmbSZ$5Ev40VnfQajMOQHStf1L37KcQ1nQNRIxcarWljdiciA=",
+    "last_login": "2025-11-28T16:32:50.128Z",
+    "is_superuser": false,
+    "username": "sourcing1",
+    "first_name": "",
+    "last_name": "",
+    "email": "sourcing1@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:26:18.130Z",
+    "role": "sourcing_manager",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:18.478Z",
+    "updated_at": "2025-11-28T10:26:18.478Z",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$umuI6mI7ENjD0HgFIQWn36$lanJoojq3bn2LKybyBsBBkFnPQwueYmRAeRDsLuYbAc=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "sourcing2",
+    "first_name": "",
+    "last_name": "",
+    "email": "sourcing2@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:26:18.491Z",
+    "role": "sourcing_manager",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:18.860Z",
+    "updated_at": "2025-11-28T10:26:18.860Z",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$Ci2CMIBCDS4WVUdhImvVD0$Mya1nVM2TA3xYt3e8IrccG584KChjfuT8w4t/+5ETn8=",
+    "last_login": "2025-11-28T19:29:15.452Z",
+    "is_superuser": false,
+    "username": "telecaller1",
+    "first_name": "",
+    "last_name": "",
+    "email": "telecaller1@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:26:18.867Z",
+    "role": "telecaller",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:19.269Z",
+    "updated_at": "2025-11-28T10:26:19.269Z",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$BvN7ivpSPKJrsaWCJdJG0r$Ptmj9S+2EsNTUl85aqzvP6y/XLIcVR4ZPp/oVXXXlIo=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "telecaller2",
+    "first_name": "",
+    "last_name": "",
+    "email": "telecaller2@bridgio.com",
+    "is_staff": false,
+    "date_joined": "2025-11-28T10:26:19.281Z",
+    "role": "telecaller",
+    "phone": null,
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:19.621Z",
+    "updated_at": "2025-11-28T10:26:19.621Z",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "groups": [],
+    "user_permissions": [],
+    "assigned_projects": []
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 1,
+  "fields": {
+    "name": "Green Valley Residency",
+    "builder_name": "Green Builders Pvt Ltd",
+    "location": "Andheri West, Mumbai",
+    "rera_id": "P52100001234",
+    "project_type": "mixed",
+    "starting_price": "8500000.00",
+    "inventory_summary": "",
+    "number_of_towers": 3,
+    "floors_per_tower": 15,
+    "units_per_floor": 4,
+    "has_commercial": true,
+    "commercial_floors": 2,
+    "commercial_units_per_floor": 6,
+    "latitude": null,
+    "longitude": null,
+    "default_commission_percent": "0.00",
+    "auto_assignment_strategy": "manual",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "site_head": [
+      "sitehead1"
+    ],
+    "is_active": true,
+    "created_at": "2025-11-28T10:25:36.835Z",
+    "updated_at": "2025-11-28T10:30:41.718Z"
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 2,
+  "fields": {
+    "name": "Luxury Heights",
+    "builder_name": "Premium Developers",
+    "location": "Powai, Mumbai",
+    "rera_id": "P52100005678",
+    "project_type": "residential",
+    "starting_price": "12000000.00",
+    "inventory_summary": "",
+    "number_of_towers": 2,
+    "floors_per_tower": 20,
+    "units_per_floor": 3,
+    "has_commercial": false,
+    "commercial_floors": 0,
+    "commercial_units_per_floor": 0,
+    "latitude": null,
+    "longitude": null,
+    "default_commission_percent": "0.00",
+    "auto_assignment_strategy": "manual",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "site_head": [
+      "sitehead2"
+    ],
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:27.771Z",
+    "updated_at": "2025-11-28T10:26:27.771Z"
+  }
+},
+{
+  "model": "projects.project",
+  "pk": 3,
+  "fields": {
+    "name": "Business Hub Commercial",
+    "builder_name": "Commercial Spaces Ltd",
+    "location": "Bandra Kurla Complex, Mumbai",
+    "rera_id": "P52100009876",
+    "project_type": "commercial",
+    "starting_price": "25000000.00",
+    "inventory_summary": "",
+    "number_of_towers": 1,
+    "floors_per_tower": 10,
+    "units_per_floor": 8,
+    "has_commercial": true,
+    "commercial_floors": 10,
+    "commercial_units_per_floor": 8,
+    "latitude": null,
+    "longitude": null,
+    "default_commission_percent": "0.00",
+    "auto_assignment_strategy": "manual",
+    "mandate_owner": [
+      "anaschougle"
+    ],
+    "site_head": [
+      "sitehead1"
+    ],
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:27.811Z",
+    "updated_at": "2025-11-28T10:26:27.811Z"
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 1,
+  "fields": {
+    "project": 1,
+    "name": "1BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 2,
+  "fields": {
+    "project": 1,
+    "name": "2BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 3,
+  "fields": {
+    "project": 1,
+    "name": "3BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 4,
+  "fields": {
+    "project": 1,
+    "name": "4BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 5,
+  "fields": {
+    "project": 2,
+    "name": "1BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 6,
+  "fields": {
+    "project": 2,
+    "name": "2BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 7,
+  "fields": {
+    "project": 2,
+    "name": "3BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 8,
+  "fields": {
+    "project": 2,
+    "name": "4BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 9,
+  "fields": {
+    "project": 3,
+    "name": "1BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 10,
+  "fields": {
+    "project": 3,
+    "name": "2BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 11,
+  "fields": {
+    "project": 3,
+    "name": "3BHK",
+    "description": ""
+  }
+},
+{
+  "model": "projects.projectconfiguration",
+  "pk": 12,
+  "fields": {
+    "project": 3,
+    "name": "4BHK",
+    "description": ""
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 1,
+  "fields": {
+    "name": "Rahul Sharma",
+    "phone": "9876500001",
+    "email": "rahul.sharma@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "16590169.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "new",
+    "assigned_to": [
+      "telecaller2"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.895Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.415Z",
+    "updated_at": "2025-11-28T19:11:36.895Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 2,
+  "fields": {
+    "name": "Priya Patel",
+    "phone": "9876500002",
+    "email": "priya.patel@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "15050931.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "visit_scheduled",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.151Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.426Z",
+    "updated_at": "2025-11-28T19:09:49.151Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 3,
+  "fields": {
+    "name": "Amit Kumar",
+    "phone": "9876500003",
+    "email": "amit.kumar@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "19832870.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "visit_completed",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.161Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.440Z",
+    "updated_at": "2025-11-28T19:09:49.162Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 4,
+  "fields": {
+    "name": "Sneha Desai",
+    "phone": "9876500004",
+    "email": "sneha.desai@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "7104449.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "hot",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.172Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.452Z",
+    "updated_at": "2025-11-28T19:09:49.172Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 5,
+  "fields": {
+    "name": "Vikram Singh",
+    "phone": "9876500005",
+    "email": "vikram.singh@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "14475110.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 3,
+    "cp_firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_phone": "9876543212",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "new",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.459Z",
+    "updated_at": "2025-11-28T10:26:44.459Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 6,
+  "fields": {
+    "name": "Anjali Mehta",
+    "phone": "9876500006",
+    "email": "anjali.mehta@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "19614584.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 3,
+    "cp_firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_phone": "9876543212",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": true,
+    "status": "contacted",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.184Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.471Z",
+    "updated_at": "2025-11-28T19:09:49.184Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 7,
+  "fields": {
+    "name": "Rohit Gupta",
+    "phone": "9876500007",
+    "email": "rohit.gupta@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "17017015.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "new",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.191Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.483Z",
+    "updated_at": "2025-11-28T19:09:49.191Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 8,
+  "fields": {
+    "name": "Kavita Joshi",
+    "phone": "9876500008",
+    "email": "kavita.joshi@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "14311693.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": true,
+    "status": "contacted",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.204Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.493Z",
+    "updated_at": "2025-11-28T19:09:49.204Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 9,
+  "fields": {
+    "name": "Manish Shah",
+    "phone": "9876500009",
+    "email": "manish.shah@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "17268310.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "visit_scheduled",
+    "assigned_to": [
+      "telecaller2"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.902Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.508Z",
+    "updated_at": "2025-11-28T19:11:36.902Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 10,
+  "fields": {
+    "name": "Divya Reddy",
+    "phone": "9876500010",
+    "email": "divya.reddy@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "6200291.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 3,
+    "cp_firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_phone": "9876543212",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "hot",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.211Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.522Z",
+    "updated_at": "2025-11-28T19:09:49.212Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 11,
+  "fields": {
+    "name": "Suresh Nair",
+    "phone": "9876500011",
+    "email": "suresh.nair@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "homemaker",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "13945642.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 3,
+    "cp_firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_phone": "9876543212",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": true,
+    "status": "contacted",
+    "assigned_to": [
+      "telecaller2"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.914Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.539Z",
+    "updated_at": "2025-11-28T19:11:36.914Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 12,
+  "fields": {
+    "name": "Meera Iyer",
+    "phone": "9876500012",
+    "email": "meera.iyer@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "12065961.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 3,
+    "cp_firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_phone": "9876543212",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "discussion",
+    "assigned_to": [
+      "telecaller2"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.920Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.553Z",
+    "updated_at": "2025-11-28T19:11:36.920Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 13,
+  "fields": {
+    "name": "Arjun Menon",
+    "phone": "9876500013",
+    "email": "arjun.menon@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "homemaker",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "12724828.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "discussion",
+    "assigned_to": [
+      "telecaller2"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.931Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.561Z",
+    "updated_at": "2025-11-28T19:11:36.931Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 14,
+  "fields": {
+    "name": "Pooja Nair",
+    "phone": "9876500014",
+    "email": "pooja.nair@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "homemaker",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "8578990.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": true,
+    "status": "visit_scheduled",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.573Z",
+    "updated_at": "2025-11-28T10:26:44.573Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 15,
+  "fields": {
+    "name": "Karan Malhotra",
+    "phone": "9876500015",
+    "email": "karan.malhotra@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "homemaker",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "14163469.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": true,
+    "status": "contacted",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.220Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:26:44.586Z",
+    "updated_at": "2025-11-28T19:09:49.220Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 16,
+  "fields": {
+    "name": "Rahul Sharma",
+    "phone": "9876500001",
+    "email": "rahul.sharma@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "17809028.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "visit_completed",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.226Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.678Z",
+    "updated_at": "2025-11-28T19:09:49.227Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 17,
+  "fields": {
+    "name": "Priya Patel",
+    "phone": "9876500002",
+    "email": "priya.patel@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "15991662.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "new",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.697Z",
+    "updated_at": "2025-11-28T10:27:04.697Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 18,
+  "fields": {
+    "name": "Amit Kumar",
+    "phone": "9876500003",
+    "email": "amit.kumar@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "16588850.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "discussion",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.717Z",
+    "updated_at": "2025-11-28T10:27:04.717Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 19,
+  "fields": {
+    "name": "Sneha Desai",
+    "phone": "9876500004",
+    "email": "sneha.desai@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "17667250.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "hot",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.731Z",
+    "updated_at": "2025-11-28T10:27:04.731Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 20,
+  "fields": {
+    "name": "Vikram Singh",
+    "phone": "9876500005",
+    "email": "vikram.singh@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "13100715.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "visit_scheduled",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.236Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.746Z",
+    "updated_at": "2025-11-28T19:09:49.236Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 21,
+  "fields": {
+    "name": "Anjali Mehta",
+    "phone": "9876500006",
+    "email": "anjali.mehta@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "homemaker",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "13841690.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "visit_completed",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.242Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.760Z",
+    "updated_at": "2025-11-28T19:09:49.242Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 22,
+  "fields": {
+    "name": "Rohit Gupta",
+    "phone": "9876500007",
+    "email": "rohit.gupta@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "18455846.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "discussion",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.772Z",
+    "updated_at": "2025-11-28T10:27:04.772Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 23,
+  "fields": {
+    "name": "Kavita Joshi",
+    "phone": "9876500008",
+    "email": "kavita.joshi@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "14766513.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "hot",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.791Z",
+    "updated_at": "2025-11-28T10:27:04.792Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 24,
+  "fields": {
+    "name": "Manish Shah",
+    "phone": "9876500009",
+    "email": "manish.shah@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "15924514.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "visit_scheduled",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.252Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.805Z",
+    "updated_at": "2025-11-28T19:09:49.253Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 25,
+  "fields": {
+    "name": "Divya Reddy",
+    "phone": "9876500010",
+    "email": "divya.reddy@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "14870857.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": true,
+    "status": "hot",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.822Z",
+    "updated_at": "2025-11-28T10:27:04.822Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 26,
+  "fields": {
+    "name": "Suresh Nair",
+    "phone": "9876500011",
+    "email": "suresh.nair@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "10481278.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "hot",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.844Z",
+    "updated_at": "2025-11-28T10:27:04.844Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 27,
+  "fields": {
+    "name": "Meera Iyer",
+    "phone": "9876500012",
+    "email": "meera.iyer@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "15390945.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "contacted",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.859Z",
+    "updated_at": "2025-11-28T10:27:04.859Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 28,
+  "fields": {
+    "name": "Arjun Menon",
+    "phone": "9876500013",
+    "email": "arjun.menon@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "19747185.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "contacted",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.873Z",
+    "updated_at": "2025-11-28T10:27:04.874Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 29,
+  "fields": {
+    "name": "Pooja Nair",
+    "phone": "9876500014",
+    "email": "pooja.nair@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "16744101.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": true,
+    "status": "visit_completed",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.889Z",
+    "updated_at": "2025-11-28T10:27:04.889Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 30,
+  "fields": {
+    "name": "Karan Malhotra",
+    "phone": "9876500015",
+    "email": "karan.malhotra@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "10615743.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "visit_scheduled",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:04.903Z",
+    "updated_at": "2025-11-28T10:27:04.903Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 31,
+  "fields": {
+    "name": "Rahul Sharma",
+    "phone": "9876500001",
+    "email": "rahul.sharma@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "12080800.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "discussion",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.573Z",
+    "updated_at": "2025-11-28T10:27:21.573Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 32,
+  "fields": {
+    "name": "Priya Patel",
+    "phone": "9876500002",
+    "email": "priya.patel@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "13577908.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "visit_completed",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.258Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.601Z",
+    "updated_at": "2025-11-28T19:09:49.258Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 33,
+  "fields": {
+    "name": "Amit Kumar",
+    "phone": "9876500003",
+    "email": "amit.kumar@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "10577165.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "contacted",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.268Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.613Z",
+    "updated_at": "2025-11-28T19:09:49.268Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 34,
+  "fields": {
+    "name": "Sneha Desai",
+    "phone": "9876500004",
+    "email": "sneha.desai@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "8673384.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 3,
+    "cp_firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_phone": "9876543212",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "visit_scheduled",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.623Z",
+    "updated_at": "2025-11-28T10:27:21.623Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 35,
+  "fields": {
+    "name": "Vikram Singh",
+    "phone": "9876500005",
+    "email": "vikram.singh@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "10406562.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "new",
+    "assigned_to": [
+      "telecaller1"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.944Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.634Z",
+    "updated_at": "2025-11-28T19:11:36.944Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 36,
+  "fields": {
+    "name": "Anjali Mehta",
+    "phone": "9876500006",
+    "email": "anjali.mehta@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "7772005.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "hot",
+    "assigned_to": [
+      "closer2"
+    ],
+    "assigned_at": "2025-11-28T19:09:49.273Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.646Z",
+    "updated_at": "2025-11-28T19:09:49.273Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 37,
+  "fields": {
+    "name": "Rohit Gupta",
+    "phone": "9876500007",
+    "email": "rohit.gupta@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "9765291.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "visit_completed",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.654Z",
+    "updated_at": "2025-11-28T10:27:21.654Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 38,
+  "fields": {
+    "name": "Kavita Joshi",
+    "phone": "9876500008",
+    "email": "kavita.joshi@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "13685515.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 3,
+    "cp_firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_phone": "9876543212",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "new",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.666Z",
+    "updated_at": "2025-11-28T10:27:21.666Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 39,
+  "fields": {
+    "name": "Manish Shah",
+    "phone": "9876500009",
+    "email": "manish.shah@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 3,
+    "configuration": 9,
+    "budget": "18429877.00",
+    "purpose": "second_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "contacted",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.678Z",
+    "updated_at": "2025-11-28T10:27:21.678Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 40,
+  "fields": {
+    "name": "Divya Reddy",
+    "phone": "9876500010",
+    "email": "divya.reddy@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "19624195.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": true,
+    "status": "visit_completed",
+    "assigned_to": [
+      "telecaller1"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.951Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.688Z",
+    "updated_at": "2025-11-28T19:11:36.951Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 41,
+  "fields": {
+    "name": "Suresh Nair",
+    "phone": "9876500011",
+    "email": "suresh.nair@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "12443595.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 1,
+    "cp_firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_phone": "9876543210",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "visit_scheduled",
+    "assigned_to": [
+      "telecaller1"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.962Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.700Z",
+    "updated_at": "2025-11-28T19:11:36.962Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 42,
+  "fields": {
+    "name": "Meera Iyer",
+    "phone": "9876500012",
+    "email": "meera.iyer@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "self_emp",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "7793174.00",
+    "purpose": "retirement_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 3,
+    "cp_firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_phone": "9876543212",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "discussion",
+    "assigned_to": [
+      "telecaller1"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.969Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.733Z",
+    "updated_at": "2025-11-28T19:11:36.969Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 43,
+  "fields": {
+    "name": "Arjun Menon",
+    "phone": "9876500013",
+    "email": "arjun.menon@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "18300175.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "",
+    "phone_verified": false,
+    "status": "contacted",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.749Z",
+    "updated_at": "2025-11-28T10:27:21.749Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 44,
+  "fields": {
+    "name": "Pooja Nair",
+    "phone": "9876500014",
+    "email": "pooja.nair@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "service",
+    "company_name": "",
+    "designation": "",
+    "project": 2,
+    "configuration": 5,
+    "budget": "9056297.00",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "hot",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.760Z",
+    "updated_at": "2025-11-28T10:27:21.760Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 45,
+  "fields": {
+    "name": "Karan Malhotra",
+    "phone": "9876500015",
+    "email": "karan.malhotra@email.com",
+    "age": null,
+    "gender": "",
+    "locality": "",
+    "current_residence": "",
+    "occupation": "business",
+    "company_name": "",
+    "designation": "",
+    "project": 1,
+    "configuration": 1,
+    "budget": "12991257.00",
+    "purpose": "first_home",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": 2,
+    "cp_firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_phone": "9876543211",
+    "cp_rera_number": "",
+    "is_pretagged": true,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "contacted",
+    "assigned_to": [
+      "telecaller1"
+    ],
+    "assigned_at": "2025-11-28T19:11:36.980Z",
+    "assigned_by": [
+      "sitehead1"
+    ],
+    "created_by": [
+      "sourcing1"
+    ],
+    "created_at": "2025-11-28T10:27:21.769Z",
+    "updated_at": "2025-11-28T19:11:36.980Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 46,
+  "fields": {
+    "name": "Mohammad Anas Shaizad Chougle",
+    "phone": "9867975473",
+    "email": "chougleanas32@gmail.com",
+    "age": 21,
+    "gender": "male",
+    "locality": "Mumbra",
+    "current_residence": "own",
+    "occupation": "business",
+    "company_name": "Hiqual Solutions",
+    "designation": "Marketing head",
+    "project": 1,
+    "configuration": null,
+    "budget": "1.10",
+    "purpose": "investment",
+    "visit_type": "",
+    "is_first_visit": true,
+    "how_did_you_hear": "",
+    "channel_partner": null,
+    "cp_firm_name": "400612",
+    "cp_name": "400612",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "new",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "closer1"
+    ],
+    "created_at": "2025-11-28T18:56:02.253Z",
+    "updated_at": "2025-11-28T18:56:02.253Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.lead",
+  "pk": 47,
+  "fields": {
+    "name": "Mohammad Anas Shaizad Chougle",
+    "phone": "09867975473",
+    "email": "chougleanas32@gmail.com",
+    "age": 21,
+    "gender": "male",
+    "locality": "jijrnwijb",
+    "current_residence": "own",
+    "occupation": "business",
+    "company_name": "Hiqual Solutions",
+    "designation": "hjef",
+    "project": 3,
+    "configuration": null,
+    "budget": "1.00",
+    "purpose": "investment",
+    "visit_type": "family",
+    "is_first_visit": true,
+    "how_did_you_hear": "walkin",
+    "channel_partner": null,
+    "cp_firm_name": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_rera_number": "",
+    "is_pretagged": false,
+    "pretag_status": "pending_verification",
+    "phone_verified": false,
+    "status": "new",
+    "assigned_to": null,
+    "assigned_at": null,
+    "assigned_by": null,
+    "created_by": [
+      "closer1"
+    ],
+    "created_at": "2025-11-28T18:57:53.784Z",
+    "updated_at": "2025-11-28T18:57:53.784Z",
+    "is_archived": false
+  }
+},
+{
+  "model": "leads.followupreminder",
+  "pk": 1,
+  "fields": {
+    "lead": 45,
+    "reminder_date": "2025-11-28T19:31:00Z",
+    "reminder_type": "callback",
+    "notes": "",
+    "is_completed": true,
+    "completed_at": "2025-11-28T19:35:49.903Z",
+    "created_by": [
+      "telecaller1"
+    ],
+    "created_at": "2025-11-28T19:30:19.087Z"
+  }
+},
+{
+  "model": "leads.dailyassignmentquota",
+  "pk": 1,
+  "fields": {
+    "project": 3,
+    "employee": [
+      "closer1"
+    ],
+    "daily_quota": 16,
+    "is_active": true,
+    "created_by": [
+      "sitehead1"
+    ],
+    "created_at": "2025-11-28T19:09:49.115Z",
+    "updated_at": "2025-11-28T19:09:49.115Z"
+  }
+},
+{
+  "model": "leads.dailyassignmentquota",
+  "pk": 2,
+  "fields": {
+    "project": 3,
+    "employee": [
+      "closer2"
+    ],
+    "daily_quota": 15,
+    "is_active": true,
+    "created_by": [
+      "sitehead1"
+    ],
+    "created_at": "2025-11-28T19:09:49.132Z",
+    "updated_at": "2025-11-28T19:09:49.133Z"
+  }
+},
+{
+  "model": "leads.dailyassignmentquota",
+  "pk": 3,
+  "fields": {
+    "project": 1,
+    "employee": [
+      "closer1"
+    ],
+    "daily_quota": 5,
+    "is_active": true,
+    "created_by": [
+      "sitehead1"
+    ],
+    "created_at": "2025-11-28T19:10:15.429Z",
+    "updated_at": "2025-11-28T19:11:36.765Z"
+  }
+},
+{
+  "model": "leads.dailyassignmentquota",
+  "pk": 4,
+  "fields": {
+    "project": 1,
+    "employee": [
+      "closer2"
+    ],
+    "daily_quota": 1,
+    "is_active": true,
+    "created_by": [
+      "sitehead1"
+    ],
+    "created_at": "2025-11-28T19:11:36.834Z",
+    "updated_at": "2025-11-28T19:11:36.834Z"
+  }
+},
+{
+  "model": "leads.dailyassignmentquota",
+  "pk": 5,
+  "fields": {
+    "project": 1,
+    "employee": [
+      "telecaller1"
+    ],
+    "daily_quota": 5,
+    "is_active": true,
+    "created_by": [
+      "sitehead1"
+    ],
+    "created_at": "2025-11-28T19:11:36.848Z",
+    "updated_at": "2025-11-28T19:11:36.848Z"
+  }
+},
+{
+  "model": "leads.dailyassignmentquota",
+  "pk": 6,
+  "fields": {
+    "project": 1,
+    "employee": [
+      "telecaller2"
+    ],
+    "daily_quota": 5,
+    "is_active": true,
+    "created_by": [
+      "sitehead1"
+    ],
+    "created_at": "2025-11-28T19:11:36.880Z",
+    "updated_at": "2025-11-28T19:11:36.880Z"
+  }
+},
+{
+  "model": "attendance.attendance",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "telecaller1"
+    ],
+    "project": null,
+    "latitude": "19.170762",
+    "longitude": "73.024515",
+    "accuracy_radius": "42.50",
+    "selfie_photo": "attendance/selfies/baleno.avif",
+    "check_in_time": "2025-11-28T18:46:36.839Z",
+    "check_out_time": null,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    "ip_address": "127.0.0.1",
+    "is_within_radius": true,
+    "is_valid": true
+  }
+},
+{
+  "model": "channel_partners.channelpartner",
+  "pk": 1,
+  "fields": {
+    "firm_name": "Mumbai Realty",
+    "cp_name": "Rajesh Kumar",
+    "cp_unique_id": "RK289",
+    "phone": "9876543210",
+    "email": "",
+    "rera_id": "",
+    "cp_type": "broker",
+    "working_area": "",
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:44.388Z",
+    "updated_at": "2025-11-28T16:35:11.769Z",
+    "linked_projects": []
+  }
+},
+{
+  "model": "channel_partners.channelpartner",
+  "pk": 2,
+  "fields": {
+    "firm_name": "Property Solutions",
+    "cp_name": "Priya Sharma",
+    "cp_unique_id": "PS646",
+    "phone": "9876543211",
+    "email": "",
+    "rera_id": "",
+    "cp_type": "broker",
+    "working_area": "",
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:44.394Z",
+    "updated_at": "2025-11-28T16:35:11.761Z",
+    "linked_projects": []
+  }
+},
+{
+  "model": "channel_partners.channelpartner",
+  "pk": 3,
+  "fields": {
+    "firm_name": "Dream Homes Agency",
+    "cp_name": "Amit Patel",
+    "cp_unique_id": "AP758",
+    "phone": "9876543212",
+    "email": "",
+    "rera_id": "",
+    "cp_type": "broker",
+    "working_area": "",
+    "is_active": true,
+    "created_at": "2025-11-28T10:26:44.404Z",
+    "updated_at": "2025-11-28T16:35:11.749Z",
+    "linked_projects": []
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 1,
+  "fields": {
+    "action_time": "2025-11-28T10:11:04.638Z",
+    "user": [
+      "superadmin"
+    ],
+    "content_type": [
+      "accounts",
+      "user"
+    ],
+    "object_id": "1",
+    "object_repr": "superadmin (Super Admin)",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Role\"]}}]"
+  }
+}
+]
