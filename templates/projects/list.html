@@ -4,23 +4,23 @@
 
 {% block page_title %}Projects{% endblock %}
 {% block content %}
-<div class="space-y-6">
-    <div class="flex justify-between items-center">
-        <h1 class="text-3xl font-heading font-bold text-olive-primary">Projects</h1>
+<div class="space-y-4 sm:space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+        <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Projects</h1>
         {% if user.is_super_admin or user.is_mandate_owner %}
         <a href="{% url 'projects:create' %}" 
-           class="bg-olive-primary text-white px-6 py-2 rounded-custom hover:bg-olive-secondary transition">
+           class="w-full sm:w-auto bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm sm:text-base">
             Create Project
         </a>
         {% endif %}
     </div>
     
     <!-- Projects Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {% for project in projects %}
-        <div class="bg-white rounded-custom shadow-md p-6 hover:shadow-lg transition">
-            <div class="flex justify-between items-start mb-4">
-                <h3 class="text-xl font-heading font-bold text-olive-primary">{{ project.name }}</h3>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6 hover:shadow-lg transition">
+            <div class="flex justify-between items-start mb-3 sm:mb-4">
+                <h3 class="text-lg sm:text-xl font-heading font-bold text-olive-primary">{{ project.name }}</h3>
                 {% if project.is_active %}
                 <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Active</span>
                 {% else %}
@@ -30,29 +30,29 @@
             <p class="text-sm text-gray-600 mb-2">{{ project.builder_name }}</p>
             <p class="text-xs text-gray-500 mb-4">{{ project.location }}</p>
             
-            <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-3 sm:mb-4">
                 <div>
                     <p class="text-xs text-gray-500">Leads</p>
-                    <p class="text-lg font-bold text-olive-primary">{{ project.lead_count|default:0 }}</p>
+                    <p class="text-base sm:text-lg font-bold text-olive-primary">{{ project.lead_count|default:0 }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Bookings</p>
-                    <p class="text-lg font-bold text-olive-primary">{{ project.booking_count|default:0 }}</p>
+                    <p class="text-base sm:text-lg font-bold text-olive-primary">{{ project.booking_count|default:0 }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Revenue</p>
-                    <p class="text-lg font-bold text-olive-primary">₹{{ project.revenue|floatformat:0|default:0 }}</p>
+                    <p class="text-base sm:text-lg font-bold text-olive-primary">₹{{ project.revenue|floatformat:0|default:0 }}</p>
                 </div>
             </div>
             
-            <div class="flex space-x-2">
+            <div class="flex flex-col sm:flex-row gap-2 sm:space-x-2">
                 <a href="{% url 'projects:detail' project.pk %}" 
-                   class="flex-1 bg-olive-primary text-white px-4 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm">
+                   class="flex-1 bg-olive-primary text-white px-3 sm:px-4 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-xs sm:text-sm">
                     View Details
                 </a>
                 {% if user.is_super_admin or user.is_mandate_owner %}
                 <a href="{% url 'projects:edit' project.pk %}" 
-                   class="px-4 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition text-sm">
+                   class="px-3 sm:px-4 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition text-xs sm:text-sm text-center">
                     Edit
                 </a>
                 {% endif %}

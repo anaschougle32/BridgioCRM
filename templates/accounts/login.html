@@ -3,10 +3,10 @@
 {% block title %}Login - Bridgio CRM{% endblock %}
 
 {% block login_content %}
-<div class="min-h-screen flex items-center justify-center bg-beige-bg">
-    <div class="max-w-md w-full bg-card-bg rounded-custom shadow-lg p-8">
-        <h1 class="text-3xl font-heading font-bold text-olive-primary mb-6 text-center">Bridgio CRM</h1>
-        <h2 class="text-xl font-heading mb-6 text-center">Login</h2>
+<div class="min-h-screen flex items-center justify-center bg-beige-bg px-4 py-8">
+    <div class="max-w-md w-full bg-card-bg rounded-custom shadow-lg p-6 sm:p-8">
+        <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary mb-4 sm:mb-6 text-center">Bridgio CRM</h1>
+        <h2 class="text-lg sm:text-xl font-heading mb-4 sm:mb-6 text-center">Login</h2>
         
         <form method="post">
             {% csrf_token %}
