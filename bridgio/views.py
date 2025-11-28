@@ -18,42 +18,68 @@ def dashboard(request):
         
         # Super Admin Dashboard - System-wide stats
         # Check both role and is_superuser for compatibility
-        if user.is_super_admin() or (user.is_superuser and user.is_staff):
-            # All leads
-            all_leads = Lead.objects.filter(is_archived=False)
-            all_bookings = Booking.objects.filter(is_archived=False)
+        if hasattr(user, 'is_super_admin') and (user.is_super_admin() or (hasattr(user, 'is_superuser') and user.is_superuser and hasattr(user, 'is_staff') and user.is_staff)):
+            # All leads - handle if table doesn't exist
+            try:
+                all_leads = Lead.objects.filter(is_archived=False)
+            except Exception:
+                all_leads = Lead.objects.none()
+            
+            try:
+                all_bookings = Booking.objects.filter(is_archived=False)
+            except Exception:
+                all_bookings = Booking.objects.none()
             
             # Revenue calculations - handle None values
-            total_revenue = Payment.objects.aggregate(total=Sum('amount'))['total'] or 0
-            bookings_count = all_bookings.count()
-            avg_booking_value = all_bookings.aggregate(avg=Avg('final_negotiated_price'))['avg'] or 0
+            try:
+                total_revenue = Payment.objects.aggregate(total=Sum('amount'))['total'] or 0
+            except Exception:
+                total_revenue = 0
+            
+            bookings_count = all_bookings.count() if all_bookings else 0
+            
+            try:
+                avg_booking_value = all_bookings.aggregate(avg=Avg('final_negotiated_price'))['avg'] or 0
+            except Exception:
+                avg_booking_value = 0
             
             # CP Leaderboard - handle empty queryset
             try:
-                cp_leaderboard = ChannelPartner.objects.annotate(
+                cp_leaderboard = list(ChannelPartner.objects.annotate(
                     booking_count=Count('bookings'),
                     total_revenue=Sum('bookings__payments__amount')
-                ).filter(booking_count__gt=0).order_by('-total_revenue')[:10]
+                ).filter(booking_count__gt=0).order_by('-total_revenue')[:10])
             except Exception:
                 cp_leaderboard = []
             
             # Project stats - handle empty queryset
             try:
-                project_stats = Project.objects.annotate(
+                project_stats = list(Project.objects.annotate(
                     lead_count=Count('leads', filter=Q(leads__is_archived=False)),
                     booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
                     revenue=Sum('bookings__payments__amount')
-                ).order_by('-revenue')
+                ).order_by('-revenue')[:10])
             except Exception:
                 project_stats = []
             
             # User stats
             try:
-                user_stats = User.objects.values('role').annotate(
+                user_stats = list(User.objects.values('role').annotate(
                     count=Count('id')
-                ).order_by('role')
+                ).order_by('role'))
             except Exception:
                 user_stats = []
+            
+            # Count projects and mandate owners safely
+            try:
+                total_projects = Project.objects.filter(is_active=True).count()
+            except Exception:
+                total_projects = 0
+            
+            try:
+                total_mandate_owners = User.objects.filter(role='mandate_owner', is_active=True).count()
+            except Exception:
+                total_mandate_owners = 0
             
             context = {
                 'is_super_admin': True,
@@ -66,16 +92,16 @@ def dashboard(request):
                 ).count(),
                 'total_revenue': total_revenue,
                 'avg_booking_value': avg_booking_value,
-                'total_projects': Project.objects.filter(is_active=True).count(),
-                'total_mandate_owners': User.objects.filter(role='mandate_owner', is_active=True).count(),
+                'total_projects': total_projects,
+                'total_mandate_owners': total_mandate_owners,
                 'cp_leaderboard': cp_leaderboard,
-                'project_stats': list(project_stats[:10]) if project_stats else [],  # Top 10 projects
-                'user_stats': list(user_stats) if user_stats else [],
+                'project_stats': project_stats,
+                'user_stats': user_stats,
             }
             return render(request, 'dashboard_super_admin.html', context)
     
     # Mandate Owner Dashboard
-    elif user.is_mandate_owner():
+    elif hasattr(user, 'is_mandate_owner') and user.is_mandate_owner():
         leads_qs = Lead.objects.filter(project__mandate_owner=user, is_archived=False)
         bookings_qs = Booking.objects.filter(project__mandate_owner=user, is_archived=False)
         projects = Project.objects.filter(mandate_owner=user, is_active=True)
@@ -116,7 +142,7 @@ def dashboard(request):
         return render(request, 'dashboard_mandate_owner.html', context)
     
     # Site Head Dashboard
-    elif user.is_site_head():
+    elif hasattr(user, 'is_site_head') and user.is_site_head():
         leads_qs = Lead.objects.filter(project__site_head=user, is_archived=False)
         bookings_qs = Booking.objects.filter(project__site_head=user, is_archived=False)
         projects = Project.objects.filter(site_head=user, is_active=True)
@@ -146,7 +172,7 @@ def dashboard(request):
         return render(request, 'dashboard_site_head.html', context)
     
     # Closing Manager Dashboard
-    elif user.is_closing_manager():
+    elif hasattr(user, 'is_closing_manager') and user.is_closing_manager():
         leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
         bookings_qs = Booking.objects.filter(created_by=user, is_archived=False)
         
@@ -172,7 +198,7 @@ def dashboard(request):
         return render(request, 'dashboard_closing_manager.html', context)
     
     # Sourcing Manager Dashboard
-    elif user.is_sourcing_manager():
+    elif hasattr(user, 'is_sourcing_manager') and user.is_sourcing_manager():
         leads_qs = Lead.objects.filter(created_by=user, is_archived=False)
         
         context = {
@@ -187,7 +213,7 @@ def dashboard(request):
         return render(request, 'dashboard_sourcing_manager.html', context)
     
     # Telecaller Dashboard
-    elif user.is_telecaller():
+    elif hasattr(user, 'is_telecaller') and user.is_telecaller():
         leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
         
         # Today's callbacks
@@ -225,20 +251,30 @@ def dashboard(request):
     
     # Default dashboard (fallback)
     try:
-        leads_qs = Lead.objects.filter(is_archived=False)
-        bookings_qs = Booking.objects.filter(is_archived=False)
+        try:
+            leads_qs = Lead.objects.filter(is_archived=False)
+        except Exception:
+            leads_qs = Lead.objects.none()
+        
+        try:
+            bookings_qs = Booking.objects.filter(is_archived=False)
+        except Exception:
+            bookings_qs = Booking.objects.none()
         
         context = {
-            'total_leads': leads_qs.count(),
-            'new_visits_today': leads_qs.filter(created_at__date=today).count(),
-            'total_bookings': bookings_qs.count(),
+            'total_leads': leads_qs.count() if leads_qs else 0,
+            'new_visits_today': leads_qs.filter(created_at__date=today).count() if leads_qs else 0,
+            'total_bookings': bookings_qs.count() if bookings_qs else 0,
             'pending_otp': leads_qs.filter(
                 is_pretagged=True,
                 pretag_status='pending_verification'
-            ).count(),
+            ).count() if leads_qs else 0,
         }
     except Exception as e:
         # If database tables don't exist yet, provide empty context
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Dashboard error: {str(e)}", exc_info=True)
         context = {
             'total_leads': 0,
             'new_visits_today': 0,

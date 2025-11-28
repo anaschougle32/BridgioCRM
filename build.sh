@@ -14,3 +14,6 @@ python manage.py migrate --noinput
 # Collect static files
 python manage.py collectstatic --noinput
 
+# Create default superuser if it doesn't exist (optional - comment out if not needed)
+python manage.py create_superuser --username admin --email admin@bridgio.com --password admin123 || true
+
