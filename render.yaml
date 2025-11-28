@@ -11,7 +11,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
-        value: False
+        value: True
       - key: ALLOWED_HOSTS
         value: bridgiocrm.onrender.com,*.onrender.com
       - key: GOOGLE_MAPS_API_KEY
