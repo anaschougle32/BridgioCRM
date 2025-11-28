@@ -95,7 +95,8 @@
 
 - **SQLite Database**:
   - ⚠️ **IMPORTANT**: SQLite database file is stored in the filesystem
-  - On Render's free tier, the filesystem is **ephemeral** (data may be lost on redeploy)
+  - On Render's free tier, the filesystem is **ephemeral** (data will be **lost on every redeploy**)
+  - To use an existing database, see `UPLOAD_DATABASE.md` for instructions
   - For production with persistent data, consider:
     - Upgrading to a paid plan with persistent disk
     - Or switching to PostgreSQL (recommended for production)
