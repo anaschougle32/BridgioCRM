@@ -18,7 +18,13 @@ def dashboard(request):
         
         # Super Admin Dashboard - System-wide stats
         # Check both role and is_superuser for compatibility
-        if hasattr(user, 'is_super_admin') and (user.is_super_admin() or (hasattr(user, 'is_superuser') and user.is_superuser and hasattr(user, 'is_staff') and user.is_staff)):
+        # First check if user has role attribute
+        user_role = getattr(user, 'role', None)
+        is_super_admin = (user_role == 'super_admin') if user_role else False
+        is_superuser_flag = getattr(user, 'is_superuser', False)
+        is_staff_flag = getattr(user, 'is_staff', False)
+        
+        if is_super_admin or (is_superuser_flag and is_staff_flag):
             # All leads - handle if table doesn't exist
             try:
                 all_leads = Lead.objects.filter(is_archived=False)
@@ -101,7 +107,7 @@ def dashboard(request):
             return render(request, 'dashboard_super_admin.html', context)
         
         # Mandate Owner Dashboard
-        elif hasattr(user, 'is_mandate_owner') and user.is_mandate_owner():
+        elif user_role == 'mandate_owner':
             leads_qs = Lead.objects.filter(project__mandate_owner=user, is_archived=False)
             bookings_qs = Booking.objects.filter(project__mandate_owner=user, is_archived=False)
             projects = Project.objects.filter(mandate_owner=user, is_active=True)
@@ -142,7 +148,7 @@ def dashboard(request):
             return render(request, 'dashboard_mandate_owner.html', context)
         
         # Site Head Dashboard
-        elif hasattr(user, 'is_site_head') and user.is_site_head():
+        elif user_role == 'site_head':
             leads_qs = Lead.objects.filter(project__site_head=user, is_archived=False)
             bookings_qs = Booking.objects.filter(project__site_head=user, is_archived=False)
             projects = Project.objects.filter(site_head=user, is_active=True)
@@ -172,7 +178,7 @@ def dashboard(request):
             return render(request, 'dashboard_site_head.html', context)
         
         # Closing Manager Dashboard
-        elif hasattr(user, 'is_closing_manager') and user.is_closing_manager():
+        elif user_role == 'closing_manager':
             leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
             bookings_qs = Booking.objects.filter(created_by=user, is_archived=False)
             
@@ -198,7 +204,7 @@ def dashboard(request):
             return render(request, 'dashboard_closing_manager.html', context)
         
         # Sourcing Manager Dashboard
-        elif hasattr(user, 'is_sourcing_manager') and user.is_sourcing_manager():
+        elif user_role == 'sourcing_manager':
             leads_qs = Lead.objects.filter(created_by=user, is_archived=False)
             
             context = {
@@ -213,7 +219,7 @@ def dashboard(request):
             return render(request, 'dashboard_sourcing_manager.html', context)
         
         # Telecaller Dashboard
-        elif hasattr(user, 'is_telecaller') and user.is_telecaller():
+        elif user_role == 'telecaller':
             leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
             
             # Today's callbacks
@@ -274,16 +280,20 @@ def dashboard(request):
     except Exception as e:
         # Catch any unexpected errors and show a safe fallback
         import logging
+        import traceback
         logger = logging.getLogger(__name__)
-        logger.error(f"Dashboard error: {str(e)}", exc_info=True)
+        error_trace = traceback.format_exc()
+        logger.error(f"Dashboard error: {str(e)}\n{error_trace}")
         
-        # Return a minimal dashboard
+        # Return a minimal dashboard with error details (since DEBUG is True)
+        from django.conf import settings
         context = {
             'total_leads': 0,
             'new_visits_today': 0,
             'total_bookings': 0,
             'pending_otp': 0,
-            'error': str(e) if DEBUG else 'An error occurred. Please check the logs.',
+            'error': str(e),
+            'error_trace': error_trace if settings.DEBUG else None,
         }
         return render(request, 'dashboard.html', context)
 

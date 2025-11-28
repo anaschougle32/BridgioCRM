@@ -3,54 +3,65 @@
 {% block title %}Dashboard - Bridgio CRM{% endblock %}
 
 {% block page_title %}Dashboard{% endblock %}
+
 {% block content %}
-<div class="space-y-6">
-    <h1 class="text-3xl font-heading font-bold text-olive-primary">Dashboard</h1>
+<div class="space-y-4 sm:space-y-6">
+    {% if error %}
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
+        <h2 class="text-lg sm:text-xl font-heading font-bold text-red-800 mb-2">Error Loading Dashboard</h2>
+        <p class="text-sm sm:text-base text-red-700 mb-2">{{ error }}</p>
+        {% if error_trace %}
+        <details class="mt-4">
+            <summary class="text-sm text-red-600 cursor-pointer">Show Error Details</summary>
+            <pre class="mt-2 text-xs bg-red-100 p-3 rounded overflow-auto">{{ error_trace }}</pre>
+        </details>
+        {% endif %}
+    </div>
+    {% endif %}
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Stats Cards -->
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ total_leads|default:0 }}</p>
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Dashboard</h1>
+    </div>
+    
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
+            <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ total_leads|default:0 }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ new_visits_today|default:0 }} new today</p>
         </div>
         
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">New Visits Today</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ new_visits_today|default:0 }}</p>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Total Bookings</h3>
+            <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ total_bookings|default:0 }}</p>
         </div>
         
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Bookings</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ total_bookings|default:0 }}</p>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Pending OTP</h3>
+            <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ pending_otp|default:0 }}</p>
         </div>
         
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Pending OTP</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ pending_otp|default:0 }}</p>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Status</h3>
+            <p class="text-2xl sm:text-3xl font-bold text-green-600">Active</p>
         </div>
     </div>
     
-    <!-- Quick Actions -->
-    <div class="bg-white rounded-custom shadow-md p-6">
-        <h2 class="text-xl font-heading font-bold mb-4">Quick Actions</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <a href="{% url 'leads:create' %}" 
-               class="bg-olive-primary text-white px-6 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+    {% if not error %}
+    <div class="bg-white rounded-custom shadow-md p-4 sm:p-6">
+        <h2 class="text-lg sm:text-xl font-heading font-bold text-olive-primary mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <a href="{% url 'leads:create' %}" class="bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm sm:text-base">
                 New Visit
             </a>
-            {% if user.is_sourcing_manager %}
-            <a href="{% url 'leads:pretag' %}" 
-               class="bg-olive-secondary text-white px-6 py-3 rounded-custom hover:bg-olive-primary transition text-center">
-                Pretag Lead
+            <a href="{% url 'leads:list' %}" class="bg-olive-secondary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-primary transition text-center text-sm sm:text-base">
+                View Leads
             </a>
-            {% endif %}
-            <a href="{% url 'leads:list' %}" 
-               class="bg-gray-200 text-gray-800 px-6 py-3 rounded-custom hover:bg-gray-300 transition text-center">
-                View All Leads
+            <a href="{% url 'projects:list' %}" class="bg-olive-light text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm sm:text-base">
+                View Projects
             </a>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}
-
-
