@@ -26,7 +26,13 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure--1r#3zpxed2&&*=+nnghv
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else []
+# ALLOWED_HOSTS - handle both comma-separated and default values
+ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', '')
+if ALLOWED_HOSTS_ENV:
+    ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_ENV.split(',') if host.strip()]
+else:
+    # Default to common Render domains if not set
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
 
 # Google Maps API Key for Attendance Features
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', 'AIzaSyCwcFvh1vVe979dldumRkBnV01VU3msn30')
@@ -88,10 +94,17 @@ WSGI_APPLICATION = 'bridgio.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 # Using SQLite (works on Render, but note: data may be lost on redeploy on free tier)
+# Ensure the database directory exists
+import os
+db_path = BASE_DIR / 'db.sqlite3'
+db_dir = db_path.parent
+if not db_dir.exists():
+    db_dir.mkdir(parents=True, exist_ok=True)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': str(db_path),
     }
 }
 
@@ -140,7 +153,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # WhiteNoise for static files serving in production
 if not DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    # Use CompressedStaticFilesStorage instead of CompressedManifestStaticFilesStorage
+    # to avoid issues if staticfiles.json doesn't exist
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'

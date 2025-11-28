@@ -13,7 +13,7 @@ services:
       - key: DEBUG
         value: False
       - key: ALLOWED_HOSTS
-        value: bridgiocrm.onrender.com
+        value: bridgiocrm.onrender.com,*.onrender.com
       - key: GOOGLE_MAPS_API_KEY
         value: AIzaSyCwcFvh1vVe979dldumRkBnV01VU3msn30
 
