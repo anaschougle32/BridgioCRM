@@ -95,7 +95,6 @@ WSGI_APPLICATION = 'bridgio.wsgi.application'
 
 # Using SQLite (works on Render, but note: data may be lost on redeploy on free tier)
 # Ensure the database directory exists
-import os
 db_path = BASE_DIR / 'db.sqlite3'
 db_dir = db_path.parent
 if not db_dir.exists():
@@ -133,7 +132,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 
@@ -164,10 +163,6 @@ AUTH_USER_MODEL = 'accounts.User'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# Timezone
-TIME_ZONE = 'Asia/Kolkata'
-USE_TZ = True
 
 # Login URLs
 LOGIN_URL = '/accounts/login/'
