@@ -405,6 +405,11 @@
                 document.getElementById('verify-otp-btn').disabled = false;
                 document.getElementById('send-otp-btn').disabled = true;
                 document.getElementById('send-otp-btn').textContent = 'OTP Sent';
+                
+                // Automatically open SMS app with pre-filled message
+                if (data.sms_link) {
+                    window.location.href = data.sms_link;
+                }
             } else {
                 alert(data.error || 'Failed to send OTP. Please try again.');
             }

@@ -11,12 +11,12 @@
                 {% if sms_link %}
                 <div class="mb-3">
                     <a href="{{ sms_link }}" 
-                       target="_blank"
+                       onclick="window.open('{{ sms_link }}', '_blank'); return false;"
                        class="inline-block bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition mb-2">
-                        📱 Open SMS App to Send OTP
+                        📱 Open SMS App Again
                     </a>
                     <p class="text-xs text-gray-600 mt-1">
-                        OTP Code: <strong>{{ otp_code }}</strong> (copy this to SMS)
+                        OTP Code: <strong>{{ otp_code }}</strong> (should be pre-filled in SMS)
                     </p>
                 </div>
                 {% endif %}

@@ -38,7 +38,10 @@ def get_sms_deep_link(phone, otp):
     This avoids using SMS API and saves costs by using the phone's SMS app directly
     
     Format: sms:+91XXXXXXXXXX?body=MESSAGE
+    Note: URL encoding is needed for the message body
     """
+    from urllib.parse import quote
+    
     # Clean phone number (remove spaces, dashes, etc.)
     clean_phone = phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
     
@@ -52,8 +55,11 @@ def get_sms_deep_link(phone, otp):
     # Create SMS message
     message = f'Your OTP for Bridgio CRM is {otp}. Valid for 5 minutes.'
     
+    # URL encode the message
+    encoded_message = quote(message)
+    
     # Generate SMS deep link
-    sms_link = f'sms:{clean_phone}?body={message}'
+    sms_link = f'sms:{clean_phone}?body={encoded_message}'
     
     return sms_link
 

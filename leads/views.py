@@ -466,6 +466,17 @@ def send_otp(request, pk):
             'otp_code': active_otp.otp_code,
         }
         html = render_to_string('leads/otp_controls.html', context, request=request)
+        # Add JavaScript to open SMS app if user wants to resend
+        html += f'''
+        <script>
+            // Option to open SMS app again if needed
+            const smsLink = '{sms_link}';
+            if (smsLink) {{
+                // Store link for manual opening if needed
+                window.currentSmsLink = smsLink;
+            }}
+        </script>
+        '''
         return HttpResponse(html)
     
     # Generate OTP
@@ -488,6 +499,7 @@ def send_otp(request, pk):
     sms_link = get_sms_deep_link(lead.phone, otp_code)
     
     # Return HTML for the OTP verification form with SMS link
+    # Include JavaScript to automatically open SMS app
     context = {
         'lead': lead,
         'latest_otp': otp_log,
@@ -496,6 +508,20 @@ def send_otp(request, pk):
         'otp_code': otp_code,  # Show OTP for manual entry if SMS app doesn't open
     }
     html = render_to_string('leads/otp_controls.html', context, request=request)
+    
+    # Add JavaScript to automatically open SMS app
+    html += f'''
+    <script>
+        // Automatically open SMS app when OTP is generated
+        (function() {{
+            const smsLink = '{sms_link}';
+            if (smsLink) {{
+                // Try to open SMS app
+                window.location.href = smsLink;
+            }}
+        }})();
+    </script>
+    '''
     
     # Return HTML directly for htmx
     return HttpResponse(html)

@@ -118,17 +118,22 @@ def user_create(request):
             messages.error(request, 'Username already exists.')
             return redirect('accounts:user_create')
         
+        # Create user with basic fields first
         user = User.objects.create_user(
             username=username,
             email=email,
             password=password,
-            role=role,
-            phone=phone,
             first_name=first_name,
             last_name=last_name,
-            mandate_owner_id=mandate_owner_id if mandate_owner_id else None,
-            is_active=is_active
         )
+        
+        # Set custom fields after creation
+        user.role = role
+        user.phone = phone if phone else None
+        user.is_active = is_active
+        if mandate_owner_id:
+            user.mandate_owner_id = mandate_owner_id
+        user.save()
         
         # Assign projects for telecallers
         if role == 'telecaller':
