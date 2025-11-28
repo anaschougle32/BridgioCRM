@@ -25,23 +25,18 @@
      gunicorn bridgio.wsgi:application
      ```
 
-4. **Create PostgreSQL Database**:
-   - Click "New +" → "PostgreSQL"
-   - Name: `bridgiocrm-db`
-   - Plan: `Free` (or choose a paid plan)
-   - Note the **Internal Database URL** (you'll need this)
-
-5. **Set Environment Variables**:
+4. **Set Environment Variables**:
    In your Web Service settings, add these environment variables:
    
    ```
    SECRET_KEY=<generate a secure random key>
    DEBUG=False
    ALLOWED_HOSTS=bridgiocrm.onrender.com
-   DATABASE_URL=<from PostgreSQL service - Internal Database URL>
    GOOGLE_MAPS_API_KEY=AIzaSyCwcFvh1vVe979dldumRkBnV01VU3msn30
    PYTHON_VERSION=3.11.0
    ```
+   
+   **Note**: We're using SQLite (no separate database service needed)
    
    **To generate SECRET_KEY**:
    ```python
@@ -98,9 +93,13 @@
   - First request after spin-down takes ~30 seconds
   - Consider upgrading to paid plan for production use
 
-- **Database**:
-  - Free PostgreSQL has 90-day data retention
-  - For production, use a paid database plan
+- **SQLite Database**:
+  - ⚠️ **IMPORTANT**: SQLite database file is stored in the filesystem
+  - On Render's free tier, the filesystem is **ephemeral** (data may be lost on redeploy)
+  - For production with persistent data, consider:
+    - Upgrading to a paid plan with persistent disk
+    - Or switching to PostgreSQL (recommended for production)
+  - For development/testing, SQLite works fine
 
 - **Static Files**:
   - WhiteNoise is configured to serve static files
@@ -116,9 +115,10 @@
    - Check build logs in Render dashboard
    - Ensure all dependencies are in `requirements.txt`
 
-2. **Database Connection Issues**:
-   - Verify `DATABASE_URL` is set correctly
-   - Use Internal Database URL (not Public URL)
+2. **Database Issues**:
+   - SQLite database is created automatically on first migration
+   - If data is lost, it's because filesystem is ephemeral on free tier
+   - Consider upgrading to paid plan or using PostgreSQL for persistent data
 
 3. **Static Files Not Loading**:
    - Run `python manage.py collectstatic` manually
@@ -136,9 +136,10 @@
 | `SECRET_KEY` | Django secret key | (auto-generated) |
 | `DEBUG` | Debug mode | `False` |
 | `ALLOWED_HOSTS` | Allowed hostnames | `bridgiocrm.onrender.com` |
-| `DATABASE_URL` | PostgreSQL connection string | (from database service) |
 | `GOOGLE_MAPS_API_KEY` | Google Maps API key | `AIzaSyCwcFvh1vVe979dldumRkBnV01VU3msn30` |
 | `PYTHON_VERSION` | Python version | `3.11.0` |
+
+**Note**: No `DATABASE_URL` needed - using SQLite
 
 ### Updating Your Deployment
 
