@@ -10,13 +10,19 @@
     </div>
     
     <div class="bg-white rounded-custom shadow-md p-6">
-        <form method="post" class="space-y-6">
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
             {% csrf_token %}
             
             <!-- Basic Information -->
             <div>
                 <h2 class="text-xl font-heading font-bold mb-4">Basic Information</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Project Image</label>
+                        <input type="file" name="image" accept="image/*"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <p class="text-xs text-gray-500 mt-1">Upload a cover image for the project (will be used in cards and detail page)</p>
+                    </div>
                     <div>
                         <label class="block text-sm font-medium mb-2">Project Name *</label>
                         <input type="text" name="name" required

@@ -32,7 +32,7 @@ def verify_otp(otp, otp_hash, secret_key=None):
     return hmac.compare_digest(computed_hash, otp_hash)
 
 
-def get_sms_deep_link(phone, otp):
+def get_sms_deep_link(phone, otp, project_name=None):
     """
     Generate WhatsApp deep link to open WhatsApp with pre-filled message
     This avoids using SMS API and saves costs by using WhatsApp directly
@@ -52,8 +52,11 @@ def get_sms_deep_link(phone, otp):
     elif clean_phone.startswith('0'):
         clean_phone = clean_phone[1:]
     
-    # Create WhatsApp message
-    message = f'Your OTP for Bridgio CRM is *{otp}*. Valid for 5 minutes.'
+    # Create WhatsApp message with project name if provided
+    if project_name:
+        message = f"Here's the OTP to confirm your visit for {project_name}. Thank you. Please provide this OTP to the executive. OTP: *{otp}*"
+    else:
+        message = f"Here's the OTP to confirm your visit. Thank you. Please provide this OTP to the executive. OTP: *{otp}*"
     
     # URL encode the message
     encoded_message = quote(message)

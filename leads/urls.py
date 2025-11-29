@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     lead_list, lead_create, lead_pretag, lead_detail, send_otp, verify_otp, 
     upcoming_visits, log_call, create_reminder, complete_reminder, whatsapp, 
-    lead_assign, lead_upload, lead_assign_admin, update_status
+    lead_assign, lead_upload, lead_assign_admin, update_status, update_notes
 )
 
 app_name = 'leads'
@@ -22,6 +22,7 @@ urlpatterns = [
     path('<int:pk>/log-call/', log_call, name='log_call'),
     path('<int:pk>/create-reminder/', create_reminder, name='create_reminder'),
     path('<int:pk>/complete-reminder/<int:reminder_id>/', complete_reminder, name='complete_reminder'),
+    path('<int:pk>/update-notes/', update_notes, name='update_notes'),
     path('<int:pk>/whatsapp/', whatsapp, name='whatsapp'),
 ]
 

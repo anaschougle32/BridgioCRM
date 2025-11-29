@@ -3,20 +3,26 @@
 {% block title %}Create User - Bridgio CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-heading font-bold text-olive-primary">Create User</h1>
-        <a href="{% url 'accounts:user_list' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Users</a>
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Create User</h1>
+            <p class="text-sm text-gray-600 mt-1">Add a new user to the system</p>
+        </div>
+        <a href="{% url 'accounts:user_list' %}" 
+           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
+            ← Back to Users
+        </a>
     </div>
     
-    <div class="bg-white rounded-custom shadow-md p-6">
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 sm:p-8">
         <form method="post" class="space-y-6">
             {% csrf_token %}
             
             <!-- Basic Information -->
-            <div>
-                <h2 class="text-xl font-heading font-bold mb-4">Basic Information</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="mb-8">
+                <h2 class="text-lg sm:text-xl font-heading font-bold mb-4 text-olive-primary pb-2 border-b border-gray-200">Basic Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mt-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Username *</label>
                         <input type="text" name="username" required
@@ -51,9 +57,9 @@
             </div>
             
             <!-- Role & Assignment -->
-            <div>
-                <h2 class="text-xl font-heading font-bold mb-4">Role & Assignment</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="mb-8">
+                <h2 class="text-lg sm:text-xl font-heading font-bold mb-4 text-olive-primary pb-2 border-b border-gray-200">Role & Assignment</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mt-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Role *</label>
                         <select name="role" required
@@ -86,8 +92,8 @@
             </div>
             
             <!-- Project Assignment (for Telecallers) -->
-            <div id="project-assignment-section" style="display: none;">
-                <h2 class="text-xl font-heading font-bold mb-4">Project Assignment</h2>
+            <div id="project-assignment-section" style="display: none;" class="mb-8">
+                <h2 class="text-lg sm:text-xl font-heading font-bold mb-4 text-olive-primary pb-2 border-b border-gray-200">Project Assignment</h2>
                 {% if projects %}
                 <div class="space-y-2">
                     {% for project in projects %}
@@ -105,13 +111,13 @@
             </div>
             
             <!-- Submit -->
-            <div class="flex justify-end space-x-4">
+            <div class="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 border-t border-gray-200">
                 <a href="{% url 'accounts:user_list' %}" 
-                   class="px-6 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition">
+                   class="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-center font-medium">
                     Cancel
                 </a>
                 <button type="submit" 
-                        class="px-6 py-2 bg-olive-primary text-white rounded-custom hover:bg-olive-secondary transition">
+                        class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
                     Create User
                 </button>
             </div>

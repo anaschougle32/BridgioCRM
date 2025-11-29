@@ -90,61 +90,89 @@ def user_create(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        role = request.POST.get('role')
-        phone = request.POST.get('phone', '')
-        first_name = request.POST.get('first_name', '')
-        last_name = request.POST.get('last_name', '')
-        mandate_owner_id = request.POST.get('mandate_owner')
-        is_active = request.POST.get('is_active') == 'on'
-        
-        # Role restrictions
-        if request.user.is_mandate_owner():
-            # Mandate owners can only create: site_head, closing_manager, sourcing_manager, telecaller
-            allowed_roles = ['site_head', 'closing_manager', 'sourcing_manager', 'telecaller']
-            if role not in allowed_roles:
-                messages.error(request, 'You can only create Site Heads, Closing Managers, Sourcing Managers, and Telecallers.')
+        try:
+            username = request.POST.get('username', '').strip()
+            email = request.POST.get('email', '').strip()
+            password = request.POST.get('password', '').strip()
+            role = request.POST.get('role', '').strip()
+            phone = request.POST.get('phone', '').strip()
+            first_name = request.POST.get('first_name', '').strip()
+            last_name = request.POST.get('last_name', '').strip()
+            mandate_owner_id = request.POST.get('mandate_owner', '').strip()
+            is_active = request.POST.get('is_active') == 'on'
+            
+            # Validation
+            if not username:
+                messages.error(request, 'Username is required.')
                 return redirect('accounts:user_create')
-            # Force mandate_owner to be the current user
-            mandate_owner_id = request.user.id
-        
-        # Super Admin can create Mandate Owners and Site Heads
-        if request.user.is_super_admin() and role == 'mandate_owner':
-            mandate_owner_id = None
-        
-        if User.objects.filter(username=username).exists():
-            messages.error(request, 'Username already exists.')
-            return redirect('accounts:user_create')
-        
-        # Create user with basic fields first
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-        )
-        
-        # Set custom fields after creation
-        user.role = role
-        user.phone = phone if phone else None
-        user.is_active = is_active
-        if mandate_owner_id:
-            user.mandate_owner_id = mandate_owner_id
-        user.save()
-        
+            if not email:
+                messages.error(request, 'Email is required.')
+                return redirect('accounts:user_create')
+            if not password:
+                messages.error(request, 'Password is required.')
+                return redirect('accounts:user_create')
+            if not role:
+                messages.error(request, 'Role is required.')
+                return redirect('accounts:user_create')
+            
+            # Role restrictions
+            if request.user.is_mandate_owner():
+                # Mandate owners can only create: site_head, closing_manager, sourcing_manager, telecaller
+                allowed_roles = ['site_head', 'closing_manager', 'sourcing_manager', 'telecaller']
+                if role not in allowed_roles:
+                    messages.error(request, 'You can only create Site Heads, Closing Managers, Sourcing Managers, and Telecallers.')
+                    return redirect('accounts:user_create')
+                # Force mandate_owner to be the current user
+                mandate_owner_id = str(request.user.id)
+            
+            # Super Admin can create Mandate Owners and Site Heads
+            if request.user.is_super_admin() and role == 'mandate_owner':
+                mandate_owner_id = None
+            
+            if User.objects.filter(username=username).exists():
+                messages.error(request, 'Username already exists.')
+                return redirect('accounts:user_create')
+            
+            if User.objects.filter(email=email).exists():
+                messages.error(request, 'Email already exists.')
+                return redirect('accounts:user_create')
+            
+            # Create user with basic fields first
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            
+            # Set custom fields after creation
+            user.role = role
+            user.phone = phone if phone else None
+            user.is_active = is_active
+            if mandate_owner_id:
+                try:
+                    user.mandate_owner_id = int(mandate_owner_id)
+                except (ValueError, TypeError):
+                    user.mandate_owner_id = None
+            user.save()
+            
         # Assign projects for telecallers
         if role == 'telecaller':
             project_ids = request.POST.getlist('assigned_projects')
             if project_ids:
-                from projects.models import Project
                 projects = Project.objects.filter(id__in=project_ids, is_active=True)
                 user.assigned_projects.set(projects)
-        
-        messages.success(request, f'User {user.username} created successfully!')
-        return redirect('accounts:user_list')
+            
+            messages.success(request, f'User {user.username} created successfully!')
+            return redirect('accounts:user_list')
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating user: {str(e)}", exc_info=True)
+            messages.error(request, f'Error creating user: {str(e)}')
+            return redirect('accounts:user_create')
     
     # Get mandate owners for dropdown (only for Super Admin)
     mandate_owners = None
@@ -215,7 +243,6 @@ def user_edit(request, pk):
         # Update project assignments for telecallers
         if user.role == 'telecaller':
             project_ids = request.POST.getlist('assigned_projects')
-            from projects.models import Project
             if project_ids:
                 projects = Project.objects.filter(id__in=project_ids, is_active=True)
                 user.assigned_projects.set(projects)

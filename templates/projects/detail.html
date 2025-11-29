@@ -9,6 +9,17 @@
             <h1 class="text-3xl font-heading font-bold text-olive-primary">{{ project.name }}</h1>
             <p class="text-gray-600 mt-1">{{ project.builder_name }} • {{ project.location }}</p>
         </div>
+    </div>
+    
+    <!-- Project Image -->
+    {% if project.image %}
+    <div class="bg-white rounded-custom shadow-md overflow-hidden">
+        <img src="{{ project.image.url }}" alt="{{ project.name }}" class="w-full h-96 object-cover">
+    </div>
+    {% endif %}
+    
+    <div class="flex justify-between items-center">
+        <div>
         {% if user.is_super_admin or user.is_mandate_owner %}
         <a href="{% url 'projects:edit' project.pk %}" 
            class="bg-olive-primary text-white px-6 py-2 rounded-custom hover:bg-olive-secondary transition">

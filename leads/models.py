@@ -132,6 +132,9 @@ class Lead(models.Model):
         limit_choices_to={'role__in': ['super_admin', 'mandate_owner', 'site_head']}
     )
     
+    # Notes - Critical for lead management
+    notes = models.TextField(blank=True, help_text="General notes about the lead, conversations, preferences, etc.")
+    
     # System Metadata
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_leads')
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)

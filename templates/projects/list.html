@@ -18,17 +18,25 @@
     <!-- Projects Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {% for project in projects %}
-        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6 hover:shadow-lg transition">
-            <div class="flex justify-between items-start mb-3 sm:mb-4">
-                <h3 class="text-lg sm:text-xl font-heading font-bold text-olive-primary">{{ project.name }}</h3>
-                {% if project.is_active %}
-                <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Active</span>
-                {% else %}
-                <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Inactive</span>
-                {% endif %}
+        <div class="bg-white rounded-custom shadow-md overflow-hidden hover:shadow-lg transition">
+            {% if project.image %}
+            <img src="{{ project.image.url }}" alt="{{ project.name }}" class="w-full h-48 object-cover">
+            {% else %}
+            <div class="w-full h-48 bg-gradient-to-br from-olive-primary/20 to-olive-secondary/20 flex items-center justify-center">
+                <span class="text-4xl text-olive-primary/50">🏢</span>
             </div>
-            <p class="text-sm text-gray-600 mb-2">{{ project.builder_name }}</p>
-            <p class="text-xs text-gray-500 mb-4">{{ project.location }}</p>
+            {% endif %}
+            <div class="p-4 sm:p-6">
+                <div class="flex justify-between items-start mb-3 sm:mb-4">
+                    <h3 class="text-lg sm:text-xl font-heading font-bold text-olive-primary">{{ project.name }}</h3>
+                    {% if project.is_active %}
+                    <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Active</span>
+                    {% else %}
+                    <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Inactive</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm text-gray-600 mb-2">{{ project.builder_name }}</p>
+                <p class="text-xs text-gray-500 mb-4">{{ project.location }}</p>
             
             <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-3 sm:mb-4">
                 <div>
@@ -56,6 +64,7 @@
                     Edit
                 </a>
                 {% endif %}
+            </div>
             </div>
         </div>
         {% empty %}

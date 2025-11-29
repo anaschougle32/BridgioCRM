@@ -21,6 +21,9 @@ class Project(models.Model):
     starting_price = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     inventory_summary = models.TextField(blank=True)
     
+    # Project Image
+    image = models.ImageField(upload_to='projects/', blank=True, null=True, help_text="Cover image for project cards and detail page")
+    
     # Tower and Unit Structure (for BookMyShow-style UI)
     number_of_towers = models.IntegerField(default=1, help_text="Total number of towers")
     floors_per_tower = models.IntegerField(default=1, help_text="Number of floors in each tower")

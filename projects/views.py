@@ -93,6 +93,11 @@ def project_create(request):
             is_active=True
         )
         
+        # Handle image upload
+        if 'image' in request.FILES:
+            project.image = request.FILES['image']
+            project.save()
+        
         messages.success(request, f'Project {project.name} created successfully!')
         return redirect('projects:detail', pk=project.pk)
     
@@ -207,6 +212,10 @@ def project_edit(request, pk):
             mandate_owner_id = request.POST.get('mandate_owner')
             if mandate_owner_id:
                 project.mandate_owner_id = mandate_owner_id
+        
+        # Handle image upload
+        if 'image' in request.FILES:
+            project.image = request.FILES['image']
         
         project.save()
         messages.success(request, f'Project {project.name} updated successfully!')

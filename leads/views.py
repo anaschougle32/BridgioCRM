@@ -154,6 +154,16 @@ def lead_create(request):
             }
             return JsonResponse({'success': True, 'step': 2})
         
+        elif step == '3':
+            # Step 3: Requirements - Store project_id for OTP message
+            project_id = request.POST.get('project')
+            if project_id:
+                if 'new_visit_data' not in request.session:
+                    request.session['new_visit_data'] = {}
+                request.session['new_visit_data']['project_id'] = project_id
+                request.session.modified = True
+            return JsonResponse({'success': True, 'step': 4})
+        
         elif step == '2':
             # Step 2: OTP Verification
             otp_code = request.POST.get('otp', '').strip()
@@ -176,14 +186,16 @@ def lead_create(request):
                 return JsonResponse({'success': False, 'error': 'Invalid OTP. Please try again.'}, status=400)
         
         elif step == '3':
-            # Step 3: Requirements - Store in session
+            # Step 3: Requirements - Store in session (including project_id for OTP resend)
             if not request.session.get('new_visit_otp_verified'):
                 messages.error(request, 'OTP verification required.')
                 return redirect('leads:create')
             
             visit_data = request.session.get('new_visit_data', {})
+            project_id = request.POST.get('project')
             visit_data.update({
-                'project': request.POST.get('project'),
+                'project': project_id,
+                'project_id': project_id,  # Store separately for OTP message
                 'budget': request.POST.get('budget', ''),
                 'purpose': request.POST.get('purpose', ''),
                 'visit_type': request.POST.get('visit_type', ''),
@@ -261,9 +273,24 @@ def lead_create(request):
         if not phone:
             return JsonResponse({'success': False, 'error': 'Phone number is required.'}, status=400)
         
+        # Get project name from POST data or session
+        project_name = None
+        project_id = request.POST.get('project_id') or request.session.get('new_visit_data', {}).get('project_id')
+        if project_id:
+            try:
+                project = Project.objects.get(id=project_id, is_active=True)
+                project_name = project.name
+                # Store in session for future use
+                if 'new_visit_data' not in request.session:
+                    request.session['new_visit_data'] = {}
+                request.session['new_visit_data']['project_id'] = project_id
+                request.session.modified = True
+            except (Project.DoesNotExist, ValueError):
+                pass
+        
         # Generate OTP
         otp_code = generate_otp()
-        whatsapp_link = get_sms_deep_link(phone, otp_code)  # Function name kept for compatibility, but returns WhatsApp link
+        whatsapp_link = get_sms_deep_link(phone, otp_code, project_name)  # Function name kept for compatibility, but returns WhatsApp link
         
         # Store OTP in session
         request.session['new_visit_otp'] = {
@@ -462,7 +489,7 @@ def send_otp(request, pk):
     
     if active_otp:
         # Return HTML for the OTP verification form
-        whatsapp_link = get_sms_deep_link(lead.phone, active_otp.otp_code)
+        whatsapp_link = get_sms_deep_link(lead.phone, active_otp.otp_code, lead.project.name)
         context = {
             'lead': lead,
             'latest_otp': active_otp,
@@ -501,7 +528,7 @@ def send_otp(request, pk):
     )
     
     # Generate WhatsApp deep link (opens WhatsApp)
-    whatsapp_link = get_sms_deep_link(lead.phone, otp_code)
+    whatsapp_link = get_sms_deep_link(lead.phone, otp_code, lead.project.name)
     
     # Return HTML for the OTP verification form with WhatsApp link
     # Include JavaScript to automatically open WhatsApp
@@ -800,6 +827,51 @@ def complete_reminder(request, pk, reminder_id):
     reminder.save()
     messages.success(request, 'Reminder marked as completed.')
     return redirect('leads:detail', pk=pk)
+
+
+@login_required
+def update_notes(request, pk):
+    """Update lead notes"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    lead = get_object_or_404(Lead, pk=pk, is_archived=False)
+    
+    # Permission check
+    if request.user.is_telecaller() or request.user.is_closing_manager():
+        if lead.assigned_to != request.user:
+            return JsonResponse({'success': False, 'error': 'You do not have permission to update notes for this lead.'}, status=403)
+    
+    notes = request.POST.get('notes', '').strip()
+    lead.notes = notes
+    lead.save()
+    
+    # Create audit log
+    from accounts.models import AuditLog
+    AuditLog.objects.create(
+        user=request.user,
+        action='notes_updated',
+        model_name='Lead',
+        object_id=lead.id,
+        details=f'Notes updated for lead {lead.name}',
+    )
+    
+    # Return updated HTML
+    html = f'''
+    <div id="notes-section">
+        {'<div class="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-3"><p class="text-sm text-gray-700 whitespace-pre-wrap">' + notes + '</p></div>' if notes else '<p class="text-sm text-gray-500 mb-3">No notes added yet.</p>'}
+        <button onclick="document.getElementById(\'notes-modal\').classList.remove(\'hidden\')" 
+                class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm">
+            {'Edit Notes' if notes else 'Add Notes'}
+        </button>
+    </div>
+    <script>
+        setTimeout(() => {{
+            document.getElementById('notes-modal').classList.add('hidden');
+        }}, 1500);
+    </script>
+    '''
+    return HttpResponse(html)
 
 
 @login_required

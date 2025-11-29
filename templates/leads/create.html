@@ -386,10 +386,17 @@
             return;
         }
         
+        // Get project if selected (from step 3)
+        const projectSelect = document.getElementById('project');
+        const projectId = projectSelect ? projectSelect.value : null;
+        
         const form = document.getElementById('new-visit-form');
         const formData = new FormData();
         formData.set('action', 'send_otp');
         formData.set('phone', phone);
+        if (projectId) {
+            formData.set('project_id', projectId);
+        }
         formData.set('csrfmiddlewaretoken', form.querySelector('[name=csrfmiddlewaretoken]').value);
         
         fetch('{% url "leads:create" %}', {
