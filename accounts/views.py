@@ -157,15 +157,15 @@ def user_create(request):
                     user.mandate_owner_id = None
             user.save()
             
-        # Assign projects for telecallers
-        if role == 'telecaller':
-            project_ids = request.POST.getlist('assigned_projects')
-            if project_ids:
-                projects = Project.objects.filter(id__in=project_ids, is_active=True)
-                user.assigned_projects.set(projects)
-        
-        messages.success(request, f'User {user.username} created successfully!')
-        return redirect('accounts:user_list')
+            # Assign projects for telecallers
+            if role == 'telecaller':
+                project_ids = request.POST.getlist('assigned_projects')
+                if project_ids:
+                    projects = Project.objects.filter(id__in=project_ids, is_active=True)
+                    user.assigned_projects.set(projects)
+            
+            messages.success(request, f'User {user.username} created successfully!')
+            return redirect('accounts:user_list')
             
         except Exception as e:
             import logging
