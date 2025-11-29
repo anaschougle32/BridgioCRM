@@ -135,12 +135,53 @@ def lead_list(request):
 
 @login_required
 def lead_create(request):
-    """Create new visit (Available to all user types) - Multi-step form WITHOUT OTP
+    """Create new visit (Available to all user types) - Multi-step form WITH OTP
     
-    Note: OTP verification is only for pretagged leads and is performed by Closing Managers
-    via the send_otp/verify_otp endpoints. Regular New Visit creation does not require OTP.
+    Flow: Client Info → OTP Verification → Requirements → CP Details
+    OTP is sent via WhatsApp deep link for cost savings.
     """
     if request.method == 'POST':
+        # Handle OTP sending (action='send_otp')
+        if request.POST.get('action') == 'send_otp':
+            phone = request.POST.get('phone', '').strip()
+            if not phone:
+                return JsonResponse({'success': False, 'error': 'Phone number is required.'}, status=400)
+            
+            # Generate OTP
+            otp_code = generate_otp()
+            otp_hash = hash_otp(otp_code)
+            
+            # Store OTP in session (temporary, for verification in step 2)
+            request.session['new_visit_otp'] = {
+                'otp_hash': otp_hash,
+                'otp_code': otp_code,  # Store temporarily for WhatsApp link generation
+                'phone': phone,
+                'created_at': timezone.now().isoformat(),
+            }
+            request.session.modified = True
+            
+            # Get project name from session if available (from step 3)
+            project_name = None
+            visit_data = request.session.get('new_visit_data', {})
+            if visit_data.get('project'):
+                try:
+                    project = Project.objects.get(id=visit_data.get('project'), is_active=True)
+                    project_name = project.name
+                except Project.DoesNotExist:
+                    pass
+            
+            # Generate WhatsApp deep link
+            from .sms_adapter import send_sms
+            sms_response = send_sms(phone, otp_code, project_name=project_name)
+            
+            whatsapp_link = sms_response.get('whatsapp_link', '')
+            
+            return JsonResponse({
+                'success': True,
+                'whatsapp_link': whatsapp_link,
+                'message': 'OTP sent successfully. WhatsApp will open automatically.'
+            })
+        
         step = request.POST.get('step', '1')
         
         if step == '1':
@@ -161,7 +202,38 @@ def lead_create(request):
             return JsonResponse({'success': True, 'step': 2})
         
         elif step == '2':
-            # Step 2: Requirements (previously OTP step - now just requirements)
+            # Step 2: OTP Verification
+            otp_code = request.POST.get('otp', '').strip()
+            if not otp_code or len(otp_code) != 6:
+                return JsonResponse({'success': False, 'error': 'Please enter a valid 6-digit OTP.'}, status=400)
+            
+            # Get stored OTP from session
+            otp_data = request.session.get('new_visit_otp', {})
+            if not otp_data:
+                return JsonResponse({'success': False, 'error': 'No OTP found. Please send a new OTP.'}, status=400)
+            
+            # Verify OTP
+            stored_hash = otp_data.get('otp_hash')
+            if not stored_hash:
+                return JsonResponse({'success': False, 'error': 'Invalid OTP session. Please send a new OTP.'}, status=400)
+            
+            is_valid = verify_otp(otp_code, stored_hash)
+            
+            if not is_valid:
+                return JsonResponse({'success': False, 'error': 'Invalid OTP. Please try again.'}, status=400)
+            
+            # OTP verified - mark as verified in session
+            request.session['new_visit_otp_verified'] = True
+            request.session.modified = True
+            
+            return JsonResponse({'success': True, 'step': 3})  # Move to Requirements
+        
+        elif step == '3':
+            # Step 3: Requirements
+            # Check if OTP was verified
+            if not request.session.get('new_visit_otp_verified'):
+                return JsonResponse({'success': False, 'error': 'Please verify OTP first.'}, status=400)
+            
             visit_data = request.session.get('new_visit_data', {})
             project_id = request.POST.get('project')
             if not project_id:
@@ -177,10 +249,13 @@ def lead_create(request):
             })
             request.session['new_visit_data'] = visit_data
             request.session.modified = True
-            return JsonResponse({'success': True, 'step': 3})
+            return JsonResponse({'success': True, 'step': 4})
         
-        elif step == '3':
-            # Step 3: CP (Optional) - Create lead
+        elif step == '4':
+            # Step 4: CP (Optional) - Create lead
+            # Check if OTP was verified
+            if not request.session.get('new_visit_otp_verified'):
+                return JsonResponse({'success': False, 'error': 'Please verify OTP first.'}, status=400)
             try:
                 visit_data = request.session.get('new_visit_data', {})
                 project_id = visit_data.get('project')
@@ -190,7 +265,7 @@ def lead_create(request):
                 
                 project = Project.objects.get(id=project_id, is_active=True)
                 
-                # Create lead (phone_verified=False - verification done by Closing Manager if needed)
+                # Create lead (phone_verified=True since OTP was verified in step 2)
                 lead = Lead.objects.create(
                     name=visit_data.get('name'),
                     phone=visit_data.get('phone'),
@@ -213,14 +288,30 @@ def lead_create(request):
                     cp_phone=request.POST.get('cp_phone', ''),
                     cp_rera_number=request.POST.get('cp_rera_number', ''),
                     is_pretagged=False,
-                    phone_verified=False,  # Not verified - Closing Manager verifies if needed
+                    phone_verified=True,  # OTP was verified in step 2
                     status='visit_completed',  # Visit is completed when created via New Visit form
                     visit_source=request.POST.get('visit_source', 'walkin'),  # Default to walkin, can be changed
                     created_by=request.user,
                 )
                 
+                # Create OTP log entry for audit trail
+                otp_data = request.session.get('new_visit_otp', {})
+                if otp_data:
+                    OtpLog.objects.create(
+                        lead=lead,
+                        otp_hash=otp_data.get('otp_hash', ''),
+                        expires_at=timezone.now() + timedelta(minutes=5),
+                        is_verified=True,
+                        verified_at=timezone.now(),
+                        sent_by=request.user,
+                        attempts=1,
+                        max_attempts=3,
+                    )
+                
                 # Clear session data
                 request.session.pop('new_visit_data', None)
+                request.session.pop('new_visit_otp', None)
+                request.session.pop('new_visit_otp_verified', None)
                 
                 # Return JSON response with proper redirect URL
                 try:
