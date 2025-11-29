@@ -1143,6 +1143,7 @@ def _create_column_mapper(headers):
             normalized_headers[normalized] = idx
     
     # Define field mappings with common variations
+    # Note: This is for LEADS upload only. Visits are created separately when leads actually visit.
     field_mappings = {
         'name': ['name', 'full name', 'client name', 'customer name', 'person name', 'contact name', 'lead name'],
         'phone': ['phone', 'mobile', 'contact', 'contact number', 'phone number', 'mobile number', 'cell', 'cell phone', 'whatsapp', 'whatsapp number'],
@@ -1159,10 +1160,12 @@ def _create_column_mapper(headers):
         'visit_type': ['visit type', 'visit', 'accompanied by', 'family alone'],
         'is_first_visit': ['first visit', 'is first visit', 'new visit', 'revisit'],
         'how_did_you_hear': ['how did you hear', 'source', 'referral source', 'lead source', 'marketing source'],
+        'status': ['status', 'lead status', 'stage', 'current status', 'lead stage'],  # IMPORTANT: Lead Status
         'cp_firm_name': ['cp firm name', 'channel partner firm', 'cp firm', 'partner firm', 'broker firm'],
         'cp_name': ['cp name', 'channel partner name', 'cp', 'partner name', 'broker name'],
         'cp_phone': ['cp phone', 'channel partner phone', 'cp mobile', 'partner phone', 'broker phone'],
         'cp_rera_number': ['cp rera number', 'rera number', 'cp rera', 'rera id', 'rera'],
+        'is_pretagged': ['is pretagged', 'pretagged', 'pretag', 'is pretag', 'pretagged lead'],
     }
     
     # Create reverse mapping: field -> column index
@@ -1279,12 +1282,49 @@ def lead_upload(request):
                         is_first_visit_str = get_row_value('is_first_visit')
                         is_first_visit = is_first_visit_str.lower() in ['true', 'yes', '1', 'y'] if is_first_visit_str else True
                         how_did_you_hear = get_row_value('how_did_you_hear')
+                        
+                        # Get Lead Status (VERY IMPORTANT - from upload file)
+                        status_str = get_row_value('status')
+                        # Validate status against choices
+                        valid_statuses = [choice[0] for choice in Lead.LEAD_STATUS_CHOICES]
+                        if status_str:
+                            status_str = status_str.lower().strip()
+                            # Try to match status (case-insensitive, handle spaces/underscores)
+                            status_matched = None
+                            for valid_status in valid_statuses:
+                                if status_str == valid_status or status_str.replace('_', ' ') == valid_status.replace('_', ' '):
+                                    status_matched = valid_status
+                                    break
+                            # If no match, try display name matching
+                            if not status_matched:
+                                for valid_status, display_name in Lead.LEAD_STATUS_CHOICES:
+                                    display_lower = display_name.lower()
+                                    if status_str == display_lower or status_str in display_lower or display_lower in status_str:
+                                        status_matched = valid_status
+                                        break
+                            status = status_matched if status_matched else 'new'
+                        else:
+                            status = 'new'  # Default status
+                        
+                        # Handle pretagged leads
+                        is_pretagged_str = get_row_value('is_pretagged')
+                        is_pretagged = is_pretagged_str.lower() in ['yes', 'true', '1', 'y', 'pretagged'] if is_pretagged_str else False
+                        
                         cp_firm_name = get_row_value('cp_firm_name')
                         cp_name = get_row_value('cp_name')
                         cp_phone = get_row_value('cp_phone')
                         cp_rera_number = get_row_value('cp_rera_number')
                         
-                        # Create lead
+                        # Validate pretagged requirements
+                        if is_pretagged:
+                            if not cp_firm_name or not cp_name or not cp_phone:
+                                errors.append(f"Row {row_num}: Pretagged leads require CP Firm Name, CP Name, and CP Phone")
+                                continue
+                        
+                        # Create lead (LEADS ONLY - visits are created separately when leads actually visit)
+                        # Note: This upload creates leads, not visits. Visits are created when:
+                        # 1. Telecaller/any user schedules a visit (status='visit_scheduled')
+                        # 2. Closing Manager completes visit form when lead arrives (status='visit_completed')
                         Lead.objects.create(
                             name=name,
                             phone=phone,
@@ -1306,9 +1346,10 @@ def lead_upload(request):
                             cp_name=cp_name,
                             cp_phone=cp_phone,
                             cp_rera_number=cp_rera_number,
-                            is_pretagged=False,
+                            is_pretagged=is_pretagged,
+                            pretag_status='pending_verification' if is_pretagged else '',
                             phone_verified=False,
-                            status='new',
+                            status=status,  # Use status from upload file
                             created_by=request.user,
                         )
                         leads_created += 1
@@ -1370,12 +1411,49 @@ def lead_upload(request):
                         is_first_visit_str = get_row_value('is_first_visit')
                         is_first_visit = is_first_visit_str.lower() in ['true', 'yes', '1', 'y'] if is_first_visit_str else True
                         how_did_you_hear = get_row_value('how_did_you_hear')
+                        
+                        # Get Lead Status (VERY IMPORTANT - from upload file)
+                        status_str = get_row_value('status')
+                        # Validate status against choices
+                        valid_statuses = [choice[0] for choice in Lead.LEAD_STATUS_CHOICES]
+                        if status_str:
+                            status_str = status_str.lower().strip()
+                            # Try to match status (case-insensitive, handle spaces/underscores)
+                            status_matched = None
+                            for valid_status in valid_statuses:
+                                if status_str == valid_status or status_str.replace('_', ' ') == valid_status.replace('_', ' '):
+                                    status_matched = valid_status
+                                    break
+                            # If no match, try display name matching
+                            if not status_matched:
+                                for valid_status, display_name in Lead.LEAD_STATUS_CHOICES:
+                                    display_lower = display_name.lower()
+                                    if status_str == display_lower or status_str in display_lower or display_lower in status_str:
+                                        status_matched = valid_status
+                                        break
+                            status = status_matched if status_matched else 'new'
+                        else:
+                            status = 'new'  # Default status
+                        
+                        # Handle pretagged leads
+                        is_pretagged_str = get_row_value('is_pretagged')
+                        is_pretagged = is_pretagged_str.lower() in ['yes', 'true', '1', 'y', 'pretagged'] if is_pretagged_str else False
+                        
                         cp_firm_name = get_row_value('cp_firm_name')
                         cp_name = get_row_value('cp_name')
                         cp_phone = get_row_value('cp_phone')
                         cp_rera_number = get_row_value('cp_rera_number')
                         
-                        # Create lead
+                        # Validate pretagged requirements
+                        if is_pretagged:
+                            if not cp_firm_name or not cp_name or not cp_phone:
+                                errors.append(f"Row {row_num}: Pretagged leads require CP Firm Name, CP Name, and CP Phone")
+                                continue
+                        
+                        # Create lead (LEADS ONLY - visits are created separately when leads actually visit)
+                        # Note: This upload creates leads, not visits. Visits are created when:
+                        # 1. Telecaller/any user schedules a visit (status='visit_scheduled')
+                        # 2. Closing Manager completes visit form when lead arrives (status='visit_completed')
                         Lead.objects.create(
                             name=name,
                             phone=phone,
@@ -1397,9 +1475,10 @@ def lead_upload(request):
                             cp_name=cp_name,
                             cp_phone=cp_phone,
                             cp_rera_number=cp_rera_number,
-                            is_pretagged=False,
+                            is_pretagged=is_pretagged,
+                            pretag_status='pending_verification' if is_pretagged else '',
                             phone_verified=False,
-                            status='new',
+                            status=status,  # Use status from upload file
                             created_by=request.user,
                         )
                         leads_created += 1
