@@ -24,21 +24,37 @@ class BaseSMSAdapter:
 class WhatsAppDeepLinkAdapter(BaseSMSAdapter):
     """Fallback adapter using WhatsApp deep links (manual sending)"""
     
-    def send(self, phone, message):
+    def send(self, phone, message, project_name=None):
         """
         Generate WhatsApp deep link for manual sending
+        Args:
+            phone: Phone number
+            message: Either a full message string OR a 6-digit OTP code
+            project_name: Optional project name (used if message is an OTP)
         Returns dict with status='fallback' and 'whatsapp_link'
         """
-        # Extract OTP from message if present
-        otp = None
-        if 'OTP:' in message or 'OTP is' in message:
-            # Try to extract OTP from message
-            import re
-            match = re.search(r'OTP[:\s]*\*?(\d{6})\*?', message)
-            if match:
-                otp = match.group(1)
-        
-        whatsapp_link = get_sms_deep_link(phone, otp or '', None)
+        # Check if message is a 6-digit OTP code
+        if isinstance(message, str) and len(message) == 6 and message.isdigit():
+            # It's an OTP code - use get_sms_deep_link which formats it properly
+            whatsapp_link = get_sms_deep_link(phone, message, project_name)
+        else:
+            # It's a full message - extract OTP if present, otherwise use message as-is
+            otp = None
+            if 'OTP:' in message or 'OTP is' in message:
+                # Try to extract OTP from message
+                import re
+                match = re.search(r'OTP[:\s]*\*?(\d{6})\*?', message)
+                if match:
+                    otp = match.group(1)
+                    whatsapp_link = get_sms_deep_link(phone, otp, project_name)
+                else:
+                    # Use message as-is
+                    from .utils import get_whatsapp_link
+                    whatsapp_link = get_whatsapp_link(phone, message)
+            else:
+                # Use message as-is
+                from .utils import get_whatsapp_link
+                whatsapp_link = get_whatsapp_link(phone, message)
         
         return {
             'status': 'fallback',
@@ -172,11 +188,15 @@ def get_sms_adapter():
         return WhatsAppDeepLinkAdapter()
 
 
-def send_sms(phone, message):
+def send_sms(phone, message, project_name=None):
     """
     Convenience function to send SMS using configured adapter
+    Args:
+        phone: Phone number
+        message: Either a full message string OR a 6-digit OTP code
+        project_name: Optional project name (used if message is an OTP)
     Returns adapter response dict
     """
     adapter = get_sms_adapter()
-    return adapter.send(phone, message)
+    return adapter.send(phone, message, project_name=project_name)
 
