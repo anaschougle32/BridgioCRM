@@ -136,6 +136,45 @@ def lead_list(request):
 @login_required
 def lead_create(request):
     """Create new visit (Available to all user types) - Multi-step form with OTP"""
+    # Handle OTP sending FIRST (before main POST handler)
+    if request.method == 'POST' and request.POST.get('action') == 'send_otp':
+        phone = request.POST.get('phone', '')
+        if not phone:
+            return JsonResponse({'success': False, 'error': 'Phone number is required.'}, status=400)
+        
+        # Get project name from POST data or session
+        project_name = None
+        project_id = request.POST.get('project_id') or request.session.get('new_visit_data', {}).get('project_id')
+        if project_id:
+            try:
+                project = Project.objects.get(id=project_id, is_active=True)
+                project_name = project.name
+                # Store in session for future use
+                if 'new_visit_data' not in request.session:
+                    request.session['new_visit_data'] = {}
+                request.session['new_visit_data']['project_id'] = project_id
+                request.session.modified = True
+            except (Project.DoesNotExist, ValueError):
+                pass
+        
+        # Generate OTP
+        otp_code = generate_otp()
+        whatsapp_link = get_sms_deep_link(phone, otp_code, project_name)  # Function name kept for compatibility, but returns WhatsApp link
+        
+        # Store OTP in session
+        request.session['new_visit_otp'] = {
+            'code': otp_code,
+            'phone': phone,
+            'created_at': timezone.now().isoformat(),
+        }
+        request.session.modified = True
+        
+        return JsonResponse({
+            'success': True,
+            'otp_code': otp_code,
+            'sms_link': whatsapp_link,  # Keep variable name for template compatibility
+        })
+    
     if request.method == 'POST':
         step = request.POST.get('step', '1')
         
@@ -249,7 +288,19 @@ def lead_create(request):
                 request.session.pop('new_visit_otp_verified', None)
                 
                 # Return JSON response with proper redirect URL
-                redirect_url = reverse('leads:detail', kwargs={'pk': lead.id})
+                try:
+                    redirect_url = reverse('leads:detail', kwargs={'pk': lead.id})
+                    # Ensure redirect_url is a valid string
+                    if not redirect_url or redirect_url == 'undefined' or redirect_url == 'null':
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Invalid redirect_url generated: {redirect_url} for lead.id={lead.id}")
+                        redirect_url = reverse('leads:list')
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Error generating redirect URL: {str(e)}", exc_info=True)
+                    redirect_url = reverse('leads:list')
                 
                 return JsonResponse({
                     'success': True,
@@ -266,45 +317,12 @@ def lead_create(request):
                 logger = logging.getLogger(__name__)
                 logger.error(f"Error creating new visit: {str(e)}", exc_info=True)
                 return JsonResponse({'success': False, 'error': f'Error creating new visit: {str(e)}'}, status=500)
+        
+        # If POST but no valid step, return error
+        else:
+            return JsonResponse({'success': False, 'error': 'Invalid step or request.'}, status=400)
     
-    # Handle OTP sending
-    if request.method == 'POST' and request.POST.get('action') == 'send_otp':
-        phone = request.POST.get('phone', '')
-        if not phone:
-            return JsonResponse({'success': False, 'error': 'Phone number is required.'}, status=400)
-        
-        # Get project name from POST data or session
-        project_name = None
-        project_id = request.POST.get('project_id') or request.session.get('new_visit_data', {}).get('project_id')
-        if project_id:
-            try:
-                project = Project.objects.get(id=project_id, is_active=True)
-                project_name = project.name
-                # Store in session for future use
-                if 'new_visit_data' not in request.session:
-                    request.session['new_visit_data'] = {}
-                request.session['new_visit_data']['project_id'] = project_id
-                request.session.modified = True
-            except (Project.DoesNotExist, ValueError):
-                pass
-        
-        # Generate OTP
-        otp_code = generate_otp()
-        whatsapp_link = get_sms_deep_link(phone, otp_code, project_name)  # Function name kept for compatibility, but returns WhatsApp link
-        
-        # Store OTP in session
-        request.session['new_visit_otp'] = {
-            'code': otp_code,
-            'phone': phone,
-            'created_at': timezone.now().isoformat(),
-        }
-        
-        return JsonResponse({
-            'success': True,
-            'otp_code': otp_code,
-            'sms_link': whatsapp_link,  # Keep variable name for template compatibility
-        })
-    
+    # GET request - show form
     context = {
         'projects': Project.objects.filter(is_active=True),
     }

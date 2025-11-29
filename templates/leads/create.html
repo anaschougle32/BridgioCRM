@@ -45,7 +45,7 @@
     </div>
     
     <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
-        <form id="new-visit-form" method="post" action="{% url 'leads:create' %}" class="space-y-8" onsubmit="return handleFormSubmit(event);">
+        <form id="new-visit-form" method="post" action="{% url 'leads:create' %}" class="space-y-8" onsubmit="event.preventDefault(); return false;">
             {% csrf_token %}
             <input type="hidden" name="step" id="form-step" value="1">
             
@@ -479,27 +479,34 @@
             }
         })
         .then(response => {
-            // Always try to parse as JSON first
-            return response.json().then(data => {
-                if (data.success) {
-                    if (data.redirect_url) {
-                        window.location.href = data.redirect_url;
+            // Check if response is ok
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || data.message || 'Request failed');
+                }).catch(() => {
+                    throw new Error('Request failed with status ' + response.status);
+                });
+            }
+            // Parse JSON response
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                if (data.redirect_url) {
+                    // Ensure redirect_url is a valid string
+                    const redirectUrl = String(data.redirect_url);
+                    if (redirectUrl && redirectUrl !== 'undefined' && redirectUrl !== 'null') {
+                        window.location.href = redirectUrl;
                     } else {
+                        console.error('Invalid redirect_url:', data.redirect_url);
                         window.location.href = '{% url "leads:list" %}';
                     }
                 } else {
-                    alert(data.error || data.message || 'An error occurred. Please try again.');
-                }
-            }).catch(() => {
-                // If not JSON, check if redirected
-                if (response.redirected) {
-                    window.location.href = response.url;
-                } else if (response.ok) {
                     window.location.href = '{% url "leads:list" %}';
-                } else {
-                    alert('An error occurred. Please try again.');
                 }
-            });
+            } else {
+                alert(data.error || data.message || 'An error occurred. Please try again.');
+            }
         })
         .catch(error => {
             console.error('Error:', error);
@@ -507,15 +514,8 @@
         });
     }
     
-    function handleFormSubmit(event) {
-        // Prevent default form submission
-        event.preventDefault();
-        // Only handle if we're on step 4
-        if (currentStep === 4) {
-            submitFinalForm();
-        }
-        return false;
-    }
+    // Form submission is now completely handled by JavaScript
+    // No need for handleFormSubmit since we prevent default in form tag
     
     // Initialize
     updateStepIndicators(1);
