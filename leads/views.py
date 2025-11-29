@@ -5,6 +5,7 @@ from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponse
+from django.urls import reverse
 from datetime import timedelta
 from django.template.loader import render_to_string
 try:
@@ -152,17 +153,8 @@ def lead_create(request):
                 'company_name': request.POST.get('company_name', ''),
                 'designation': request.POST.get('designation', ''),
             }
+            request.session.modified = True
             return JsonResponse({'success': True, 'step': 2})
-        
-        elif step == '3':
-            # Step 3: Requirements - Store project_id for OTP message
-            project_id = request.POST.get('project')
-            if project_id:
-                if 'new_visit_data' not in request.session:
-                    request.session['new_visit_data'] = {}
-                request.session['new_visit_data']['project_id'] = project_id
-                request.session.modified = True
-            return JsonResponse({'success': True, 'step': 4})
         
         elif step == '2':
             # Step 2: OTP Verification
@@ -181,6 +173,7 @@ def lead_create(request):
             if stored_otp.get('code') == otp_code and stored_otp.get('phone') == phone:
                 # OTP verified
                 request.session['new_visit_otp_verified'] = True
+                request.session.modified = True
                 return JsonResponse({'success': True, 'step': 3})
             else:
                 return JsonResponse({'success': False, 'error': 'Invalid OTP. Please try again.'}, status=400)
@@ -188,11 +181,13 @@ def lead_create(request):
         elif step == '3':
             # Step 3: Requirements - Store in session (including project_id for OTP resend)
             if not request.session.get('new_visit_otp_verified'):
-                messages.error(request, 'OTP verification required.')
-                return redirect('leads:create')
+                return JsonResponse({'success': False, 'error': 'OTP verification required. Please verify OTP first.'}, status=400)
             
             visit_data = request.session.get('new_visit_data', {})
             project_id = request.POST.get('project')
+            if not project_id:
+                return JsonResponse({'success': False, 'error': 'Project is required.'}, status=400)
+            
             visit_data.update({
                 'project': project_id,
                 'project_id': project_id,  # Store separately for OTP message
@@ -203,21 +198,20 @@ def lead_create(request):
                 'how_did_you_hear': request.POST.get('how_did_you_hear', ''),
             })
             request.session['new_visit_data'] = visit_data
+            request.session.modified = True
             return JsonResponse({'success': True, 'step': 4})
         
         elif step == '4':
             # Step 4: CP (Optional) - Create lead
             if not request.session.get('new_visit_otp_verified'):
-                messages.error(request, 'OTP verification required.')
-                return redirect('leads:create')
+                return JsonResponse({'success': False, 'error': 'OTP verification required. Please verify OTP first.'}, status=400)
             
             try:
                 visit_data = request.session.get('new_visit_data', {})
                 project_id = visit_data.get('project')
                 
                 if not project_id:
-                    messages.error(request, 'Project is required.')
-                    return redirect('leads:create')
+                    return JsonResponse({'success': False, 'error': 'Project is required.'}, status=400)
                 
                 project = Project.objects.get(id=project_id, is_active=True)
                 
@@ -254,18 +248,24 @@ def lead_create(request):
                 request.session.pop('new_visit_otp', None)
                 request.session.pop('new_visit_otp_verified', None)
                 
-                messages.success(request, f'New visit created successfully! Lead #{lead.id} has been added.')
-                # Return JSON response for fetch/AJAX requests
+                # Return JSON response with proper redirect URL
+                redirect_url = reverse('leads:detail', kwargs={'pk': lead.id})
+                
                 return JsonResponse({
                     'success': True,
                     'message': f'New visit created successfully! Lead #{lead.id} has been added.',
-                    'redirect_url': f'/leads/{lead.id}/'
+                    'redirect_url': redirect_url
                 })
                 
             except Project.DoesNotExist:
-                messages.error(request, 'Invalid project selected.')
+                return JsonResponse({'success': False, 'error': 'Invalid project selected.'}, status=400)
+            except ValueError as e:
+                return JsonResponse({'success': False, 'error': f'Invalid data: {str(e)}'}, status=400)
             except Exception as e:
-                messages.error(request, f'Error creating new visit: {str(e)}')
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating new visit: {str(e)}", exc_info=True)
+                return JsonResponse({'success': False, 'error': f'Error creating new visit: {str(e)}'}, status=500)
     
     # Handle OTP sending
     if request.method == 'POST' and request.POST.get('action') == 'send_otp':

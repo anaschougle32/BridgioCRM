@@ -324,8 +324,8 @@
     function nextStep(fromStep) {
         if (fromStep === 1) {
             // Validate step 1
-            const name = document.getElementById('name').value;
-            const phone = document.getElementById('phone').value;
+            const name = document.getElementById('name').value.trim();
+            const phone = document.getElementById('phone').value.trim();
             if (!name || !phone) {
                 alert('Name and Phone are required.');
                 return;
@@ -351,7 +351,7 @@
     function submitStep(step) {
         const form = document.getElementById('new-visit-form');
         const formData = new FormData(form);
-        formData.set('step', step);
+        formData.set('step', step.toString());
         
         fetch('{% url "leads:create" %}', {
             method: 'POST',
@@ -360,12 +360,19 @@
                 'X-CSRFToken': formData.get('csrfmiddlewaretoken')
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Request failed');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 if (step === 1) {
                     showStep(2);
-                    document.getElementById('otp-phone-display').textContent = document.getElementById('phone').value;
+                    document.getElementById('otp-phone-display').textContent = document.getElementById('phone').value.trim();
                 } else if (step === 3) {
                     showStep(4);
                 }
@@ -375,7 +382,7 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred. Please try again.');
+            alert(error.message || 'An error occurred. Please try again.');
         });
     }
     
@@ -472,31 +479,27 @@
             }
         })
         .then(response => {
-            // Check content type
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                // JSON response
-                return response.json().then(data => {
-                    if (data.success) {
-                        if (data.redirect_url) {
-                            window.location.href = data.redirect_url;
-                        } else {
-                            window.location.href = '{% url "leads:list" %}';
-                        }
+            // Always try to parse as JSON first
+            return response.json().then(data => {
+                if (data.success) {
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
                     } else {
-                        alert(data.error || 'An error occurred. Please try again.');
+                        window.location.href = '{% url "leads:list" %}';
                     }
-                });
-            } else {
-                // HTML response (redirect happened server-side)
-                // Follow the redirect
+                } else {
+                    alert(data.error || data.message || 'An error occurred. Please try again.');
+                }
+            }).catch(() => {
+                // If not JSON, check if redirected
                 if (response.redirected) {
                     window.location.href = response.url;
-                } else {
-                    // Try to get redirect from response
+                } else if (response.ok) {
                     window.location.href = '{% url "leads:list" %}';
+                } else {
+                    alert('An error occurred. Please try again.');
                 }
-            }
+            });
         })
         .catch(error => {
             console.error('Error:', error);
