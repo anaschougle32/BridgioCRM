@@ -18,7 +18,7 @@ from .models import Lead, OtpLog, CallLog, FollowUpReminder, DailyAssignmentQuot
 from projects.models import Project
 from accounts.models import User
 from .utils import (
-    generate_otp, hash_otp, verify_otp, get_sms_deep_link,
+    generate_otp, hash_otp, verify_otp as verify_otp_hash, get_sms_deep_link,
     get_phone_display, get_tel_link, get_whatsapp_link, get_whatsapp_templates
 )
 
@@ -635,8 +635,8 @@ def verify_otp(request, pk):
             'error': f'Maximum attempts ({otp_log.max_attempts}) exceeded. Please send a new OTP.'
         }, status=400)
     
-    # Verify OTP
-    is_valid = verify_otp(otp_code, otp_log.otp_hash)
+    # Verify OTP using utility function
+    is_valid = verify_otp_hash(otp_code, otp_log.otp_hash)
     
     otp_log.attempts += 1
     
