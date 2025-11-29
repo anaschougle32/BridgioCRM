@@ -53,6 +53,7 @@ def get_sms_deep_link(phone, otp, project_name=None):
         clean_phone = clean_phone[1:]
     
     # Create WhatsApp message with project name if provided
+    # Format: "Here's the OTP to confirm your visit for {project_name}. Thank you. Please provide this OTP to the executive."
     if project_name:
         message = f"Here's the OTP to confirm your visit for {project_name}. Thank you. Please provide this OTP to the executive. OTP: *{otp}*"
     else:

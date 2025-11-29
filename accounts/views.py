@@ -163,9 +163,9 @@ def user_create(request):
             if project_ids:
                 projects = Project.objects.filter(id__in=project_ids, is_active=True)
                 user.assigned_projects.set(projects)
-            
-            messages.success(request, f'User {user.username} created successfully!')
-            return redirect('accounts:user_list')
+        
+        messages.success(request, f'User {user.username} created successfully!')
+        return redirect('accounts:user_list')
             
         except Exception as e:
             import logging
