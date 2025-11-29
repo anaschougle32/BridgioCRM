@@ -39,6 +39,18 @@ else:
 # Google Maps API Key for Attendance Features
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', 'AIzaSyCwcFvh1vVe979dldumRkBnV01VU3msn30')
 
+# OTP Secret for HMAC hashing (use a different secret than SECRET_KEY for additional security)
+OTP_SECRET = os.environ.get('OTP_SECRET', SECRET_KEY)  # Defaults to SECRET_KEY if not set
+
+# SMS Provider Configuration
+SMS_PROVIDER = os.environ.get('SMS_PROVIDER', 'whatsapp').lower()  # Options: 'twilio', 'msg91', 'whatsapp'
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
+MSG91_API_KEY = os.environ.get('MSG91_API_KEY', '')
+MSG91_SENDER_ID = os.environ.get('MSG91_SENDER_ID', 'BRIDIO')
+MSG91_TEMPLATE_ID = os.environ.get('MSG91_TEMPLATE_ID', '')
+
 
 # Application definition
 

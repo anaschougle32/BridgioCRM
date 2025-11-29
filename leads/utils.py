@@ -12,9 +12,12 @@ def generate_otp():
 
 
 def hash_otp(otp, secret_key=None):
-    """Hash OTP using SHA256 HMAC"""
+    """Hash OTP using SHA256 HMAC with OTP_SECRET"""
     if secret_key is None:
-        secret_key = getattr(settings, 'SECRET_KEY', 'default-secret-key')
+        # Use OTP_SECRET if available, fallback to SECRET_KEY
+        secret_key = getattr(settings, 'OTP_SECRET', None)
+        if not secret_key:
+            secret_key = getattr(settings, 'SECRET_KEY', 'default-secret-key')
     
     return hmac.new(
         secret_key.encode('utf-8'),
@@ -24,9 +27,12 @@ def hash_otp(otp, secret_key=None):
 
 
 def verify_otp(otp, otp_hash, secret_key=None):
-    """Verify OTP against stored hash"""
+    """Verify OTP against stored hash using constant-time comparison"""
     if secret_key is None:
-        secret_key = getattr(settings, 'SECRET_KEY', 'default-secret-key')
+        # Use OTP_SECRET if available, fallback to SECRET_KEY
+        secret_key = getattr(settings, 'OTP_SECRET', None)
+        if not secret_key:
+            secret_key = getattr(settings, 'SECRET_KEY', 'default-secret-key')
     
     computed_hash = hash_otp(otp, secret_key)
     return hmac.compare_digest(computed_hash, otp_hash)

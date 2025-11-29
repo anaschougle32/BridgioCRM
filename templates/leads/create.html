@@ -13,7 +13,7 @@
     
     <!-- Progress Steps -->
     <div class="mb-6 sm:mb-8 overflow-x-auto">
-        <div class="flex items-center justify-between min-w-[600px] sm:min-w-0">
+        <div class="flex items-center justify-between min-w-[500px] sm:min-w-0">
             <div class="flex items-center">
                 <div class="flex items-center justify-center w-10 h-10 rounded-full bg-olive-primary text-white font-bold" id="step-1-indicator">1</div>
                 <div class="ml-3">
@@ -24,19 +24,12 @@
             <div class="flex items-center">
                 <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-2-indicator">2</div>
                 <div class="ml-3">
-                    <p class="text-sm font-medium text-gray-500">OTP Verification</p>
+                    <p class="text-sm font-medium text-gray-500">Requirements</p>
                 </div>
             </div>
             <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-2-3-line"></div>
             <div class="flex items-center">
                 <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-3-indicator">3</div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-gray-500">Requirements</p>
-                </div>
-            </div>
-            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-3-4-line"></div>
-            <div class="flex items-center">
-                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-4-indicator">4</div>
                 <div class="ml-3">
                     <p class="text-sm font-medium text-gray-500">CP (Optional)</p>
                 </div>
@@ -128,59 +121,13 @@
                     </a>
                     <button type="button" onclick="nextStep(1)" 
                             class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
-                        Next: OTP Verification
+                        Next: Requirements
                     </button>
                 </div>
             </div>
             
-            <!-- Step 2: OTP Verification -->
+            <!-- Step 2: Requirements -->
             <div id="step-2" class="step-content hidden">
-                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">OTP Verification</h2>
-                <div class="space-y-6">
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <p class="text-sm text-blue-800 mb-3">
-                            An OTP will be sent to the phone number: <strong id="otp-phone-display"></strong>
-                        </p>
-                        <button type="button" onclick="sendOTP()" id="send-otp-btn"
-                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                            Send OTP via WhatsApp
-                        </button>
-                    </div>
-                    
-                    <div id="otp-sent-section" class="hidden">
-                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                            <p class="text-sm text-green-800 mb-2">
-                                OTP sent! Check your WhatsApp. OTP Code: <strong id="otp-code-display"></strong>
-                            </p>
-                            <a id="sms-link" href="#" target="_blank" 
-                               class="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
-                                💬 Open WhatsApp
-                            </a>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-semibold text-text-primary mb-2">Enter OTP *</label>
-                            <input type="text" name="otp" id="otp-input" maxlength="6" pattern="[0-9]{6}"
-                                   placeholder="Enter 6-digit OTP"
-                                   class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
-                            <p class="text-xs text-gray-500 mt-1">Enter the 6-digit OTP received on the phone</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-between space-x-4 mt-6 pt-4 border-t border-border-light">
-                    <button type="button" onclick="previousStep(2)" 
-                            class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
-                        ← Previous
-                    </button>
-                    <button type="button" onclick="verifyOTP()" id="verify-otp-btn" disabled
-                            class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                        Verify & Continue
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Step 3: Requirements -->
-            <div id="step-3" class="step-content hidden">
                 <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Requirement Details</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -234,19 +181,19 @@
                     </div>
                 </div>
                 <div class="flex justify-between space-x-4 mt-6 pt-4 border-t border-border-light">
-                    <button type="button" onclick="previousStep(3)" 
+                    <button type="button" onclick="previousStep(2)" 
                             class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
                         ← Previous
                     </button>
-                    <button type="button" onclick="nextStep(3)" 
+                    <button type="button" onclick="nextStep(2)" 
                             class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
                         Next: CP Details
                     </button>
                 </div>
             </div>
             
-            <!-- Step 4: CP (Optional) -->
-            <div id="step-4" class="step-content hidden">
+            <!-- Step 3: CP (Optional) -->
+            <div id="step-3" class="step-content hidden">
                 <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">
                     Channel Partner Information <span class="text-text-secondary font-normal text-sm">(Optional)</span>
                 </h2>
@@ -284,7 +231,7 @@
                     </div>
                 </div>
                 <div class="flex justify-between space-x-4 mt-6 pt-4 border-t border-border-light">
-                    <button type="button" onclick="previousStep(4)" 
+                    <button type="button" onclick="previousStep(3)" 
                             class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
                         ← Previous
                     </button>
@@ -302,8 +249,8 @@
     let currentStep = 1;
     
     function updateStepIndicators(step) {
-        // Update step indicators
-        for (let i = 1; i <= 4; i++) {
+        // Update step indicators (now 3 steps: 1=Client Info, 2=Requirements, 3=CP Details)
+        for (let i = 1; i <= 3; i++) {
             const indicator = document.getElementById('step-' + i + '-indicator');
             const line = document.getElementById('step-' + (i-1) + '-' + i + '-line');
             
@@ -321,8 +268,8 @@
     }
     
     function showStep(step) {
-        // Hide all steps
-        for (let i = 1; i <= 4; i++) {
+        // Hide all steps (now 3 steps)
+        for (let i = 1; i <= 3; i++) {
             document.getElementById('step-' + i).classList.add('hidden');
         }
         // Show current step
@@ -342,15 +289,15 @@
             }
             // Save step 1 data
             submitStep(1);
-        } else if (fromStep === 3) {
-            // Validate step 3
+        } else if (fromStep === 2) {
+            // Validate step 2 (Requirements)
             const project = document.getElementById('project').value;
             if (!project) {
                 alert('Project is required.');
                 return;
             }
-            // Save step 3 data
-            submitStep(3);
+            // Save step 2 data
+            submitStep(2);
         }
     }
     
@@ -381,10 +328,9 @@
         .then(data => {
             if (data.success) {
                 if (step === 1) {
-                    showStep(2);
-                    document.getElementById('otp-phone-display').textContent = document.getElementById('phone').value.trim();
-                } else if (step === 3) {
-                    showStep(4);
+                    showStep(2);  // Go to Requirements (previously step 3)
+                } else if (step === 2) {
+                    showStep(3);  // Go to CP Details (previously step 4)
                 }
             } else {
                 alert(data.error || 'An error occurred. Please try again.');
@@ -396,90 +342,11 @@
         });
     }
     
-    function sendOTP() {
-        const phone = document.getElementById('phone').value;
-        if (!phone) {
-            alert('Phone number is required.');
-            return;
-        }
-        
-        // Get project if selected (from step 3)
-        const projectSelect = document.getElementById('project');
-        const projectId = projectSelect ? projectSelect.value : null;
-        
-        const form = document.getElementById('new-visit-form');
-        const formData = new FormData();
-        formData.set('action', 'send_otp');
-        formData.set('phone', phone);
-        if (projectId) {
-            formData.set('project_id', projectId);
-        }
-        formData.set('csrfmiddlewaretoken', form.querySelector('[name=csrfmiddlewaretoken]').value);
-        
-        fetch('{% url "leads:create" %}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('otp-sent-section').classList.remove('hidden');
-                document.getElementById('otp-code-display').textContent = data.otp_code;
-                document.getElementById('sms-link').href = data.sms_link;
-                document.getElementById('verify-otp-btn').disabled = false;
-                document.getElementById('send-otp-btn').disabled = true;
-                document.getElementById('send-otp-btn').textContent = 'OTP Sent';
-                
-                // Automatically open WhatsApp with pre-filled message
-                if (data.sms_link) {
-                    window.open(data.sms_link, '_blank');
-                }
-            } else {
-                alert(data.error || 'Failed to send OTP. Please try again.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
-        });
-    }
-    
-    function verifyOTP() {
-        const otp = document.getElementById('otp-input').value;
-        if (!otp || otp.length !== 6) {
-            alert('Please enter a valid 6-digit OTP.');
-            return;
-        }
-        
-        const form = document.getElementById('new-visit-form');
-        const formData = new FormData();
-        formData.set('step', '2');
-        formData.set('otp', otp);
-        formData.set('csrfmiddlewaretoken', form.querySelector('[name=csrfmiddlewaretoken]').value);
-        
-        fetch('{% url "leads:create" %}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showStep(3);
-            } else {
-                alert(data.error || 'Invalid OTP. Please try again.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
-        });
-    }
-    
     function submitFinalForm() {
-        // Submit step 4 (final step) via fetch
+        // Submit step 3 (final step) via fetch
         const form = document.getElementById('new-visit-form');
         const formData = new FormData(form);
-        formData.set('step', '4');
+        formData.set('step', '3');
         
         fetch('{% url "leads:create" %}', {
             method: 'POST',
@@ -527,7 +394,7 @@
     // Form submission is now completely handled by JavaScript
     // No need for handleFormSubmit since we prevent default in form tag
     
-    // Initialize
+    // Initialize (3 steps now: Client Info -> Requirements -> CP Details)
     updateStepIndicators(1);
 </script>
 {% endblock %}

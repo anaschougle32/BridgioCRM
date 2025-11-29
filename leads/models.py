@@ -168,16 +168,16 @@ class Lead(models.Model):
 
 
 class OtpLog(models.Model):
-    """OTP Verification Logs"""
+    """OTP Verification Logs - OTP stored only as hash for security"""
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='otp_logs')
-    otp_hash = models.CharField(max_length=64)  # SHA256 hash
-    otp_code = models.CharField(max_length=6)  # For display purposes only (should be hashed in production)
+    otp_hash = models.CharField(max_length=128)  # HMAC-SHA256 hex (64 chars, but 128 to be safe)
     attempts = models.IntegerField(default=0)
     max_attempts = models.IntegerField(default=3)
     is_verified = models.BooleanField(default=False)
     verified_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField()
     sent_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    gateway_response = models.TextField(blank=True, help_text="SMS gateway response (JSON)")
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -185,7 +185,7 @@ class OtpLog(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"OTP for {self.lead.name} - {self.otp_code}"
+        return f"OTP for {self.lead.name} - {'Verified' if self.is_verified else 'Pending'}"
 
 
 class CallLog(models.Model):

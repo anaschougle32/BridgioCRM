@@ -135,46 +135,11 @@ def lead_list(request):
 
 @login_required
 def lead_create(request):
-    """Create new visit (Available to all user types) - Multi-step form with OTP"""
-    # Handle OTP sending FIRST (before main POST handler)
-    if request.method == 'POST' and request.POST.get('action') == 'send_otp':
-        phone = request.POST.get('phone', '')
-        if not phone:
-            return JsonResponse({'success': False, 'error': 'Phone number is required.'}, status=400)
-        
-        # Get project name from POST data or session
-        project_name = None
-        project_id = request.POST.get('project_id') or request.session.get('new_visit_data', {}).get('project_id')
-        if project_id:
-            try:
-                project = Project.objects.get(id=project_id, is_active=True)
-                project_name = project.name
-                # Store in session for future use
-                if 'new_visit_data' not in request.session:
-                    request.session['new_visit_data'] = {}
-                request.session['new_visit_data']['project_id'] = project_id
-                request.session.modified = True
-            except (Project.DoesNotExist, ValueError):
-                pass
-        
-        # Generate OTP
-        otp_code = generate_otp()
-        whatsapp_link = get_sms_deep_link(phone, otp_code, project_name)  # Function name kept for compatibility, but returns WhatsApp link
-        
-        # Store OTP in session
-        request.session['new_visit_otp'] = {
-            'code': otp_code,
-            'phone': phone,
-            'created_at': timezone.now().isoformat(),
-        }
-        request.session.modified = True
-        
-        return JsonResponse({
-            'success': True,
-            'otp_code': otp_code,
-            'sms_link': whatsapp_link,  # Keep variable name for template compatibility
-        })
+    """Create new visit (Available to all user types) - Multi-step form WITHOUT OTP
     
+    Note: OTP verification is only for pretagged leads and is performed by Closing Managers
+    via the send_otp/verify_otp endpoints. Regular New Visit creation does not require OTP.
+    """
     if request.method == 'POST':
         step = request.POST.get('step', '1')
         
@@ -196,32 +161,7 @@ def lead_create(request):
             return JsonResponse({'success': True, 'step': 2})
         
         elif step == '2':
-            # Step 2: OTP Verification
-            otp_code = request.POST.get('otp', '').strip()
-            phone = request.session.get('new_visit_data', {}).get('phone', '')
-            
-            if not phone:
-                return JsonResponse({'success': False, 'error': 'Phone number not found. Please start over.'}, status=400)
-            
-            # Check if OTP was sent
-            if 'new_visit_otp' not in request.session:
-                return JsonResponse({'success': False, 'error': 'Please send OTP first.'}, status=400)
-            
-            # Verify OTP
-            stored_otp = request.session.get('new_visit_otp', {})
-            if stored_otp.get('code') == otp_code and stored_otp.get('phone') == phone:
-                # OTP verified
-                request.session['new_visit_otp_verified'] = True
-                request.session.modified = True
-                return JsonResponse({'success': True, 'step': 3})
-            else:
-                return JsonResponse({'success': False, 'error': 'Invalid OTP. Please try again.'}, status=400)
-        
-        elif step == '3':
-            # Step 3: Requirements - Store in session (including project_id for OTP resend)
-            if not request.session.get('new_visit_otp_verified'):
-                return JsonResponse({'success': False, 'error': 'OTP verification required. Please verify OTP first.'}, status=400)
-            
+            # Step 2: Requirements (previously OTP step - now just requirements)
             visit_data = request.session.get('new_visit_data', {})
             project_id = request.POST.get('project')
             if not project_id:
@@ -229,7 +169,6 @@ def lead_create(request):
             
             visit_data.update({
                 'project': project_id,
-                'project_id': project_id,  # Store separately for OTP message
                 'budget': request.POST.get('budget', ''),
                 'purpose': request.POST.get('purpose', ''),
                 'visit_type': request.POST.get('visit_type', ''),
@@ -238,13 +177,10 @@ def lead_create(request):
             })
             request.session['new_visit_data'] = visit_data
             request.session.modified = True
-            return JsonResponse({'success': True, 'step': 4})
+            return JsonResponse({'success': True, 'step': 3})
         
-        elif step == '4':
-            # Step 4: CP (Optional) - Create lead
-            if not request.session.get('new_visit_otp_verified'):
-                return JsonResponse({'success': False, 'error': 'OTP verification required. Please verify OTP first.'}, status=400)
-            
+        elif step == '3':
+            # Step 3: CP (Optional) - Create lead
             try:
                 visit_data = request.session.get('new_visit_data', {})
                 project_id = visit_data.get('project')
@@ -254,7 +190,7 @@ def lead_create(request):
                 
                 project = Project.objects.get(id=project_id, is_active=True)
                 
-                # Create lead
+                # Create lead (phone_verified=False - verification done by Closing Manager if needed)
                 lead = Lead.objects.create(
                     name=visit_data.get('name'),
                     phone=visit_data.get('phone'),
@@ -277,7 +213,7 @@ def lead_create(request):
                     cp_phone=request.POST.get('cp_phone', ''),
                     cp_rera_number=request.POST.get('cp_rera_number', ''),
                     is_pretagged=False,
-                    phone_verified=True,  # OTP verified
+                    phone_verified=False,  # Not verified - Closing Manager verifies if needed
                     status='visit_completed',  # Visit is completed when created via New Visit form
                     visit_source=request.POST.get('visit_source', 'walkin'),  # Default to walkin, can be changed
                     created_by=request.user,
@@ -285,8 +221,6 @@ def lead_create(request):
                 
                 # Clear session data
                 request.session.pop('new_visit_data', None)
-                request.session.pop('new_visit_otp', None)
-                request.session.pop('new_visit_otp_verified', None)
                 
                 # Return JSON response with proper redirect URL
                 try:
@@ -487,16 +421,19 @@ def lead_detail(request, pk):
 
 @login_required
 def send_otp(request, pk):
-    """Send OTP to lead - Available for all user types on all leads"""
+    """Send OTP to lead - Only Closing Managers, Site Heads, and Super Admins"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check - user must be assigned to lead or be admin/site head
-    if request.user.is_telecaller() or request.user.is_closing_manager():
-        if lead.assigned_to != request.user:
-            return JsonResponse({'success': False, 'error': 'You can only send OTP for leads assigned to you.'}, status=403)
+    # Permission check - Only Closing Managers, Site Heads, and Super Admins can send OTP
+    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin()):
+        return JsonResponse({'success': False, 'error': 'Only Closing Managers can send OTP.'}, status=403)
+    
+    # For Closing Managers, ensure they can only send OTP for assigned leads
+    if request.user.is_closing_manager() and lead.assigned_to != request.user:
+        return JsonResponse({'success': False, 'error': 'You can only send OTP for leads assigned to you.'}, status=403)
     
     # Check if there's an active OTP that hasn't expired
     now = timezone.now()
@@ -507,72 +444,64 @@ def send_otp(request, pk):
     ).order_by('-created_at').first()
     
     if active_otp:
-        # Return HTML for the OTP verification form
-        whatsapp_link = get_sms_deep_link(lead.phone, active_otp.otp_code, lead.project.name)
+        # Return HTML for the OTP verification form (no OTP code shown)
         context = {
             'lead': lead,
             'latest_otp': active_otp,
             'now': now,
-            'sms_link': whatsapp_link,  # Keep variable name for template compatibility
-            'otp_code': active_otp.otp_code,
         }
         html = render_to_string('leads/otp_controls.html', context, request=request)
-        # Add JavaScript to open WhatsApp if user wants to resend
-        html += f'''
-        <script>
-            // Option to open WhatsApp again if needed
-            const whatsappLink = '{whatsapp_link}';
-            if (whatsappLink) {{
-                // Store link for manual opening if needed
-                window.currentWhatsAppLink = whatsappLink;
-            }}
-        </script>
-        '''
         return HttpResponse(html)
     
     # Generate OTP
     otp_code = generate_otp()
     otp_hash = hash_otp(otp_code)
     
-    # Create OTP log
+    # Create OTP log (only hash, no plaintext)
     expires_at = now + timedelta(minutes=5)
     otp_log = OtpLog.objects.create(
         lead=lead,
         otp_hash=otp_hash,
-        otp_code=otp_code,  # For display in development only
         expires_at=expires_at,
         sent_by=request.user,
         attempts=0,
         max_attempts=3,
     )
     
-    # Generate WhatsApp deep link (opens WhatsApp)
-    whatsapp_link = get_sms_deep_link(lead.phone, otp_code, lead.project.name)
+    # Send SMS via adapter (with WhatsApp fallback)
+    from .sms_adapter import send_sms
+    # Pass OTP code and project name separately - adapter will format the message
+    sms_response = send_sms(lead.phone, otp_code, project_name=lead.project.name)
     
-    # Return HTML for the OTP verification form with WhatsApp link
-    # Include JavaScript to automatically open WhatsApp
+    # Store gateway response
+    import json
+    otp_log.gateway_response = json.dumps(sms_response)
+    otp_log.save()
+    
+    # Return HTML for the OTP verification form
     context = {
         'lead': lead,
         'latest_otp': otp_log,
         'now': now,
-        'sms_link': whatsapp_link,  # Keep variable name for template compatibility
-        'otp_code': otp_code,  # Show OTP for manual entry if WhatsApp doesn't open
+        'sms_response': sms_response,
     }
     html = render_to_string('leads/otp_controls.html', context, request=request)
     
-    # Add JavaScript to automatically open WhatsApp
-    html += f'''
-    <script>
-        // Automatically open WhatsApp when OTP is generated
-        (function() {{
-            const whatsappLink = '{whatsapp_link}';
-            if (whatsappLink) {{
-                // Open WhatsApp in new tab/window
-                window.open(whatsappLink, '_blank');
-            }}
-        }})();
-    </script>
-    '''
+    # If using WhatsApp fallback, add JavaScript to open it
+    if sms_response.get('status') == 'fallback' and sms_response.get('whatsapp_link'):
+        whatsapp_link = sms_response['whatsapp_link']
+        html += f'''
+        <script>
+            // Automatically open WhatsApp when OTP is generated (fallback mode)
+            (function() {{
+                const whatsappLink = '{whatsapp_link}';
+                if (whatsappLink) {{
+                    // Open WhatsApp in new tab/window
+                    window.open(whatsappLink, '_blank');
+                }}
+            }})();
+        </script>
+        '''
     
     # Return HTML directly for htmx
     return HttpResponse(html)
@@ -580,16 +509,19 @@ def send_otp(request, pk):
 
 @login_required
 def verify_otp(request, pk):
-    """Verify OTP - Available for all user types"""
+    """Verify OTP - Only Closing Managers, Site Heads, and Super Admins"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check - user must be assigned to lead or be admin/site head
-    if request.user.is_telecaller() or request.user.is_closing_manager():
-        if lead.assigned_to != request.user:
-            return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads assigned to you.'}, status=403)
+    # Permission check - Only Closing Managers, Site Heads, and Super Admins can verify OTP
+    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin()):
+        return JsonResponse({'success': False, 'error': 'Only Closing Managers can verify OTP.'}, status=403)
+    
+    # For Closing Managers, ensure they can only verify OTP for assigned leads
+    if request.user.is_closing_manager() and lead.assigned_to != request.user:
+        return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads assigned to you.'}, status=403)
     
     otp_code = request.POST.get('otp', '').strip()
     if not otp_code or len(otp_code) != 6:
@@ -1015,13 +947,6 @@ def lead_assign(request):
             
             project = get_object_or_404(Project, pk=project_id, site_head=request.user)
             
-            # Get unassigned leads for this project
-            unassigned_leads = Lead.objects.filter(
-                project=project,
-                assigned_to__isnull=True,
-                is_archived=False
-            ).order_by('created_at')
-            
             # Get assignment data
             assignments = []
             for key, value in request.POST.items():
@@ -1044,33 +969,42 @@ def lead_assign(request):
                 mandate_owner=request.user.mandate_owner
             )
             
-            # Assign leads using round-robin
-            assigned_count = 0
-            employee_index = 0
-            
-            for assignment in assignments:
-                employee = get_object_or_404(employees, pk=assignment['employee_id'])
-                num_leads = assignment['num_leads']
+            # Use atomic transaction with row locking to prevent race conditions
+            from django.db import transaction
+            with transaction.atomic():
+                assigned_count = 0
                 
-                # Get leads to assign
-                leads_to_assign = list(unassigned_leads[assigned_count:assigned_count + num_leads])
-                
-                for lead in leads_to_assign:
-                    lead.assigned_to = employee
-                    lead.assigned_by = request.user
-                    lead.assigned_at = timezone.now()
-                    lead.save()
-                    assigned_count += 1
+                for assignment in assignments:
+                    employee = get_object_or_404(employees, pk=assignment['employee_id'])
+                    num_leads = assignment['num_leads']
                     
-                    # Create audit log
-                    from accounts.models import AuditLog
-                    AuditLog.objects.create(
-                        user=request.user,
-                        action='lead_assigned',
-                        model_name='Lead',
-                        object_id=lead.id,
-                        details=f'Lead {lead.name} assigned to {employee.username}',
+                    # Use select_for_update to lock rows and prevent concurrent assignment
+                    leads_to_assign = list(
+                        Lead.objects.select_for_update(skip_locked=True)
+                        .filter(
+                            project=project,
+                            assigned_to__isnull=True,
+                            is_archived=False
+                        )
+                        .order_by('created_at')[:num_leads]
                     )
+                    
+                    for lead in leads_to_assign:
+                        lead.assigned_to = employee
+                        lead.assigned_by = request.user
+                        lead.assigned_at = timezone.now()
+                        lead.save()
+                        assigned_count += 1
+                        
+                        # Create audit log
+                        from accounts.models import AuditLog
+                        AuditLog.objects.create(
+                            user=request.user,
+                            action='lead_assigned',
+                            model_name='Lead',
+                            object_id=lead.id,
+                            details=f'Lead {lead.name} assigned to {employee.username}',
+                        )
             
             messages.success(request, f'Successfully assigned {assigned_count} lead(s) to employees.')
             return redirect('leads:list')
@@ -1329,29 +1263,34 @@ def lead_assign_admin(request):
             # Also do immediate assignment if requested
             immediate_assign = request.POST.get('immediate_assign', 'false') == 'true'
             if immediate_assign:
-                # Get unassigned leads
-                unassigned_leads = Lead.objects.filter(
-                    project=project,
-                    assigned_to__isnull=True,
-                    is_archived=False
-                ).order_by('created_at')
-                
-                # Get quotas
-                quotas = DailyAssignmentQuota.objects.filter(
-                    project=project,
-                    is_active=True
-                )
-                
-                assigned_count = 0
-                for quota in quotas:
-                    # Get leads to assign
-                    leads_to_assign = list(unassigned_leads[assigned_count:assigned_count + quota.daily_quota])
-                    for lead in leads_to_assign:
-                        lead.assigned_to = quota.employee
-                        lead.assigned_by = request.user
-                        lead.assigned_at = timezone.now()
-                        lead.save()
-                        assigned_count += 1
+                from django.db import transaction
+                # Use atomic transaction with row locking to prevent race conditions
+                with transaction.atomic():
+                    # Get quotas
+                    quotas = DailyAssignmentQuota.objects.filter(
+                        project=project,
+                        is_active=True
+                    )
+                    
+                    assigned_count = 0
+                    for quota in quotas:
+                        # Use select_for_update to lock rows and prevent concurrent assignment
+                        leads_to_assign = list(
+                            Lead.objects.select_for_update(skip_locked=True)
+                            .filter(
+                                project=project,
+                                assigned_to__isnull=True,
+                                is_archived=False
+                            )
+                            .order_by('created_at')[:quota.daily_quota]
+                        )
+                        
+                        for lead in leads_to_assign:
+                            lead.assigned_to = quota.employee
+                            lead.assigned_by = request.user
+                            lead.assigned_at = timezone.now()
+                            lead.save()
+                            assigned_count += 1
                 
                 if assigned_count > 0:
                     messages.success(request, f'Immediately assigned {assigned_count} lead(s) and saved daily quotas.')

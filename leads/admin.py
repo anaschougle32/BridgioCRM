@@ -42,10 +42,11 @@ class LeadAdmin(admin.ModelAdmin):
 
 @admin.register(OtpLog)
 class OtpLogAdmin(admin.ModelAdmin):
-    list_display = ['lead', 'otp_code', 'is_verified', 'attempts', 'expires_at', 'created_at']
+    list_display = ['lead', 'is_verified', 'attempts', 'expires_at', 'created_at', 'sent_by']
     list_filter = ['is_verified', 'created_at']
     search_fields = ['lead__name', 'lead__phone']
-    readonly_fields = ['created_at']
+    readonly_fields = ['created_at', 'otp_hash']  # Never show OTP hash in admin, but make it readonly if shown
+    exclude = ['otp_hash']  # Don't show OTP hash in admin forms for security
 
 
 @admin.register(CallLog)

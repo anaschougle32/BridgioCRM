@@ -122,57 +122,74 @@ def booking_create(request, lead_id):
         return redirect('leads:detail', pk=lead_id)
     
     if request.method == 'POST':
+        from django.db import transaction
         try:
-            # Get channel partner if CP details exist
-            channel_partner = None
-            if lead.cp_name and lead.cp_phone:
-                # Try to find existing CP or create new one
-                channel_partner, created = ChannelPartner.objects.get_or_create(
-                    phone=lead.cp_phone,
-                    defaults={
-                        'firm_name': lead.cp_firm_name or 'N/A',
-                        'cp_name': lead.cp_name,
-                        'email': '',
-                        'cp_type': 'individual',
-                    }
+            # Use atomic transaction to ensure booking, payment, and status update are all-or-nothing
+            with transaction.atomic():
+                # Get channel partner if CP details exist
+                channel_partner = None
+                if lead.cp_name and lead.cp_phone:
+                    # Try to find existing CP or create new one
+                    channel_partner, created = ChannelPartner.objects.get_or_create(
+                        phone=lead.cp_phone,
+                        defaults={
+                            'firm_name': lead.cp_firm_name or 'N/A',
+                            'cp_name': lead.cp_name,
+                            'email': '',
+                            'cp_type': 'individual',
+                        }
+                    )
+                    if not created:
+                        # Update existing CP if needed
+                        if lead.cp_firm_name:
+                            channel_partner.firm_name = lead.cp_firm_name
+                            channel_partner.save()
+                
+                # Get CP commission percent from project
+                cp_commission_percent = lead.project.default_commission_percent if channel_partner else 0.00
+                
+                # Create booking
+                booking = Booking.objects.create(
+                    lead=lead,
+                    project=lead.project,
+                    tower_wing=request.POST.get('tower_wing', ''),
+                    unit_number=request.POST.get('unit_number', ''),
+                    carpet_area=float(request.POST.get('carpet_area')) if request.POST.get('carpet_area') else None,
+                    floor=int(request.POST.get('floor')) if request.POST.get('floor') else None,
+                    final_negotiated_price=float(request.POST.get('final_negotiated_price', 0)),
+                    token_amount=float(request.POST.get('token_amount', 0)),
+                    channel_partner=channel_partner,
+                    cp_commission_percent=cp_commission_percent,
+                    created_by=request.user,
                 )
-                if not created:
-                    # Update existing CP if needed
-                    if lead.cp_firm_name:
-                        channel_partner.firm_name = lead.cp_firm_name
-                        channel_partner.save()
-            
-            # Get CP commission percent from project
-            cp_commission_percent = lead.project.default_commission_percent if channel_partner else 0.00
-            
-            # Create booking
-            booking = Booking.objects.create(
-                lead=lead,
-                project=lead.project,
-                tower_wing=request.POST.get('tower_wing', ''),
-                unit_number=request.POST.get('unit_number', ''),
-                carpet_area=float(request.POST.get('carpet_area')) if request.POST.get('carpet_area') else None,
-                floor=int(request.POST.get('floor')) if request.POST.get('floor') else None,
-                final_negotiated_price=float(request.POST.get('final_negotiated_price', 0)),
-                token_amount=float(request.POST.get('token_amount', 0)),
-                channel_partner=channel_partner,
-                cp_commission_percent=cp_commission_percent,
-                created_by=request.user,
-            )
-            
-            # Update lead status
-            lead.status = 'booked'
-            lead.save()
-            
-            # Create audit log
-            from accounts.models import AuditLog
-            AuditLog.objects.create(
-                user=request.user,
-                action='booking_created',
-                model_name='Booking',
-                object_id=booking.id,
-                details=f'Booking created for lead {lead.name} - Unit {booking.unit_number}',
-            )
+                
+                # Create initial payment if token amount > 0
+                from django.utils import timezone
+                token_amount = float(request.POST.get('token_amount', 0))
+                if token_amount > 0:
+                    Payment.objects.create(
+                        booking=booking,
+                        amount=token_amount,
+                        payment_mode=request.POST.get('payment_mode', 'cash'),
+                        payment_date=request.POST.get('payment_date') or timezone.now().date(),
+                        reference_number=request.POST.get('reference_number', ''),
+                        notes=f'Initial token payment for booking {booking.id}',
+                        created_by=request.user,
+                    )
+                
+                # Update lead status
+                lead.status = 'booked'
+                lead.save()
+                
+                # Create audit log
+                from accounts.models import AuditLog
+                AuditLog.objects.create(
+                    user=request.user,
+                    action='booking_created',
+                    model_name='Booking',
+                    object_id=booking.id,
+                    details=f'Booking created for lead {lead.name} - Unit {booking.unit_number}',
+                )
             
             messages.success(request, f'Booking created successfully! Booking #{booking.id}')
             return redirect('bookings:detail', pk=booking.id)
