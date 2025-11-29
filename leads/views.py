@@ -1130,9 +1130,63 @@ def lead_assign(request):
     return render(request, 'leads/assign.html', context)
 
 
+def _create_column_mapper(headers):
+    """
+    Create an intelligent column mapper that auto-detects column names.
+    Returns a function that can extract values by field name.
+    """
+    # Normalize headers: strip, lowercase, remove special chars
+    normalized_headers = {}
+    for idx, header in enumerate(headers):
+        if header:
+            normalized = str(header).strip().lower().replace('_', ' ').replace('-', ' ')
+            normalized_headers[normalized] = idx
+    
+    # Define field mappings with common variations
+    field_mappings = {
+        'name': ['name', 'full name', 'client name', 'customer name', 'person name', 'contact name', 'lead name'],
+        'phone': ['phone', 'mobile', 'contact', 'contact number', 'phone number', 'mobile number', 'cell', 'cell phone', 'whatsapp', 'whatsapp number'],
+        'email': ['email', 'e mail', 'email address', 'mail', 'email id'],
+        'age': ['age'],
+        'gender': ['gender', 'sex'],
+        'locality': ['locality', 'area', 'location', 'city', 'address'],
+        'current_residence': ['current residence', 'residence', 'residence type', 'living in', 'own rent'],
+        'occupation': ['occupation', 'profession', 'job', 'work'],
+        'company_name': ['company name', 'company', 'organization', 'org', 'firm name'],
+        'designation': ['designation', 'position', 'title', 'role', 'job title'],
+        'budget': ['budget', 'price range', 'budget range', 'expected budget', 'investment amount'],
+        'purpose': ['purpose', 'requirement', 'need', 'buying purpose'],
+        'visit_type': ['visit type', 'visit', 'accompanied by', 'family alone'],
+        'is_first_visit': ['first visit', 'is first visit', 'new visit', 'revisit'],
+        'how_did_you_hear': ['how did you hear', 'source', 'referral source', 'lead source', 'marketing source'],
+        'cp_firm_name': ['cp firm name', 'channel partner firm', 'cp firm', 'partner firm', 'broker firm'],
+        'cp_name': ['cp name', 'channel partner name', 'cp', 'partner name', 'broker name'],
+        'cp_phone': ['cp phone', 'channel partner phone', 'cp mobile', 'partner phone', 'broker phone'],
+        'cp_rera_number': ['cp rera number', 'rera number', 'cp rera', 'rera id', 'rera'],
+    }
+    
+    # Create reverse mapping: field -> column index
+    field_to_index = {}
+    for field, variations in field_mappings.items():
+        for variation in variations:
+            if variation in normalized_headers:
+                field_to_index[field] = normalized_headers[variation]
+                break
+    
+    def get_value(field_name):
+        """Get value for a field by trying all variations"""
+        if field_name in field_to_index:
+            idx = field_to_index[field_name]
+            if idx < len(headers):
+                return headers[idx]
+        return None
+    
+    return get_value, field_to_index
+
+
 @login_required
 def lead_upload(request):
-    """Upload leads via Excel/CSV (Admin and Site Head only)"""
+    """Upload leads via Excel/CSV (Admin and Site Head only) with auto-mapping"""
     if not (request.user.is_super_admin() or request.user.is_site_head()):
         messages.error(request, 'Only Admins and Site Heads can upload leads.')
         return redirect('dashboard')
@@ -1166,6 +1220,9 @@ def lead_upload(request):
             # Process file
             leads_created = 0
             errors = []
+            mapping_info = []
+            field_map = {}
+            headers = []
             
             if file_name.endswith('.csv'):
                 # Process CSV
@@ -1173,11 +1230,28 @@ def lead_upload(request):
                 io_string = io.StringIO(decoded_file)
                 reader = csv.DictReader(io_string)
                 
+                # Get headers from CSV
+                csv_headers = reader.fieldnames or []
+                headers = csv_headers
+                get_value, field_map = _create_column_mapper(csv_headers)
+                
+                # Store mapping info for user feedback
+                if field_map:
+                    mapping_info.append(f"Detected columns: {', '.join([f'{k} → {csv_headers[field_map[k]]}' for k in ['name', 'phone'] if k in field_map])}")
+                
                 for row_num, row in enumerate(reader, start=2):
                     try:
+                        # Use auto-mapping to get values
+                        def get_row_value(field_name):
+                            col_idx = field_map.get(field_name)
+                            if col_idx is not None and col_idx < len(csv_headers):
+                                col_name = csv_headers[col_idx]
+                                return str(row.get(col_name, '')).strip() if row.get(col_name) else ''
+                            return ''
+                        
                         # Required fields
-                        name = row.get('Name', '').strip()
-                        phone = row.get('Phone', '').strip()
+                        name = get_row_value('name')
+                        phone = get_row_value('phone')
                         
                         if not name or not phone:
                             errors.append(f"Row {row_num}: Name and Phone are required")
@@ -1188,28 +1262,50 @@ def lead_upload(request):
                             errors.append(f"Row {row_num}: Lead with phone {phone} already exists")
                             continue
                         
+                        # Get optional fields
+                        email = get_row_value('email')
+                        age_str = get_row_value('age')
+                        age = int(age_str) if age_str and age_str.isdigit() else None
+                        gender = get_row_value('gender')
+                        locality = get_row_value('locality')
+                        current_residence = get_row_value('current_residence')
+                        occupation = get_row_value('occupation')
+                        company_name = get_row_value('company_name')
+                        designation = get_row_value('designation')
+                        budget_str = get_row_value('budget')
+                        budget = float(budget_str) if budget_str and budget_str.replace('.', '').replace('-', '').isdigit() else None
+                        purpose = get_row_value('purpose')
+                        visit_type = get_row_value('visit_type')
+                        is_first_visit_str = get_row_value('is_first_visit')
+                        is_first_visit = is_first_visit_str.lower() in ['true', 'yes', '1', 'y'] if is_first_visit_str else True
+                        how_did_you_hear = get_row_value('how_did_you_hear')
+                        cp_firm_name = get_row_value('cp_firm_name')
+                        cp_name = get_row_value('cp_name')
+                        cp_phone = get_row_value('cp_phone')
+                        cp_rera_number = get_row_value('cp_rera_number')
+                        
                         # Create lead
                         Lead.objects.create(
                             name=name,
                             phone=phone,
-                            email=row.get('Email', '').strip(),
-                            age=int(row.get('Age')) if row.get('Age') else None,
-                            gender=row.get('Gender', '').strip(),
-                            locality=row.get('Locality', '').strip(),
-                            current_residence=row.get('Current Residence', '').strip(),
-                            occupation=row.get('Occupation', '').strip(),
-                            company_name=row.get('Company Name', '').strip(),
-                            designation=row.get('Designation', '').strip(),
+                            email=email,
+                            age=age,
+                            gender=gender,
+                            locality=locality,
+                            current_residence=current_residence,
+                            occupation=occupation,
+                            company_name=company_name,
+                            designation=designation,
                             project=project,
-                            budget=float(row.get('Budget')) if row.get('Budget') else None,
-                            purpose=row.get('Purpose', '').strip(),
-                            visit_type=row.get('Visit Type', '').strip(),
-                            is_first_visit=row.get('First Visit', 'true').lower() == 'true',
-                            how_did_you_hear=row.get('How did you hear', '').strip(),
-                            cp_firm_name=row.get('CP Firm Name', '').strip(),
-                            cp_name=row.get('CP Name', '').strip(),
-                            cp_phone=row.get('CP Phone', '').strip(),
-                            cp_rera_number=row.get('CP RERA Number', '').strip(),
+                            budget=budget,
+                            purpose=purpose,
+                            visit_type=visit_type,
+                            is_first_visit=is_first_visit,
+                            how_did_you_hear=how_did_you_hear,
+                            cp_firm_name=cp_firm_name,
+                            cp_name=cp_name,
+                            cp_phone=cp_phone,
+                            cp_rera_number=cp_rera_number,
                             is_pretagged=False,
                             phone_verified=False,
                             status='new',
@@ -1227,20 +1323,26 @@ def lead_upload(request):
                 worksheet = workbook.active
                 
                 # Get header row
-                headers = [cell.value for cell in worksheet[1]]
-                header_map = {str(h).strip(): idx for idx, h in enumerate(headers) if h}
+                headers = [str(cell.value).strip() if cell.value else '' for cell in worksheet[1]]
+                get_value, field_map = _create_column_mapper(headers)
+                
+                # Store mapping info for user feedback
+                if field_map:
+                    mapping_info.append(f"Detected columns: {', '.join([f'{k} → {headers[field_map[k]]}' for k in ['name', 'phone'] if k in field_map])}")
                 
                 for row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=False), start=2):
                     try:
-                        # Get values by header
-                        def get_value(header_name):
-                            if header_name in header_map:
-                                cell = row[header_map[header_name]]
+                        # Use auto-mapping to get values
+                        def get_row_value(field_name):
+                            col_idx = field_map.get(field_name)
+                            if col_idx is not None and col_idx < len(row):
+                                cell = row[col_idx]
                                 return str(cell.value).strip() if cell.value else ''
                             return ''
                         
-                        name = get_value('Name')
-                        phone = get_value('Phone')
+                        # Required fields
+                        name = get_row_value('name')
+                        phone = get_row_value('phone')
                         
                         if not name or not phone:
                             errors.append(f"Row {row_num}: Name and Phone are required")
@@ -1251,28 +1353,50 @@ def lead_upload(request):
                             errors.append(f"Row {row_num}: Lead with phone {phone} already exists")
                             continue
                         
+                        # Get optional fields
+                        email = get_row_value('email')
+                        age_str = get_row_value('age')
+                        age = int(age_str) if age_str and age_str.isdigit() else None
+                        gender = get_row_value('gender')
+                        locality = get_row_value('locality')
+                        current_residence = get_row_value('current_residence')
+                        occupation = get_row_value('occupation')
+                        company_name = get_row_value('company_name')
+                        designation = get_row_value('designation')
+                        budget_str = get_row_value('budget')
+                        budget = float(budget_str) if budget_str and budget_str.replace('.', '').replace('-', '').isdigit() else None
+                        purpose = get_row_value('purpose')
+                        visit_type = get_row_value('visit_type')
+                        is_first_visit_str = get_row_value('is_first_visit')
+                        is_first_visit = is_first_visit_str.lower() in ['true', 'yes', '1', 'y'] if is_first_visit_str else True
+                        how_did_you_hear = get_row_value('how_did_you_hear')
+                        cp_firm_name = get_row_value('cp_firm_name')
+                        cp_name = get_row_value('cp_name')
+                        cp_phone = get_row_value('cp_phone')
+                        cp_rera_number = get_row_value('cp_rera_number')
+                        
                         # Create lead
                         Lead.objects.create(
                             name=name,
                             phone=phone,
-                            email=get_value('Email'),
-                            age=int(get_value('Age')) if get_value('Age') else None,
-                            gender=get_value('Gender'),
-                            locality=get_value('Locality'),
-                            current_residence=get_value('Current Residence'),
-                            occupation=get_value('Occupation'),
-                            company_name=get_value('Company Name'),
-                            designation=get_value('Designation'),
+                            email=email,
+                            age=age,
+                            gender=gender,
+                            locality=locality,
+                            current_residence=current_residence,
+                            occupation=occupation,
+                            company_name=company_name,
+                            designation=designation,
                             project=project,
-                            budget=float(get_value('Budget')) if get_value('Budget') else None,
-                            purpose=get_value('Purpose'),
-                            visit_type=get_value('Visit Type'),
-                            is_first_visit=get_value('First Visit').lower() == 'true',
-                            how_did_you_hear=get_value('How did you hear'),
-                            cp_firm_name=get_value('CP Firm Name'),
-                            cp_name=get_value('CP Name'),
-                            cp_phone=get_value('CP Phone'),
-                            cp_rera_number=get_value('CP RERA Number'),
+                            budget=budget,
+                            purpose=purpose,
+                            visit_type=visit_type,
+                            is_first_visit=is_first_visit,
+                            how_did_you_hear=how_did_you_hear,
+                            cp_firm_name=cp_firm_name,
+                            cp_name=cp_name,
+                            cp_phone=cp_phone,
+                            cp_rera_number=cp_rera_number,
                             is_pretagged=False,
                             phone_verified=False,
                             status='new',
@@ -1283,12 +1407,24 @@ def lead_upload(request):
                         errors.append(f"Row {row_num}: {str(e)}")
             
             if leads_created > 0:
-                messages.success(request, f'Successfully uploaded {leads_created} lead(s)!')
+                success_msg = f'Successfully uploaded {leads_created} lead(s)!'
+                if mapping_info:
+                    success_msg += f" {' '.join(mapping_info)}"
+                messages.success(request, success_msg)
+            
             if errors:
-                error_msg = f"Errors: {'; '.join(errors[:10])}"  # Show first 10 errors
-                if len(errors) > 10:
-                    error_msg += f" and {len(errors) - 10} more..."
-                messages.warning(request, error_msg)
+                # Check if errors are due to missing required columns
+                missing_name_phone = sum(1 for e in errors if 'Name and Phone are required' in e)
+                if missing_name_phone > 0 and 'name' not in field_map and 'phone' not in field_map:
+                    messages.error(request, 
+                        f'Could not auto-detect "Name" and "Phone" columns. '
+                        f'Please ensure your file has columns with names like: Name/Full Name/Client Name and Phone/Mobile/Contact Number. '
+                        f'Found columns: {", ".join(headers[:10])}...')
+                else:
+                    error_msg = f"Errors: {'; '.join(errors[:10])}"  # Show first 10 errors
+                    if len(errors) > 10:
+                        error_msg += f" and {len(errors) - 10} more..."
+                    messages.warning(request, error_msg)
             
             return redirect('leads:list')
             
