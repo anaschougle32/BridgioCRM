@@ -278,7 +278,8 @@ def lead_create(request):
                     cp_rera_number=request.POST.get('cp_rera_number', ''),
                     is_pretagged=False,
                     phone_verified=True,  # OTP verified
-                    status='new',
+                    status='visit_completed',  # Visit is completed when created via New Visit form
+                    visit_source=request.POST.get('visit_source', 'walkin'),  # Default to walkin, can be changed
                     created_by=request.user,
                 )
                 
@@ -663,6 +664,79 @@ def verify_otp(request, pk):
                 'success': False,
                 'error': 'Invalid OTP. Maximum attempts exceeded. Please send a new OTP.',
             }, status=400)
+
+
+@login_required
+def visits_list(request):
+    """List all visited leads (status='visit_completed') - Super Admin, Mandate Owner, Site Head only"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
+        messages.error(request, 'You do not have permission to view visits.')
+        return redirect('dashboard')
+    
+    # Get filter parameters
+    project_id = request.GET.get('project', '')
+    visit_source = request.GET.get('visit_source', '')
+    search_query = request.GET.get('search', '')
+    
+    # Base queryset - only visited leads
+    if request.user.is_super_admin():
+        leads_qs = Lead.objects.filter(status='visit_completed', is_archived=False)
+    elif request.user.is_mandate_owner():
+        leads_qs = Lead.objects.filter(
+            project__mandate_owner=request.user,
+            status='visit_completed',
+            is_archived=False
+        )
+    else:  # Site Head
+        leads_qs = Lead.objects.filter(
+            project__site_head=request.user,
+            status='visit_completed',
+            is_archived=False
+        )
+    
+    # Apply filters
+    if project_id:
+        leads_qs = leads_qs.filter(project_id=project_id)
+    
+    if visit_source:
+        leads_qs = leads_qs.filter(visit_source=visit_source)
+    
+    if search_query:
+        leads_qs = leads_qs.filter(
+            Q(name__icontains=search_query) |
+            Q(phone__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+    
+    # Get projects for filter dropdown
+    if request.user.is_super_admin():
+        projects = Project.objects.filter(is_active=True).order_by('name')
+    elif request.user.is_mandate_owner():
+        projects = Project.objects.filter(mandate_owner=request.user, is_active=True).order_by('name')
+    else:  # Site Head
+        projects = Project.objects.filter(site_head=request.user, is_active=True).order_by('name')
+    
+    # Calculate metrics
+    total_visits = leads_qs.count()
+    visits_by_source = leads_qs.values('visit_source').annotate(count=Count('id'))
+    visits_by_project = leads_qs.values('project__name').annotate(count=Count('id')).order_by('-count')[:10]
+    
+    # Pagination
+    paginator = Paginator(leads_qs.order_by('-created_at'), 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'leads': page_obj,
+        'projects': projects,
+        'selected_project': project_id,
+        'selected_visit_source': visit_source,
+        'search_query': search_query,
+        'total_visits': total_visits,
+        'visits_by_source': visits_by_source,
+        'visits_by_project': visits_by_project,
+    }
+    return render(request, 'leads/visits_list.html', context)
 
 
 @login_required

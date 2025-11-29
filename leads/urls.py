@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     lead_list, lead_create, lead_pretag, lead_detail, send_otp, verify_otp, 
-    upcoming_visits, log_call, create_reminder, complete_reminder, whatsapp, 
+    upcoming_visits, visits_list, log_call, create_reminder, complete_reminder, whatsapp, 
     lead_assign, lead_upload, lead_assign_admin, update_status, update_notes
 )
 
@@ -15,6 +15,7 @@ urlpatterns = [
     path('assign/', lead_assign, name='assign'),
     path('assign-admin/', lead_assign_admin, name='assign_admin'),
     path('upcoming-visits/', upcoming_visits, name='upcoming_visits'),
+    path('visits/', visits_list, name='visits_list'),
     path('<int:pk>/', lead_detail, name='detail'),
     path('<int:pk>/send-otp/', send_otp, name='send_otp'),
     path('<int:pk>/verify-otp/', verify_otp, name='verify_otp'),

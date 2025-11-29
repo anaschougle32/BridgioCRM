@@ -42,6 +42,12 @@ class Lead(models.Model):
         ('alone', 'Alone'),
     ]
     
+    VISIT_SOURCE_CHOICES = [
+        ('call', 'Call Generated'),
+        ('cp', 'Channel Partner'),
+        ('walkin', 'Direct Walk-in'),
+    ]
+    
     PRETAG_STATUS_CHOICES = [
         ('pending_verification', 'Pending Verification'),
         ('verified', 'Verified'),
@@ -86,6 +92,13 @@ class Lead(models.Model):
     visit_type = models.CharField(max_length=10, choices=VISIT_TYPE_CHOICES, blank=True)
     is_first_visit = models.BooleanField(default=True)
     how_did_you_hear = models.CharField(max_length=200, blank=True)
+    visit_source = models.CharField(
+        max_length=20,
+        choices=VISIT_SOURCE_CHOICES,
+        blank=True,
+        null=True,
+        help_text="How was this visit generated? (Call, CP, or Walk-in)"
+    )
     
     # CP Information (Optional for New Visit, Mandatory for Pretag)
     channel_partner = models.ForeignKey(

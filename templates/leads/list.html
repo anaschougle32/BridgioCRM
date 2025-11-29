@@ -9,10 +9,22 @@
 <div class="space-y-4 sm:space-y-6">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Leads</h1>
-        <a href="{% url 'leads:create' %}" 
-           class="w-full sm:w-auto bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm sm:text-base">
-            New Visit
-        </a>
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            {% if user.is_super_admin or user.is_mandate_owner or user.is_site_head %}
+            <a href="{% url 'leads:upload' %}" 
+               class="w-full sm:w-auto bg-gray-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-700 transition text-center text-sm sm:text-base">
+                📤 Upload Leads
+            </a>
+            <a href="{% url 'leads:visits_list' %}" 
+               class="w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 transition text-center text-sm sm:text-base">
+                👁️ Visits
+            </a>
+            {% endif %}
+            <a href="{% url 'leads:create' %}" 
+               class="w-full sm:w-auto bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-olive-secondary transition text-center text-sm sm:text-base">
+                ➕ New Visit
+            </a>
+        </div>
     </div>
     
     <!-- Filters -->
