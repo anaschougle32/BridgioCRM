@@ -212,12 +212,12 @@ def lead_create(request):
             if not otp_data:
                 return JsonResponse({'success': False, 'error': 'No OTP found. Please send a new OTP.'}, status=400)
             
-            # Verify OTP
+            # Verify OTP using utility function
             stored_hash = otp_data.get('otp_hash')
             if not stored_hash:
                 return JsonResponse({'success': False, 'error': 'Invalid OTP session. Please send a new OTP.'}, status=400)
             
-            is_valid = verify_otp(otp_code, stored_hash)
+            is_valid = verify_otp_hash(otp_code, stored_hash)
             
             if not is_valid:
                 return JsonResponse({'success': False, 'error': 'Invalid OTP. Please try again.'}, status=400)
