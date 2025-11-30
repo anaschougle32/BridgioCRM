@@ -59,9 +59,46 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2">Starting Price (₹)</label>
-                        <input type="number" name="starting_price" value="{{ project.starting_price|default:'' }}" step="0.01"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <label class="block text-sm font-medium mb-2">Starting Price</label>
+                        <div class="flex gap-2">
+                            {% if project.starting_price %}
+                                {% if project.starting_price_unit == 'crores' %}
+                                    {% widthratio project.starting_price 10000000 1 as starting_price_display %}
+                                {% else %}
+                                    {% widthratio project.starting_price 100000 1 as starting_price_display %}
+                                {% endif %}
+                            {% endif %}
+                            <input type="number" name="starting_price" 
+                                   value="{% if project.starting_price %}{{ starting_price_display }}{% endif %}" 
+                                   step="0.01" placeholder="e.g., 58"
+                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                            <select name="starting_price_unit"
+                                    class="w-32 px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                                <option value="lakhs" {% if not project.starting_price_unit or project.starting_price_unit == 'lakhs' %}selected{% endif %}>Lakhs</option>
+                                <option value="crores" {% if project.starting_price_unit == 'crores' %}selected{% endif %}>Crores</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Ending Price</label>
+                        <div class="flex gap-2">
+                            {% if project.ending_price %}
+                                {% if project.ending_price_unit == 'crores' %}
+                                    {% widthratio project.ending_price 10000000 1 as ending_price_display %}
+                                {% else %}
+                                    {% widthratio project.ending_price 100000 1 as ending_price_display %}
+                                {% endif %}
+                            {% endif %}
+                            <input type="number" name="ending_price" 
+                                   value="{% if project.ending_price %}{{ ending_price_display }}{% endif %}" 
+                                   step="0.01" placeholder="e.g., 85"
+                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                            <select name="ending_price_unit"
+                                    class="w-32 px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                                <option value="lakhs" {% if not project.ending_price_unit or project.ending_price_unit == 'lakhs' %}selected{% endif %}>Lakhs</option>
+                                <option value="crores" {% if project.ending_price_unit == 'crores' %}selected{% endif %}>Crores</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Inventory Summary</label>
@@ -163,7 +200,9 @@
                         <select name="mandate_owner" required
                                 class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
                             {% for owner in mandate_owners %}
-                            <option value="{{ owner.id }}" {% if project.mandate_owner_id == owner.id %}selected{% endif %}>{{ owner.username }}</option>
+                            <option value="{{ owner.id }}" {% if project.mandate_owner_id == owner.id %}selected{% endif %}>
+                                {% if owner.get_full_name %}{{ owner.get_full_name }} ({{ owner.username }}){% else %}{{ owner.username }}{% endif %}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>

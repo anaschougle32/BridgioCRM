@@ -19,6 +19,9 @@ class Project(models.Model):
     rera_id = models.CharField(max_length=50, blank=True)
     project_type = models.CharField(max_length=20, choices=PROJECT_TYPE_CHOICES, default='residential')
     starting_price = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    starting_price_unit = models.CharField(max_length=10, choices=[('lakhs', 'Lakhs'), ('crores', 'Crores')], default='lakhs', blank=True)
+    ending_price = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    ending_price_unit = models.CharField(max_length=10, choices=[('lakhs', 'Lakhs'), ('crores', 'Crores')], default='lakhs', blank=True)
     inventory_summary = models.TextField(blank=True)
     
     # Project Image

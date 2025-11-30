@@ -3,9 +3,24 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Count, Sum
 from django.core.paginator import Paginator
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None
+import csv
+import io
+import json
+import uuid
+import tempfile
+import os
+import base64
 from .models import ChannelPartner
+from .utils import _create_cp_column_mapper
 from projects.models import Project
 from bookings.models import Booking
+from leads.models import Lead
 
 
 @login_required
@@ -17,11 +32,27 @@ def cp_list(request):
         messages.error(request, 'You do not have permission to view channel partners.')
         return redirect('dashboard')
     
-    cps = ChannelPartner.objects.filter(is_active=True)
+    # Filter by status first (default: show all, but can filter)
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        cps = ChannelPartner.objects.filter(status=status_filter)
+    else:
+        # Default: show all CPs (both active and inactive)
+        cps = ChannelPartner.objects.all()
     
-    # Mandate Owner sees CPs linked to their projects
+    # Fix: Use status field instead of is_active
+    # cps = ChannelPartner.objects.filter(is_active=True)  # OLD - removed
+    
+    # Mandate Owner sees CPs linked to their projects OR CPs with leads/bookings for their projects
     if request.user.is_mandate_owner():
-        cps = cps.filter(linked_projects__mandate_owner=request.user).distinct()
+        from leads.models import Lead
+        from bookings.models import Booking
+        # Get CPs linked to mandate owner's projects OR CPs with leads/bookings for their projects
+        cps = cps.filter(
+            Q(linked_projects__mandate_owner=request.user) |
+            Q(leads__project__mandate_owner=request.user) |
+            Q(bookings__project__mandate_owner=request.user)
+        ).distinct()
     
     # Search
     search = request.GET.get('search', '')
@@ -30,7 +61,8 @@ def cp_list(request):
             Q(firm_name__icontains=search) |
             Q(cp_name__icontains=search) |
             Q(phone__icontains=search) |
-            Q(email__icontains=search)
+            Q(email__icontains=search) |
+            Q(cp_unique_id__icontains=search)
         )
     
     # Filter by CP type
@@ -62,6 +94,7 @@ def cp_list(request):
         'cp_type_choices': ChannelPartner.CP_TYPE_CHOICES,
         'search': search,
         'selected_cp_type': cp_type,
+        'status_filter': status_filter,
     }
     return render(request, 'channel_partners/list.html', context)
 
@@ -69,7 +102,7 @@ def cp_list(request):
 @login_required
 def cp_detail(request, pk):
     """Channel Partner detail view"""
-    cp = get_object_or_404(ChannelPartner, pk=pk, is_active=True)
+    cp = get_object_or_404(ChannelPartner, pk=pk)
     
     if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
             request.user.is_site_head() or request.user.is_closing_manager() or 
@@ -139,3 +172,641 @@ def cp_detail(request, pk):
         'is_sourcing_manager': request.user.is_sourcing_manager(),
     }
     return render(request, 'channel_partners/detail.html', context)
+
+
+@login_required
+def cp_upload_analyze(request):
+    """Analyze uploaded CP file and return headers with auto-mapping"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            request.user.is_site_head() or request.user.is_sourcing_manager()):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
+    
+    try:
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': 'No file provided'}, status=400)
+        
+        # Store file in session temporarily
+        session_id = str(uuid.uuid4())
+        
+        # Read headers
+        file_name = uploaded_file.name.lower()
+        headers = []
+        
+        if file_name.endswith('.csv'):
+            try:
+                decoded_file = uploaded_file.read().decode('utf-8')
+            except UnicodeDecodeError:
+                # Try with different encodings
+                uploaded_file.seek(0)
+                try:
+                    decoded_file = uploaded_file.read().decode('latin-1')
+                except:
+                    decoded_file = uploaded_file.read().decode('utf-8', errors='ignore')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            headers = list(reader.fieldnames or [])
+            # Filter out empty headers
+            headers = [h for h in headers if h and h.strip()]
+            # Store file content in session
+            request.session[f'cp_upload_file_{session_id}'] = {
+                'name': uploaded_file.name,
+                'content': decoded_file,
+                'type': 'csv'
+            }
+        else:
+            if openpyxl is None:
+                return JsonResponse({'success': False, 'error': 'openpyxl not installed'}, status=500)
+            try:
+                workbook = openpyxl.load_workbook(uploaded_file, read_only=True)
+                worksheet = workbook.active
+                headers = []
+                for cell in worksheet[1]:
+                    if cell.value:
+                        headers.append(str(cell.value).strip())
+                    else:
+                        headers.append('')
+                # Filter out empty headers
+                headers = [h for h in headers if h and h.strip()]
+                workbook.close()
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': f'Error reading Excel file: {str(e)}'}, status=500)
+            # Store file in session - encode bytes to base64 for JSON serialization
+            uploaded_file.seek(0)
+            file_content = uploaded_file.read()
+            import base64
+            request.session[f'cp_upload_file_{session_id}'] = {
+                'name': uploaded_file.name,
+                'content': base64.b64encode(file_content).decode('utf-8'),  # Encode bytes to base64 string
+                'type': 'excel'
+            }
+        
+        if not headers:
+            return JsonResponse({'success': False, 'error': 'No headers found in file. Please ensure the first row contains column names.'}, status=400)
+        
+        request.session.modified = True
+        
+        # Auto-detect mapping using CP-specific mapper
+        get_value, field_map = _create_cp_column_mapper(headers)
+        
+        # Convert field_map (index-based) to header-based mapping
+        auto_mapping = {}
+        for field, col_idx in field_map.items():
+            if col_idx < len(headers):
+                auto_mapping[headers[col_idx]] = field
+        
+        return JsonResponse({
+            'success': True,
+            'session_id': session_id,
+            'headers': headers,
+            'mapping': auto_mapping
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def cp_upload_preview(request):
+    """Preview CP upload with custom mapping"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            request.user.is_site_head() or request.user.is_sourcing_manager()):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
+    
+    try:
+        session_id = request.POST.get('session_id')
+        mapping_json = request.POST.get('mapping')
+        
+        if not session_id or not mapping_json:
+            return JsonResponse({'success': False, 'error': 'Missing parameters'}, status=400)
+        
+        # Get file from session
+        file_data = request.session.get(f'cp_upload_file_{session_id}')
+        if not file_data:
+            return JsonResponse({'success': False, 'error': 'File not found in session'}, status=400)
+        
+        # Parse mapping
+        mapping = json.loads(mapping_json)
+        
+        # Count rows and validate
+        total_rows = 0
+        valid_rows = 0
+        errors = 0
+        error_rows = []  # Store error details
+        
+        if file_data['type'] == 'csv':
+            io_string = io.StringIO(file_data['content'])
+            reader = csv.DictReader(io_string)
+            # Create reverse mapping: field -> header
+            field_to_header = {v: k for k, v in mapping.items()}
+            
+            for row_num, row in enumerate(reader, start=2):
+                total_rows += 1
+                # Check required fields using mapping
+                name_header = field_to_header.get('name', '')
+                firm_name_header = field_to_header.get('firm_name', '')
+                phone_header = field_to_header.get('phone', '')
+                
+                name = row.get(name_header, '').strip() if name_header else ''
+                firm_name = row.get(firm_name_header, '').strip() if firm_name_header else ''
+                phone = row.get(phone_header, '').strip() if phone_header else ''
+                
+                # Clean phone
+                if phone:
+                    phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                    if phone.startswith('+91'):
+                        phone = phone[3:]
+                    elif phone.startswith('91') and len(phone) > 10:
+                        phone = phone[2:]
+                
+                if name and firm_name and phone:
+                    valid_rows += 1
+                else:
+                    errors += 1
+                    error_rows.append({
+                        'row': row_num,
+                        'error': 'Name, Firm Name, and Phone are required',
+                        'data': dict(row)
+                    })
+        else:
+            # Excel preview - decode base64 content
+            import base64
+            file_content_bytes = base64.b64decode(file_data['content'])
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                tmp.write(file_content_bytes)
+                tmp_path = tmp.name
+            
+            try:
+                workbook = openpyxl.load_workbook(tmp_path)
+                worksheet = workbook.active
+                headers = [str(cell.value).strip() if cell.value else '' for cell in worksheet[1]]
+                
+                # Create reverse mapping: field -> header
+                field_to_header = {v: k for k, v in mapping.items()}
+                
+                for row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=False), start=2):
+                    total_rows += 1
+                    # Get name, firm_name, and phone using mapping
+                    name_header = field_to_header.get('name', '')
+                    firm_name_header = field_to_header.get('firm_name', '')
+                    phone_header = field_to_header.get('phone', '')
+                    
+                    name = ''
+                    firm_name = ''
+                    phone = ''
+                    if name_header in headers:
+                        name_idx = headers.index(name_header)
+                        if name_idx < len(row):
+                            name = str(row[name_idx].value).strip() if row[name_idx].value else ''
+                    if firm_name_header in headers:
+                        firm_name_idx = headers.index(firm_name_header)
+                        if firm_name_idx < len(row):
+                            firm_name = str(row[firm_name_idx].value).strip() if row[firm_name_idx].value else ''
+                    if phone_header in headers:
+                        phone_idx = headers.index(phone_header)
+                        if phone_idx < len(row):
+                            phone = str(row[phone_idx].value).strip() if row[phone_idx].value else ''
+                            # Clean phone
+                            if phone:
+                                phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                                if phone.startswith('+91'):
+                                    phone = phone[3:]
+                                elif phone.startswith('91') and len(phone) > 10:
+                                    phone = phone[2:]
+                    
+                    if name and firm_name and phone:
+                        valid_rows += 1
+                    else:
+                        errors += 1
+                        error_rows.append({
+                            'row': row_num,
+                            'error': 'Name, Firm Name, and Phone are required',
+                            'data': {headers[i]: str(row[i].value) if i < len(row) and row[i].value else '' for i in range(len(headers))}
+                        })
+            finally:
+                os.unlink(tmp_path)
+        
+        return JsonResponse({
+            'success': True,
+            'total_rows': total_rows,
+            'valid_rows': valid_rows,
+            'errors': errors,
+            'error_rows': error_rows[:50]  # Limit to first 50 errors for preview
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def cp_upload(request):
+    """Upload Channel Partners via Excel/CSV with multi-step mapping UI"""
+    # Permission check
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            request.user.is_site_head() or request.user.is_sourcing_manager()):
+        messages.error(request, 'You do not have permission to upload channel partners.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        try:
+            # Check if this is the final commit
+            manual_mapping_json = request.POST.get('mapping')
+            session_id = request.POST.get('session_id')
+            
+            if not session_id or not manual_mapping_json:
+                messages.error(request, 'Missing required parameters.')
+                return redirect('channel_partners:upload')
+            
+            # Get file from session
+            file_data = request.session.get(f'cp_upload_file_{session_id}')
+            if not file_data:
+                messages.error(request, 'File not found. Please upload again.')
+                return redirect('channel_partners:upload')
+            
+            # Parse manual mapping
+            manual_mapping = json.loads(manual_mapping_json)
+            
+            # Process file
+            cps_created = 0
+            cps_updated = 0
+            errors = []
+            error_rows = []  # Store failed rows for CSV download
+            
+            if file_data['type'] == 'csv':
+                decoded_file = file_data['content']
+                io_string = io.StringIO(decoded_file)
+                reader = csv.DictReader(io_string)
+                
+                headers = reader.fieldnames or []
+                
+                # Create reverse mapping: field -> header
+                field_to_header = {v: k for k, v in manual_mapping.items()}
+                
+                for row_num, row in enumerate(reader, start=2):
+                    try:
+                        # Get values using mapping
+                        def get_row_value(field_name):
+                            header = field_to_header.get(field_name, '')
+                            if header:
+                                return str(row.get(header, '')).strip() if row.get(header) else ''
+                            return ''
+                        
+                        # Required fields
+                        name = get_row_value('name')
+                        firm_name = get_row_value('firm_name')
+                        phone = get_row_value('phone')
+                        
+                        # Clean phone
+                        if phone:
+                            phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                            if phone.startswith('+91'):
+                                phone = phone[3:]
+                            elif phone.startswith('91') and len(phone) > 10:
+                                phone = phone[2:]
+                        
+                        if not name or not firm_name or not phone:
+                            error_msg = f"Row {row_num}: Name, Firm Name, and Phone are required"
+                            errors.append(error_msg)
+                            error_rows.append({
+                                'row': row_num,
+                                'error': error_msg,
+                                'data': dict(row)
+                            })
+                            continue
+                        
+                        # Optional fields
+                        phone2 = get_row_value('phone2')
+                        if phone2:
+                            phone2 = phone2.replace(' ', '').replace('-', '').replace('/', '')
+                            if phone2.startswith('+91'):
+                                phone2 = phone2[3:]
+                            elif phone2.startswith('91') and len(phone2) > 10:
+                                phone2 = phone2[2:]
+                        
+                        locality = get_row_value('locality')
+                        team_size_str = get_row_value('team_size')
+                        team_size = int(team_size_str) if team_size_str and team_size_str.isdigit() else None
+                        owner_name = get_row_value('owner_name')
+                        owner_number = get_row_value('owner_number')
+                        if owner_number:
+                            owner_number = owner_number.replace(' ', '').replace('-', '').replace('/', '')
+                            if owner_number.startswith('+91'):
+                                owner_number = owner_number[3:]
+                            elif owner_number.startswith('91') and len(owner_number) > 10:
+                                owner_number = owner_number[2:]
+                        
+                        rera_id = get_row_value('rera_id')
+                        status_str = get_row_value('status')
+                        # Default to 'active' if status is empty or not explicitly set to inactive
+                        if status_str:
+                            status = 'active' if status_str.lower() in ['active', '1', 'yes', 'true'] else 'inactive'
+                        else:
+                            status = 'active'  # Default to active if not specified
+                        
+                        # Check if CP already exists by phone
+                        cp, created = ChannelPartner.objects.get_or_create(
+                            phone=phone,
+                            defaults={
+                                'cp_name': name,
+                                'firm_name': firm_name,
+                                'phone2': phone2,
+                                'locality': locality,
+                                'team_size': team_size,
+                                'owner_name': owner_name,
+                                'owner_number': owner_number,
+                                'rera_id': rera_id,
+                                'status': status,
+                            }
+                        )
+                        
+                        if not created:
+                            # Update existing CP
+                            cp.cp_name = name
+                            cp.firm_name = firm_name
+                            cp.phone2 = phone2
+                            cp.locality = locality
+                            cp.team_size = team_size
+                            cp.owner_name = owner_name
+                            cp.owner_number = owner_number
+                            cp.rera_id = rera_id
+                            cp.status = status
+                            cp.save()
+                            cps_updated += 1
+                        else:
+                            cps_created += 1
+                    except Exception as e:
+                        error_msg = f"Row {row_num}: {str(e)}"
+                        errors.append(error_msg)
+                        error_rows.append({
+                            'row': row_num,
+                            'error': error_msg,
+                            'data': dict(row)
+                        })
+            else:
+                # Process Excel - decode base64 content
+                if openpyxl is None:
+                    messages.error(request, 'openpyxl is not installed. Please install it: pip install openpyxl')
+                    return redirect('channel_partners:upload')
+                
+                import base64
+                file_content_bytes = base64.b64decode(file_data['content'])
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                    tmp.write(file_content_bytes)
+                    tmp_path = tmp.name
+                
+                try:
+                    workbook = openpyxl.load_workbook(tmp_path)
+                    worksheet = workbook.active
+                    headers = [str(cell.value).strip() if cell.value else '' for cell in worksheet[1]]
+                    
+                    # Create reverse mapping: field -> header
+                    field_to_header = {v: k for k, v in manual_mapping.items()}
+                    
+                    for row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=False), start=2):
+                        try:
+                            # Get values using mapping
+                            def get_row_value(field_name):
+                                header = field_to_header.get(field_name, '')
+                                if header and header in headers:
+                                    col_idx = headers.index(header)
+                                    if col_idx < len(row):
+                                        return str(row[col_idx].value).strip() if row[col_idx].value else ''
+                                return ''
+                            
+                            # Required fields
+                            name = get_row_value('name')
+                            firm_name = get_row_value('firm_name')
+                            phone = get_row_value('phone')
+                            
+                            # Clean phone
+                            if phone:
+                                phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                                if phone.startswith('+91'):
+                                    phone = phone[3:]
+                                elif phone.startswith('91') and len(phone) > 10:
+                                    phone = phone[2:]
+                            
+                            if not name or not firm_name or not phone:
+                                error_msg = f"Row {row_num}: Name, Firm Name, and Phone are required"
+                                errors.append(error_msg)
+                                error_rows.append({
+                                    'row': row_num,
+                                    'error': error_msg,
+                                    'data': {headers[i]: str(row[i].value) if i < len(row) and row[i].value else '' for i in range(len(headers))}
+                                })
+                                continue
+                            
+                            # Optional fields
+                            phone2 = get_row_value('phone2')
+                            if phone2:
+                                phone2 = phone2.replace(' ', '').replace('-', '').replace('/', '')
+                                if phone2.startswith('+91'):
+                                    phone2 = phone2[3:]
+                                elif phone2.startswith('91') and len(phone2) > 10:
+                                    phone2 = phone2[2:]
+                            
+                            locality = get_row_value('locality')
+                            team_size_str = get_row_value('team_size')
+                            team_size = int(team_size_str) if team_size_str and team_size_str.isdigit() else None
+                            owner_name = get_row_value('owner_name')
+                            owner_number = get_row_value('owner_number')
+                            if owner_number:
+                                owner_number = owner_number.replace(' ', '').replace('-', '').replace('/', '')
+                                if owner_number.startswith('+91'):
+                                    owner_number = owner_number[3:]
+                                elif owner_number.startswith('91') and len(owner_number) > 10:
+                                    owner_number = owner_number[2:]
+                            
+                            rera_id = get_row_value('rera_id')
+                            status_str = get_row_value('status')
+                            # Default to 'active' if status is empty or not explicitly set to inactive
+                            if status_str:
+                                status = 'active' if status_str.lower() in ['active', '1', 'yes', 'true'] else 'inactive'
+                            else:
+                                status = 'active'  # Default to active if not specified
+                            
+                            # Check if CP already exists by phone
+                            cp, created = ChannelPartner.objects.get_or_create(
+                                phone=phone,
+                                defaults={
+                                    'cp_name': name,
+                                    'firm_name': firm_name,
+                                    'phone2': phone2,
+                                    'locality': locality,
+                                    'team_size': team_size,
+                                    'owner_name': owner_name,
+                                    'owner_number': owner_number,
+                                    'rera_id': rera_id,
+                                    'status': status,
+                                }
+                            )
+                            
+                            if not created:
+                                # Update existing CP
+                                cp.cp_name = name
+                                cp.firm_name = firm_name
+                                cp.phone2 = phone2
+                                cp.locality = locality
+                                cp.team_size = team_size
+                                cp.owner_name = owner_name
+                                cp.owner_number = owner_number
+                                cp.rera_id = rera_id
+                                cp.status = status
+                                cp.save()
+                                cps_updated += 1
+                            else:
+                                cps_created += 1
+                        except Exception as e:
+                            error_msg = f"Row {row_num}: {str(e)}"
+                            errors.append(error_msg)
+                            error_rows.append({
+                                'row': row_num,
+                                'error': error_msg,
+                                'data': {headers[i]: str(row[i].value) if i < len(row) and row[i].value else '' for i in range(len(headers))}
+                            })
+                finally:
+                    os.unlink(tmp_path)
+            
+            # Clean up session
+            del request.session[f'cp_upload_file_{session_id}']
+            
+            # Store error rows in session for CSV download
+            if error_rows:
+                error_session_id = str(uuid.uuid4())
+                request.session[f'cp_upload_errors_{error_session_id}'] = {
+                    'errors': error_rows,
+                    'headers': headers if 'headers' in locals() else list(error_rows[0]['data'].keys()) if error_rows else []
+                }
+                request.session.modified = True
+            
+            if cps_created > 0 or cps_updated > 0:
+                success_msg = f'Successfully processed {cps_created} new CP(s) and updated {cps_updated} existing CP(s)!'
+                messages.success(request, success_msg)
+            
+            if errors:
+                error_msg = f"Errors: {'; '.join(errors[:10])}"
+                if len(errors) > 10:
+                    error_msg += f" and {len(errors) - 10} more..."
+                if error_rows:
+                    error_msg += f" <a href='/channel-partners/upload/errors/{error_session_id}/' class='underline'>Download Error CSV</a>"
+                messages.warning(request, error_msg)
+            
+            return redirect('channel_partners:list')
+            
+        except Exception as e:
+            messages.error(request, f'Error uploading file: {str(e)}')
+    
+    return render(request, 'channel_partners/upload.html')
+
+
+@login_required
+def cp_upload_errors_csv(request, session_id):
+    """Download error rows as CSV"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            request.user.is_site_head() or request.user.is_sourcing_manager()):
+        messages.error(request, 'You do not have permission to download error files.')
+        return redirect('dashboard')
+    
+    error_data = request.session.get(f'cp_upload_errors_{session_id}')
+    if not error_data:
+        messages.error(request, 'Error data not found.')
+        return redirect('channel_partners:list')
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="cp_upload_errors_{session_id}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write headers
+    headers = error_data['headers'] + ['Error']
+    writer.writerow(headers)
+    
+    # Write error rows
+    for error_row in error_data['errors']:
+        row_data = [error_row['data'].get(h, '') for h in error_data['headers']]
+        row_data.append(error_row['error'])
+        writer.writerow(row_data)
+    
+    # Clean up session
+    del request.session[f'cp_upload_errors_{session_id}']
+    
+    return response
+
+
+@login_required
+def cp_create(request):
+    """Create new Channel Partner"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            request.user.is_site_head() or request.user.is_sourcing_manager()):
+        messages.error(request, 'You do not have permission to create channel partners.')
+        return redirect('channel_partners:list')
+    
+    if request.method == 'POST':
+        try:
+            cp = ChannelPartner.objects.create(
+                cp_name=request.POST.get('cp_name'),
+                firm_name=request.POST.get('firm_name'),
+                phone=request.POST.get('phone'),
+                phone2=request.POST.get('phone2', ''),
+                locality=request.POST.get('locality', ''),
+                team_size=int(request.POST.get('team_size')) if request.POST.get('team_size') else None,
+                owner_name=request.POST.get('owner_name', ''),
+                owner_number=request.POST.get('owner_number', ''),
+                rera_id=request.POST.get('rera_id', ''),
+                status=request.POST.get('status', 'active'),
+                email=request.POST.get('email', ''),
+                cp_type=request.POST.get('cp_type', 'broker'),
+                working_area=request.POST.get('working_area', ''),
+            )
+            messages.success(request, f'Channel Partner {cp.cp_name} created successfully!')
+            return redirect('channel_partners:detail', pk=cp.pk)
+        except Exception as e:
+            messages.error(request, f'Error creating channel partner: {str(e)}')
+    
+    context = {
+        'cp_type_choices': ChannelPartner.CP_TYPE_CHOICES,
+    }
+    return render(request, 'channel_partners/create.html', context)
+
+
+@login_required
+def cp_edit(request, pk):
+    """Edit Channel Partner"""
+    cp = get_object_or_404(ChannelPartner, pk=pk)
+    
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            request.user.is_site_head() or request.user.is_sourcing_manager()):
+        messages.error(request, 'You do not have permission to edit channel partners.')
+        return redirect('channel_partners:list')
+    
+    if request.method == 'POST':
+        try:
+            cp.cp_name = request.POST.get('cp_name')
+            cp.firm_name = request.POST.get('firm_name')
+            cp.phone = request.POST.get('phone')
+            cp.phone2 = request.POST.get('phone2', '')
+            cp.locality = request.POST.get('locality', '')
+            cp.team_size = int(request.POST.get('team_size')) if request.POST.get('team_size') else None
+            cp.owner_name = request.POST.get('owner_name', '')
+            cp.owner_number = request.POST.get('owner_number', '')
+            cp.rera_id = request.POST.get('rera_id', '')
+            cp.status = request.POST.get('status', 'active')
+            cp.email = request.POST.get('email', '')
+            cp.cp_type = request.POST.get('cp_type', 'broker')
+            cp.working_area = request.POST.get('working_area', '')
+            cp.save()
+            messages.success(request, f'Channel Partner {cp.cp_name} updated successfully!')
+            return redirect('channel_partners:detail', pk=cp.pk)
+        except Exception as e:
+            messages.error(request, f'Error updating channel partner: {str(e)}')
+    
+    context = {
+        'cp': cp,
+        'cp_type_choices': ChannelPartner.CP_TYPE_CHOICES,
+    }
+    return render(request, 'channel_partners/edit.html', context)

@@ -4,93 +4,166 @@
 
 {% block content %}
 <div class="space-y-6">
-    <div class="flex justify-between items-center">
-        <div>
-            <h1 class="text-3xl font-heading font-bold text-olive-primary">{{ project.name }}</h1>
-            <p class="text-gray-600 mt-1">{{ project.builder_name }} • {{ project.location }}</p>
-        </div>
-    </div>
-    
-    <!-- Project Image -->
-    {% if project.image %}
+    <!-- Header Section with Image -->
     <div class="bg-white rounded-custom shadow-md overflow-hidden">
-        <img src="{{ project.image.url }}" alt="{{ project.name }}" class="w-full h-96 object-cover">
-    </div>
-    {% endif %}
-    
-    <div class="flex justify-between items-center">
-        <div>
-        {% if user.is_super_admin or user.is_mandate_owner %}
-        <a href="{% url 'projects:edit' project.pk %}" 
-           class="bg-olive-primary text-white px-6 py-2 rounded-custom hover:bg-olive-secondary transition">
-            Edit Project
-        </a>
+        {% if project.image %}
+        <div class="relative h-64 sm:h-96">
+            <img src="{{ project.image.url }}" alt="{{ project.name }}" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+            <div class="absolute bottom-0 left-0 right-0 p-6 text-white">
+                <h1 class="text-3xl sm:text-4xl font-heading font-bold mb-2">{{ project.name }}</h1>
+                <p class="text-sm sm:text-base text-gray-200">{{ project.builder_name }} • {{ project.location }}</p>
+            </div>
+        </div>
+        {% else %}
+        <div class="p-6 border-b border-gray-200">
+            <h1 class="text-3xl sm:text-4xl font-heading font-bold text-olive-primary mb-2">{{ project.name }}</h1>
+            <p class="text-gray-600">{{ project.builder_name }} • {{ project.location }}</p>
+        </div>
         {% endif %}
-    </div>
-    
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Leads</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ stats.total_leads }}</p>
-            <p class="text-xs text-gray-500 mt-1">{{ stats.new_visits_today }} new today</p>
-        </div>
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Total Bookings</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ stats.total_bookings }}</p>
-        </div>
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Revenue</h3>
-            <p class="text-3xl font-bold text-olive-primary">₹{{ stats.revenue|floatformat:0 }}</p>
-        </div>
-        <div class="bg-white rounded-custom shadow-md p-6">
-            <h3 class="text-sm font-medium text-gray-600 mb-2">Pending OTP</h3>
-            <p class="text-3xl font-bold text-olive-primary">{{ stats.pending_otp }}</p>
+        
+        <div class="p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div class="flex flex-wrap gap-3">
+                {% if user.is_super_admin or user.is_mandate_owner %}
+                <a href="{% url 'projects:edit' project.pk %}" 
+                   class="bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    Edit Project
+                </a>
+                {% endif %}
+            </div>
         </div>
     </div>
     
-    <!-- Project Details -->
-    <div class="bg-white rounded-custom shadow-md p-6">
-        <h2 class="text-xl font-heading font-bold mb-4">Project Details</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <p class="text-sm text-gray-600">RERA ID</p>
-                <p class="font-medium">{{ project.rera_id|default:"-" }}</p>
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6 border-l-4 border-blue-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1">Total Leads</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ stats.total_leads }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ stats.new_visits_today }} new today</p>
+                </div>
+                <svg class="w-8 h-8 sm:w-10 sm:h-10 text-blue-500 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
             </div>
-            <div>
-                <p class="text-sm text-gray-600">Project Type</p>
-                <p class="font-medium">{{ project.get_project_type_display }}</p>
+        </div>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6 border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1">Total Bookings</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ stats.total_bookings }}</p>
+                </div>
+                <svg class="w-8 h-8 sm:w-10 sm:h-10 text-green-500 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
-            <div>
-                <p class="text-sm text-gray-600">Starting Price</p>
-                <p class="font-medium">₹{{ project.starting_price|floatformat:0|default:"-" }}</p>
+        </div>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6 border-l-4 border-yellow-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1">Revenue</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-olive-primary">₹{{ stats.revenue|floatformat:0 }}</p>
+                </div>
+                <svg class="w-8 h-8 sm:w-10 sm:h-10 text-yellow-500 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
-            <div>
-                <p class="text-sm text-gray-600">Default Commission</p>
-                <p class="font-medium">{{ project.default_commission_percent }}%</p>
+        </div>
+        <div class="bg-white rounded-custom shadow-md p-4 sm:p-6 border-l-4 border-purple-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1">Pending OTP</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ stats.pending_otp }}</p>
+                </div>
+                <svg class="w-8 h-8 sm:w-10 sm:h-10 text-purple-500 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
             </div>
-            <div>
-                <p class="text-sm text-gray-600">Mandate Owner</p>
-                <p class="font-medium">{{ project.mandate_owner.username }}</p>
+        </div>
+    </div>
+    
+    <!-- Project Details & Quick Actions Side by Side -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Project Details -->
+        <div class="lg:col-span-2 bg-white rounded-custom shadow-md p-6">
+            <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Project Details</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">RERA ID</p>
+                    <p class="font-medium text-sm sm:text-base">{{ project.rera_id|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Project Type</p>
+                    <p class="font-medium text-sm sm:text-base">{{ project.get_project_type_display }}</p>
+                </div>
+                <div>
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Price Range</p>
+                    <p class="font-medium text-sm sm:text-base">
+                        {% if project.starting_price %}
+                            {% if project.starting_price_unit == 'crores' %}
+                                ₹{% widthratio project.starting_price 10000000 1 %} Cr
+                            {% else %}
+                                ₹{% widthratio project.starting_price 100000 1 %} L
+                            {% endif %}
+                            {% if project.ending_price %}
+                                - 
+                                {% if project.ending_price_unit == 'crores' %}
+                                    ₹{% widthratio project.ending_price 10000000 1 %} Cr
+                                {% else %}
+                                    ₹{% widthratio project.ending_price 100000 1 %} L
+                                {% endif %}
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Default Commission</p>
+                    <p class="font-medium text-sm sm:text-base">{{ project.default_commission_percent }}%</p>
+                </div>
+                <div>
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Mandate Owner</p>
+                    <p class="font-medium text-sm sm:text-base">{% if project.mandate_owner.get_full_name %}{{ project.mandate_owner.get_full_name }} ({{ project.mandate_owner.username }}){% else %}{{ project.mandate_owner.username }}{% endif %}</p>
+                </div>
+                <div>
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Site Head</p>
+                    <p class="font-medium text-sm sm:text-base">{{ project.site_head.username|default:"Not Assigned" }}</p>
+                </div>
+                {% if project.latitude and project.longitude %}
+                <div class="sm:col-span-2">
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Coordinates</p>
+                    <p class="font-medium text-sm sm:text-base">{{ project.latitude }}, {{ project.longitude }}</p>
+                </div>
+                {% endif %}
             </div>
-            <div>
-                <p class="text-sm text-gray-600">Site Head</p>
-                <p class="font-medium">{{ project.site_head.username|default:"Not Assigned" }}</p>
-            </div>
-            {% if project.latitude and project.longitude %}
-            <div>
-                <p class="text-sm text-gray-600">Coordinates</p>
-                <p class="font-medium">{{ project.latitude }}, {{ project.longitude }}</p>
+            
+            {% if project.inventory_summary %}
+            <div class="mt-6 pt-4 border-t border-gray-200">
+                <p class="text-xs sm:text-sm text-gray-600 mb-2">Inventory Summary</p>
+                <p class="text-sm sm:text-base text-gray-800">{{ project.inventory_summary }}</p>
             </div>
             {% endif %}
         </div>
         
-        {% if project.inventory_summary %}
-        <div class="mt-6">
-            <p class="text-sm text-gray-600 mb-2">Inventory Summary</p>
-            <p class="text-gray-800">{{ project.inventory_summary }}</p>
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Quick Actions</h2>
+            <div class="space-y-3">
+                <a href="{% url 'leads:list' %}?project={{ project.id }}" 
+                   class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                    View Leads
+                </a>
+                <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+                   class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                    View Bookings
+                </a>
+                <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
+                   class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
+                    View Visits
+                </a>
+                {% if user.is_mandate_owner %}
+                <a href="{% url 'projects:migrate_leads' project.pk %}" 
+                   class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                    Migrate Leads
+                </a>
+                {% endif %}
+            </div>
         </div>
-        {% endif %}
     </div>
     
     <!-- Configurations -->
@@ -134,6 +207,16 @@
                class="bg-gray-200 text-gray-800 px-6 py-2 rounded-custom hover:bg-gray-300 transition">
                 View Bookings
             </a>
+            <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
+               class="bg-blue-600 text-white px-6 py-2 rounded-custom hover:bg-blue-700 transition">
+                View Visits
+            </a>
+            {% if user.is_mandate_owner %}
+            <a href="{% url 'projects:migrate_leads' project.pk %}" 
+               class="bg-purple-600 text-white px-6 py-2 rounded-custom hover:bg-purple-700 transition">
+                Migrate Leads
+            </a>
+            {% endif %}
         </div>
     </div>
 </div>

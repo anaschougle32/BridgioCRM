@@ -134,6 +134,91 @@ def lead_list(request):
 
 
 @login_required
+def lead_download(request):
+    """Download leads as CSV with current filters"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
+        messages.error(request, 'You do not have permission to download leads.')
+        return redirect('leads:list')
+    
+    leads = Lead.objects.filter(is_archived=False)
+    
+    # Apply same filters as lead_list
+    if request.user.is_super_admin() or (request.user.is_superuser and request.user.is_staff):
+        pass
+    elif request.user.is_telecaller() or request.user.is_closing_manager():
+        leads = leads.filter(assigned_to=request.user)
+    elif request.user.is_site_head():
+        leads = leads.filter(project__site_head=request.user)
+    elif request.user.is_mandate_owner():
+        leads = leads.filter(project__mandate_owner=request.user)
+    elif request.user.is_sourcing_manager():
+        leads = leads.filter(Q(created_by=request.user) | Q(assigned_to=request.user))
+    
+    # Apply search filter
+    search = request.GET.get('search', '')
+    if search:
+        leads = leads.filter(
+            Q(name__icontains=search) |
+            Q(phone__icontains=search) |
+            Q(email__icontains=search)
+        )
+    
+    # Apply status filter
+    status = request.GET.get('status', '')
+    if status:
+        leads = leads.filter(status=status)
+    
+    # Apply project filter
+    project_id = request.GET.get('project', '')
+    if project_id:
+        leads = leads.filter(project_id=project_id)
+    
+    # Apply pretag status filter
+    pretag_status = request.GET.get('pretag_status', '')
+    if pretag_status:
+        leads = leads.filter(pretag_status=pretag_status)
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="leads_export.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write headers
+    writer.writerow([
+        'Name', 'Phone', 'Email', 'Project', 'Configuration', 'Budget', 
+        'Status', 'CP ID', 'CP Name', 'CP Firm', 'CP Phone', 'Notes', 'Created At'
+    ])
+    
+    # Write data
+    for lead in leads:
+        budget_display = ''
+        if lead.budget:
+            if lead.budget >= 10000000:
+                budget_display = f"₹{lead.budget / 10000000:.2f} Cr"
+            else:
+                budget_display = f"₹{lead.budget / 100000:.2f} L"
+        
+        writer.writerow([
+            lead.name,
+            lead.phone,
+            lead.email or '',
+            lead.project.name if lead.project else '',
+            lead.configuration.name if lead.configuration else '',
+            budget_display,
+            lead.get_status_display(),
+            lead.channel_partner.cp_unique_id if lead.channel_partner else '',
+            lead.channel_partner.cp_name if lead.channel_partner else '',
+            lead.channel_partner.firm_name if lead.channel_partner else '',
+            lead.channel_partner.phone if lead.channel_partner else '',
+            lead.notes or '',
+            lead.created_at.strftime('%Y-%m-%d %H:%M:%S') if lead.created_at else '',
+        ])
+    
+    return response
+
+
+@login_required
 def lead_create(request):
     """Create new visit (Available to all user types) - Multi-step form WITH OTP
     
@@ -947,9 +1032,6 @@ def complete_reminder(request, pk, reminder_id):
 @login_required
 def update_notes(request, pk):
     """Update lead notes"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
-    
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
     # Permission check
@@ -957,36 +1039,29 @@ def update_notes(request, pk):
         if lead.assigned_to != request.user:
             return JsonResponse({'success': False, 'error': 'You do not have permission to update notes for this lead.'}, status=403)
     
-    notes = request.POST.get('notes', '').strip()
-    lead.notes = notes
-    lead.save()
+    if request.method == 'GET':
+        # Return current notes for editing
+        return JsonResponse({'success': True, 'notes': lead.notes or ''})
     
-    # Create audit log
-    from accounts.models import AuditLog
-    AuditLog.objects.create(
-        user=request.user,
-        action='notes_updated',
-        model_name='Lead',
-        object_id=lead.id,
-        details=f'Notes updated for lead {lead.name}',
-    )
+    if request.method == 'POST':
+        notes = request.POST.get('notes', '').strip()
+        lead.notes = notes
+        lead.save()
+        
+        # Create audit log
+        from accounts.models import AuditLog
+        AuditLog.objects.create(
+            user=request.user,
+            action='notes_updated',
+            model_name='Lead',
+            object_id=lead.id,
+            details=f'Notes updated for lead {lead.name}',
+        )
+        
+        # Return success response
+        return JsonResponse({'success': True, 'message': 'Notes updated successfully'})
     
-    # Return updated HTML
-    html = f'''
-    <div id="notes-section">
-        {'<div class="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-3"><p class="text-sm text-gray-700 whitespace-pre-wrap">' + notes + '</p></div>' if notes else '<p class="text-sm text-gray-500 mb-3">No notes added yet.</p>'}
-        <button onclick="document.getElementById(\'notes-modal\').classList.remove(\'hidden\')" 
-                class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm">
-            {'Edit Notes' if notes else 'Add Notes'}
-        </button>
-    </div>
-    <script>
-        setTimeout(() => {{
-            document.getElementById('notes-modal').classList.add('hidden');
-        }}, 1500);
-    </script>
-    '''
-    return HttpResponse(html)
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
 
 
 @login_required
@@ -1285,6 +1360,7 @@ def upload_preview(request):
         total_rows = 0
         valid_rows = 0
         errors = 0
+        error_rows = []  # Store error details
         
         if file_data['type'] == 'csv':
             io_string = io.StringIO(file_data['content'])
@@ -1304,12 +1380,23 @@ def upload_preview(request):
                 # Clean phone number (remove spaces, handle multiple contacts)
                 if phone:
                     phone = phone.split(',')[0].strip()  # Take first phone if multiple
-                    phone = phone.replace(' ', '').replace('-', '')
+                    phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                    # Remove leading +91 or 91
+                    if phone.startswith('+91'):
+                        phone = phone[3:]
+                    elif phone.startswith('91') and len(phone) > 10:
+                        phone = phone[2:]
                 
-                if name and phone:
+                # Phone is required, name is optional
+                if phone:
                     valid_rows += 1
                 else:
                     errors += 1
+                    error_rows.append({
+                        'row': row_num,
+                        'error': 'Phone is required',
+                        'data': dict(row)
+                    })
         else:
             # Excel preview
             import tempfile
@@ -1342,15 +1429,26 @@ def upload_preview(request):
                         phone_idx = headers.index(phone_header)
                         if phone_idx < len(row):
                             phone = str(row[phone_idx].value).strip() if row[phone_idx].value else ''
-                            # Clean phone number (remove spaces, handle multiple contacts)
-                            if phone:
-                                phone = phone.split(',')[0].strip()  # Take first phone if multiple
-                                phone = phone.replace(' ', '').replace('-', '')
-                    
-                    if name and phone:
-                        valid_rows += 1
-                    else:
-                        errors += 1
+                # Clean phone number (remove spaces, handle multiple contacts)
+                if phone:
+                    phone = phone.split(',')[0].strip()  # Take first phone if multiple
+                    phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                    # Remove leading +91 or 91
+                    if phone.startswith('+91'):
+                        phone = phone[3:]
+                    elif phone.startswith('91') and len(phone) > 10:
+                        phone = phone[2:]
+                
+                # Phone is required, name is optional
+                if phone:
+                    valid_rows += 1
+                else:
+                    errors += 1
+                    error_rows.append({
+                        'row': row_num,
+                        'error': 'Phone is required',
+                        'data': {headers[i]: str(row[i].value) if i < len(row) and row[i].value else '' for i in range(len(headers))}
+                    })
             finally:
                 os.unlink(tmp_path)
         
@@ -1358,7 +1456,8 @@ def upload_preview(request):
             'success': True,
             'total_rows': total_rows,
             'valid_rows': valid_rows,
-            'errors': errors
+            'errors': errors,
+            'error_rows': error_rows[:50]  # Limit to first 50 errors for preview
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -1413,6 +1512,7 @@ def lead_upload(request):
             # Process file
             leads_created = 0
             errors = []
+            error_rows = []  # Store failed rows for CSV download
             mapping_info = []
             field_map = {}
             headers = []
@@ -1470,9 +1570,9 @@ def lead_upload(request):
                                     return str(row.get(col_name, '')).strip() if row.get(col_name) else ''
                             return ''
                         
-                        # Required fields
-                        name = get_row_value('name')
+                        # Get phone (required) and name (optional)
                         phone = get_row_value('phone')
+                        name = get_row_value('name')
                         
                         # Clean phone number (handle multiple contacts, remove spaces)
                         if phone:
@@ -1484,13 +1584,17 @@ def lead_upload(request):
                             elif phone.startswith('91') and len(phone) > 10:
                                 phone = phone[2:]
                         
-                        if not name or not phone:
-                            errors.append(f"Row {row_num}: Name and Phone are required")
+                        # Skip row if phone is not available (don't show as error)
+                        if not phone:
                             continue
                         
-                        # Check for duplicate phone
+                        # If name is not available but phone is, generate a default name
+                        if not name:
+                            name = f"Lead-{phone[-4:]}"  # Use last 4 digits of phone as name
+                        
+                        # Check for duplicate phone - skip if exists (don't create duplicate)
                         if Lead.objects.filter(phone=phone, project=project, is_archived=False).exists():
-                            errors.append(f"Row {row_num}: Lead with phone {phone} already exists")
+                            # Skip this row silently - don't create duplicate
                             continue
                         
                         # Get simplified fields (only what's needed for leads upload)
@@ -1638,7 +1742,13 @@ def lead_upload(request):
                         )
                         leads_created += 1
                     except Exception as e:
-                        errors.append(f"Row {row_num}: {str(e)}")
+                        error_msg = f"Row {row_num}: {str(e)}"
+                        errors.append(error_msg)
+                        error_rows.append({
+                            'row': row_num,
+                            'error': error_msg,
+                            'data': {headers[i]: str(row[i].value) if i < len(row) and row[i].value else '' for i in range(len(headers))}
+                        })
             else:
                 # Process Excel
                 if openpyxl is None:
@@ -1705,9 +1815,9 @@ def lead_upload(request):
                                     return str(cell.value).strip() if cell.value else ''
                             return ''
                         
-                        # Required fields
-                        name = get_row_value('name')
+                        # Get phone (required) and name (optional)
                         phone = get_row_value('phone')
+                        name = get_row_value('name')
                         
                         # Clean phone number (handle multiple contacts, remove spaces)
                         if phone:
@@ -1719,13 +1829,17 @@ def lead_upload(request):
                             elif phone.startswith('91') and len(phone) > 10:
                                 phone = phone[2:]
                         
-                        if not name or not phone:
-                            errors.append(f"Row {row_num}: Name and Phone are required")
+                        # Skip row if phone is not available (don't show as error)
+                        if not phone:
                             continue
                         
-                        # Check for duplicate phone
+                        # If name is not available but phone is, generate a default name
+                        if not name:
+                            name = f"Lead-{phone[-4:]}"  # Use last 4 digits of phone as name
+                        
+                        # Check for duplicate phone - skip if exists (don't create duplicate)
                         if Lead.objects.filter(phone=phone, project=project, is_archived=False).exists():
-                            errors.append(f"Row {row_num}: Lead with phone {phone} already exists")
+                            # Skip this row silently - don't create duplicate
                             continue
                         
                         # Get simplified fields (only what's needed for leads upload)
@@ -1873,7 +1987,24 @@ def lead_upload(request):
                         )
                         leads_created += 1
                     except Exception as e:
-                        errors.append(f"Row {row_num}: {str(e)}")
+                        error_msg = f"Row {row_num}: {str(e)}"
+                        errors.append(error_msg)
+                        error_rows.append({
+                            'row': row_num,
+                            'error': error_msg,
+                            'data': dict(row) if 'row' in locals() else {}
+                        })
+            
+            # Store error rows in session for CSV download
+            error_session_id = None
+            if error_rows:
+                import uuid
+                error_session_id = str(uuid.uuid4())
+                request.session[f'lead_upload_errors_{error_session_id}'] = {
+                    'errors': error_rows,
+                    'headers': headers if headers else (list(error_rows[0]['data'].keys()) if error_rows else [])
+                }
+                request.session.modified = True
             
             if leads_created > 0:
                 success_msg = f'Successfully uploaded {leads_created} lead(s)!'
@@ -1893,6 +2024,9 @@ def lead_upload(request):
                     error_msg = f"Errors: {'; '.join(errors[:10])}"  # Show first 10 errors
                     if len(errors) > 10:
                         error_msg += f" and {len(errors) - 10} more..."
+                    if error_session_id:
+                        from django.utils.safestring import mark_safe
+                        error_msg += mark_safe(f" <a href='/leads/upload/errors/{error_session_id}/' class='underline'>Download Error CSV</a>")
                     messages.warning(request, error_msg)
             
             return redirect('leads:list')
@@ -1906,8 +2040,13 @@ def lead_upload(request):
     else:  # Site Head
         projects = Project.objects.filter(site_head=request.user, is_active=True)
     
+    # Get channel partners for CP selection dropdown
+    from channel_partners.models import ChannelPartner
+    channel_partners = ChannelPartner.objects.filter(status='active').order_by('cp_name')
+    
     context = {
         'projects': projects,
+        'channel_partners': channel_partners,
     }
     return render(request, 'leads/upload.html', context)
 
@@ -2044,3 +2183,37 @@ def lead_assign_admin(request):
         'project_quotas_json': json.dumps(project_quotas),
     }
     return render(request, 'leads/assign_admin.html', context)
+
+
+@login_required
+def lead_upload_errors_csv(request, session_id):
+    """Download error rows as CSV"""
+    if not (request.user.is_super_admin() or request.user.is_site_head()):
+        messages.error(request, 'You do not have permission to download error files.')
+        return redirect('dashboard')
+    
+    error_data = request.session.get(f'lead_upload_errors_{session_id}')
+    if not error_data:
+        messages.error(request, 'Error data not found.')
+        return redirect('leads:list')
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="lead_upload_errors_{session_id}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write headers
+    headers = error_data['headers'] + ['Error']
+    writer.writerow(headers)
+    
+    # Write error rows
+    for error_row in error_data['errors']:
+        row_data = [error_row['data'].get(h, '') for h in error_data['headers']]
+        row_data.append(error_row['error'])
+        writer.writerow(row_data)
+    
+    # Clean up session
+    del request.session[f'lead_upload_errors_{session_id}']
+    
+    return response

@@ -48,7 +48,25 @@ def project_create(request):
         rera_id = request.POST.get('rera_id', '')
         project_type = request.POST.get('project_type')
         starting_price = request.POST.get('starting_price') or None
+        starting_price_unit = request.POST.get('starting_price_unit', 'lakhs')
+        ending_price = request.POST.get('ending_price') or None
+        ending_price_unit = request.POST.get('ending_price_unit', 'lakhs')
         inventory_summary = request.POST.get('inventory_summary', '')
+        
+        # Convert price to actual decimal value based on unit
+        if starting_price:
+            starting_price = float(starting_price)
+            if starting_price_unit == 'crores':
+                starting_price = starting_price * 10000000
+            else:  # lakhs
+                starting_price = starting_price * 100000
+        
+        if ending_price:
+            ending_price = float(ending_price)
+            if ending_price_unit == 'crores':
+                ending_price = ending_price * 10000000
+            else:  # lakhs
+                ending_price = ending_price * 100000
         latitude = request.POST.get('latitude') or None
         longitude = request.POST.get('longitude') or None
         default_commission_percent = request.POST.get('default_commission_percent') or 0
@@ -77,6 +95,9 @@ def project_create(request):
             rera_id=rera_id,
             project_type=project_type,
             starting_price=starting_price,
+            starting_price_unit=starting_price_unit,
+            ending_price=ending_price,
+            ending_price_unit=ending_price_unit,
             inventory_summary=inventory_summary,
             latitude=latitude,
             longitude=longitude,
@@ -187,8 +208,36 @@ def project_edit(request, pk):
         project.location = request.POST.get('location')
         project.rera_id = request.POST.get('rera_id', '')
         project.project_type = request.POST.get('project_type')
-        project.starting_price = request.POST.get('starting_price') or None
+        starting_price = request.POST.get('starting_price') or None
+        starting_price_unit = request.POST.get('starting_price_unit', 'lakhs')
+        ending_price = request.POST.get('ending_price') or None
+        ending_price_unit = request.POST.get('ending_price_unit', 'lakhs')
         project.inventory_summary = request.POST.get('inventory_summary', '')
+        
+        # Convert price to actual decimal value based on unit
+        if starting_price:
+            starting_price = float(starting_price)
+            if starting_price_unit == 'crores':
+                starting_price = starting_price * 10000000
+            else:  # lakhs
+                starting_price = starting_price * 100000
+            project.starting_price = starting_price
+            project.starting_price_unit = starting_price_unit
+        else:
+            project.starting_price = None
+            project.starting_price_unit = 'lakhs'
+        
+        if ending_price:
+            ending_price = float(ending_price)
+            if ending_price_unit == 'crores':
+                ending_price = ending_price * 10000000
+            else:  # lakhs
+                ending_price = ending_price * 100000
+            project.ending_price = ending_price
+            project.ending_price_unit = ending_price_unit
+        else:
+            project.ending_price = None
+            project.ending_price_unit = 'lakhs'
         project.latitude = request.POST.get('latitude') or None
         project.longitude = request.POST.get('longitude') or None
         project.default_commission_percent = request.POST.get('default_commission_percent') or 0
@@ -238,3 +287,75 @@ def project_edit(request, pk):
         'project_type_choices': Project.PROJECT_TYPE_CHOICES,
     }
     return render(request, 'projects/edit.html', context)
+
+
+@login_required
+def migrate_leads(request, pk):
+    """Migrate leads from one project to another (Mandate Owners only)"""
+    if not request.user.is_mandate_owner():
+        messages.error(request, 'Only Mandate Owners can migrate leads between projects.')
+        return redirect('projects:list')
+    
+    source_project = get_object_or_404(Project, pk=pk)
+    
+    # Verify mandate owner owns the source project
+    if source_project.mandate_owner != request.user:
+        messages.error(request, 'You can only migrate leads from your own projects.')
+        return redirect('projects:list')
+    
+    if request.method == 'POST':
+        target_project_id = request.POST.get('target_project')
+        lead_ids = request.POST.getlist('lead_ids')
+        
+        if not target_project_id:
+            messages.error(request, 'Please select a target project.')
+            return redirect('projects:migrate_leads', pk=pk)
+        
+        target_project = get_object_or_404(Project, pk=target_project_id, mandate_owner=request.user)
+        
+        if not lead_ids:
+            messages.error(request, 'Please select at least one lead to migrate.')
+            return redirect('projects:migrate_leads', pk=pk)
+        
+        # Migrate leads
+        migrated_count = 0
+        for lead_id in lead_ids:
+            try:
+                lead = Lead.objects.get(pk=lead_id, project=source_project, is_archived=False)
+                lead.project = target_project
+                lead.save()
+                migrated_count += 1
+                
+                # Create audit log
+                from accounts.models import AuditLog
+                AuditLog.objects.create(
+                    user=request.user,
+                    action='lead_migrated',
+                    model_name='Lead',
+                    object_id=lead.id,
+                    details=f'Lead {lead.name} migrated from {source_project.name} to {target_project.name}',
+                )
+            except Lead.DoesNotExist:
+                continue
+        
+        messages.success(request, f'Successfully migrated {migrated_count} lead(s) to {target_project.name}.')
+        return redirect('projects:detail', pk=source_project.pk)
+    
+    # Get all projects owned by this mandate owner (excluding source project)
+    target_projects = Project.objects.filter(
+        mandate_owner=request.user,
+        is_active=True
+    ).exclude(pk=pk).order_by('name')
+    
+    # Get leads for the source project
+    leads = Lead.objects.filter(
+        project=source_project,
+        is_archived=False
+    ).order_by('-created_at')
+    
+    context = {
+        'source_project': source_project,
+        'target_projects': target_projects,
+        'leads': leads,
+    }
+    return render(request, 'projects/migrate_leads.html', context)

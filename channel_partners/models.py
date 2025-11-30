@@ -43,10 +43,21 @@ class ChannelPartner(models.Model):
     cp_name = models.CharField(max_length=200)
     cp_unique_id = models.CharField(max_length=5, unique=True, blank=True, null=True, db_index=True)
     phone = models.CharField(max_length=15, unique=True)
+    phone2 = models.CharField(max_length=15, blank=True, help_text="Secondary phone number")
     email = models.EmailField(blank=True)
+    locality = models.CharField(max_length=200, blank=True, help_text="Locality/Area")
+    team_size = models.IntegerField(null=True, blank=True, help_text="Number of team members")
+    owner_name = models.CharField(max_length=200, blank=True, help_text="Owner/Proprietor name")
+    owner_number = models.CharField(max_length=15, blank=True, help_text="Owner contact number")
     rera_id = models.CharField(max_length=50, blank=True)
     cp_type = models.CharField(max_length=20, choices=CP_TYPE_CHOICES, default='broker')
     working_area = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[('active', 'Active'), ('inactive', 'Inactive')],
+        default='active',
+        db_index=True
+    )
     
     # Relationships
     linked_projects = models.ManyToManyField(Project, related_name='channel_partners', blank=True)

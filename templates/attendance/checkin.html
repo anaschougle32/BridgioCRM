@@ -288,7 +288,7 @@
             map.fitBounds(bounds);
             
             if (distance > 20) {
-                statusText = `⚠️ Warning: You are ${Math.round(distance)}m away from ${projectName || 'the project location'}. Check-in may be marked as invalid.`;
+                statusText = `⚠ Warning: You are ${Math.round(distance)}m away from ${projectName || 'the project location'}. Check-in may be marked as invalid.`;
                 statusClass = 'bg-yellow-50 border-yellow-200 text-yellow-800';
             } else {
                 statusText = `✅ Location verified! You are within 20m of ${projectName || 'the project location'}.`;

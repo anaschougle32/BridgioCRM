@@ -13,16 +13,16 @@
             {% if user.is_super_admin or user.is_mandate_owner or user.is_site_head %}
             <a href="{% url 'leads:upload' %}" 
                class="w-full sm:w-auto bg-gray-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-700 transition text-center text-sm sm:text-base">
-                📤 Upload Leads
+                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>Upload Leads
             </a>
             <a href="{% url 'leads:visits_list' %}" 
                class="w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 transition text-center text-sm sm:text-base">
-                👁️ Visits
+                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>Visits
             </a>
             {% endif %}
             <a href="{% url 'leads:create' %}" 
                class="w-full sm:w-auto bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-olive-secondary transition text-center text-sm sm:text-base">
-                ➕ New Visit
+                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>New Visit
             </a>
         </div>
     </div>
@@ -48,6 +48,13 @@
             <button type="submit" class="bg-olive-primary text-white px-4 py-2 rounded-custom hover:bg-olive-secondary transition">
                 Filter
             </button>
+            {% if user.is_super_admin or user.is_mandate_owner or user.is_site_head %}
+            <a href="{% url 'leads:download' %}?{{ request.GET.urlencode }}" 
+               class="bg-green-600 text-white px-4 py-2 rounded-custom hover:bg-green-700 transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Download
+            </a>
+            {% endif %}
         </form>
     </div>
     
@@ -59,6 +66,10 @@
                     <tr>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Budget</th>
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Configuration</th>
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CP ID</th>
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
@@ -72,13 +83,13 @@
                             <span class="font-medium text-sm sm:text-base">{{ lead.name }}</span>
                             <div class="flex items-center gap-1 sm:gap-2 flex-wrap">
                                 {% if notif.overdue_count > 0 %}
-                                <a href="{% url 'leads:detail' lead.pk %}" class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800 hover:bg-red-200" title="{{ notif.overdue_count }} overdue reminder(s)">
-                                    ⚠️ {{ notif.overdue_count }}
+                                <a href="{% url 'leads:detail' lead.pk %}" class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800 hover:bg-red-200 flex items-center gap-1" title="{{ notif.overdue_count }} overdue reminder(s)">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>{{ notif.overdue_count }}
                                 </a>
                                 {% endif %}
                                 {% if notif.today_callbacks > 0 %}
-                                <a href="{% url 'leads:detail' lead.pk %}" class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200" title="{{ notif.today_callbacks }} callback(s) today">
-                                    📞 {{ notif.today_callbacks }}
+                                <a href="{% url 'leads:detail' lead.pk %}" class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200 flex items-center gap-1" title="{{ notif.today_callbacks }} callback(s) today">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>{{ notif.today_callbacks }}
                                 </a>
                                 {% endif %}
                             </div>
@@ -94,6 +105,43 @@
                             </svg>
                             <span class="hidden sm:inline">Call</span>
                         </a>
+                    </td>
+                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-sm">
+                        {% if lead.budget %}
+                            {% if lead.budget >= 10000000 %}
+                                {% widthratio lead.budget 10000000 1 as budget_cr %}
+                                ₹{{ budget_cr }} Cr
+                            {% else %}
+                                {% widthratio lead.budget 100000 1 as budget_l %}
+                                ₹{{ budget_l }} L
+                            {% endif %}
+                        {% else %}
+                            <span class="text-gray-400">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-sm">
+                        {% if lead.configuration %}
+                            <span class="px-2 py-1 bg-gray-100 rounded text-xs">{{ lead.configuration.name }}</span>
+                        {% else %}
+                            <span class="text-gray-400">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-sm">
+                        {% if lead.channel_partner %}
+                            <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">{{ lead.channel_partner.cp_unique_id }}</span>
+                        {% else %}
+                            <span class="text-gray-400">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-3 sm:px-6 py-3 sm:py-4">
+                        <button onclick="openNotesModal({{ lead.id }})" 
+                                class="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                                title="{% if lead.notes %}{{ lead.notes|truncatewords:10 }}{% else %}Add notes{% endif %}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                            <span class="hidden sm:inline">{% if lead.notes %}Edit{% else %}Add{% endif %}</span>
+                        </button>
                     </td>
                     <td class="px-3 sm:px-6 py-3 sm:py-4">
                         <!-- Status Dropdown -->
@@ -130,6 +178,12 @@
                                class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs text-olive-primary hover:text-olive-secondary border border-olive-primary rounded hover:bg-olive-primary/10">
                                 View
                             </a>
+                            {% if user.is_super_admin or user.is_mandate_owner or user.is_site_head %}
+                            <a href="{% url 'leads:detail' lead.pk %}" 
+                               class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50">
+                                Edit
+                            </a>
+                            {% endif %}
                             <button onclick="openLogCallModal({{ lead.id }})" 
                                     class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs text-blue-600 hover:text-blue-700 border border-blue-300 rounded hover:bg-blue-50">
                                 Call
@@ -140,7 +194,7 @@
                             </button>
                             <button onclick="openReminderModal({{ lead.id }})" 
                                     class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs text-yellow-600 hover:text-yellow-700 border border-yellow-300 rounded hover:bg-yellow-50">
-                                ⏰
+                                <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </button>
                         </div>
                     </td>
@@ -235,6 +289,32 @@
         <div class="mt-4">
             <button onclick="closeWhatsAppModal()" class="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Close</button>
         </div>
+    </div>
+</div>
+
+<!-- Notes Modal -->
+<div id="notes-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-heading font-bold text-olive-primary">Lead Notes</h3>
+            <button onclick="closeNotesModal()" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="notes-form" method="post" hx-post="" hx-target="#notes-result" hx-swap="innerHTML">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                    <textarea name="notes" id="notes-textarea" rows="6" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"></textarea>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-4">
+                <button type="button" onclick="closeNotesModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary">Save Notes</button>
+            </div>
+        </form>
+        <div id="notes-result"></div>
     </div>
 </div>
 
@@ -345,6 +425,34 @@
         document.getElementById('reminder-form').reset();
     }
     
+    function openNotesModal(leadId) {
+        currentLeadId = leadId;
+        const form = document.getElementById('notes-form');
+        form.action = '/leads/' + leadId + '/update-notes/';
+        form.setAttribute('hx-post', '/leads/' + leadId + '/update-notes/');
+        // Fetch current notes
+        fetch('/leads/' + leadId + '/update-notes/', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.notes) {
+                document.getElementById('notes-textarea').value = data.notes;
+            }
+        })
+        .catch(error => console.error('Error fetching notes:', error));
+        document.getElementById('notes-modal').classList.remove('hidden');
+        document.querySelectorAll('[id^="actions-menu-"]').forEach(menu => menu.classList.add('hidden'));
+    }
+    
+    function closeNotesModal() {
+        document.getElementById('notes-modal').classList.add('hidden');
+        document.getElementById('notes-form').reset();
+    }
+    
     // Show/hide callback date field
     document.getElementById('next-action-select')?.addEventListener('change', function() {
         const callbackField = document.getElementById('callback-date-field');
@@ -362,6 +470,12 @@
                 closeLogCallModal();
                 closeReminderModal();
                 location.reload(); // Reload to update notifications
+            }, 1500);
+        }
+        if (event.detail.target.id === 'notes-result') {
+            setTimeout(() => {
+                closeNotesModal();
+                location.reload(); // Reload to update notes display
             }, 1500);
         }
     });
