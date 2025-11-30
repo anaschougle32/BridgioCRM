@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     lead_list, lead_create, lead_pretag, lead_detail, send_otp, verify_otp, 
     upcoming_visits, visits_list, log_call, create_reminder, complete_reminder, whatsapp, 
-    lead_assign, lead_upload, lead_assign_admin, update_status, update_notes
+    lead_assign, lead_upload, lead_assign_admin, update_status, update_notes,
+    upload_analyze, upload_preview
 )
 
 app_name = 'leads'
@@ -12,6 +13,8 @@ urlpatterns = [
     path('create/', lead_create, name='create'),
     path('pretag/', lead_pretag, name='pretag'),
     path('upload/', lead_upload, name='upload'),
+    path('upload/analyze/', upload_analyze, name='upload_analyze'),
+    path('upload/preview/', upload_preview, name='upload_preview'),
     path('assign/', lead_assign, name='assign'),
     path('assign-admin/', lead_assign_admin, name='assign_admin'),
     path('upcoming-visits/', upcoming_visits, name='upcoming_visits'),

@@ -3,78 +3,455 @@
 {% block title %}Upload Leads - Bridgio CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto space-y-6">
+<div class="max-w-6xl mx-auto space-y-6">
     <div class="flex justify-between items-center">
         <h1 class="text-3xl font-heading font-bold text-olive-primary">Upload Leads</h1>
         <a href="{% url 'leads:list' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Leads</a>
     </div>
     
-    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
-        <form method="post" enctype="multipart/form-data" class="space-y-6">
-            {% csrf_token %}
-            
-            <div>
-                <label class="block text-sm font-medium mb-2">Select Project *</label>
-                <select name="project" required class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
-                    <option value="">-- Select Project --</option>
-                    {% for project in projects %}
-                    <option value="{{ project.id }}">{{ project.name }} ({{ project.location }})</option>
-                    {% endfor %}
-                </select>
+    <!-- Step Indicator -->
+    <div class="flex items-center justify-center space-x-4 mb-6">
+        <div class="flex items-center">
+            <div id="step-1-indicator" class="w-10 h-10 rounded-full bg-olive-primary text-white flex items-center justify-center font-bold">1</div>
+            <span class="ml-2 text-sm font-medium">Upload File</span>
+        </div>
+        <div class="w-16 h-1 bg-gray-300"></div>
+        <div class="flex items-center">
+            <div id="step-2-indicator" class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">2</div>
+            <span class="ml-2 text-sm font-medium">Map Fields</span>
+        </div>
+        <div class="w-16 h-1 bg-gray-300"></div>
+        <div class="flex items-center">
+            <div id="step-3-indicator" class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">3</div>
+            <span class="ml-2 text-sm font-medium">Review & Import</span>
+        </div>
+    </div>
+    
+    <!-- Step 1: Upload File -->
+    <div id="step-1" class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <h2 class="text-2xl font-heading font-semibold text-olive-primary mb-4">Step 1: Upload File</h2>
+        
+        <!-- Drag and Drop Zone -->
+        <div id="drop-zone" class="border-2 border-dashed border-olive-primary rounded-lg p-12 text-center cursor-pointer hover:bg-olive-50 transition-colors">
+            <input type="file" id="file-input" name="file" accept=".xlsx,.xls,.csv" class="hidden" />
+            <div class="space-y-4">
+                <div class="text-6xl">📁</div>
+                <div>
+                    <p class="text-lg font-medium text-gray-700">Drag and drop your file here</p>
+                    <p class="text-sm text-gray-500 mt-2">or</p>
+                    <button type="button" onclick="document.getElementById('file-input').click()" 
+                            class="mt-4 px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">
+                        Browse Files
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500">Supported formats: .xlsx, .xls, .csv (Max 10MB)</p>
             </div>
-            
-            <div>
-                <label class="block text-sm font-medium mb-2">Upload File (Excel/CSV) *</label>
-                <input type="file" name="file" accept=".xlsx,.xls,.csv" required 
-                       class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
-                <p class="text-xs text-gray-500 mt-1">Supported formats: .xlsx, .xls, .csv</p>
-            </div>
-            
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <h3 class="font-semibold text-blue-900 mb-2">📋 Leads Upload Format</h3>
-                <p class="text-sm text-blue-800 mb-3">
-                    <strong>Note:</strong> This uploads <strong>LEADS</strong> only (basic lead information). 
-                    Visits are created separately when leads actually visit the site.
-                </p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        </div>
+        
+        <!-- Selected File Display -->
+        <div id="file-info" class="hidden mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl">✅</span>
                     <div>
-                        <h4 class="font-semibold text-blue-900 mb-2">Required Columns:</h4>
-                        <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                            <li><strong>Name</strong> (required)</li>
-                            <li><strong>Phone</strong> (required)</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 class="font-semibold text-blue-900 mb-2">Important Optional Columns:</h4>
-                        <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                            <li><strong>Lead Status</strong> (New, Contacted, Visit Scheduled, etc.)</li>
-                            <li>Email, Age, Locality, Budget</li>
-                        </ul>
+                        <p class="font-medium text-green-900" id="file-name"></p>
+                        <p class="text-sm text-green-700" id="file-size"></p>
                     </div>
                 </div>
-                <div class="mt-3 pt-3 border-t border-blue-300">
-                    <h4 class="font-semibold text-blue-900 mb-2">Other Optional Columns:</h4>
-                    <p class="text-sm text-blue-800">
-                        Gender, Current Residence, Occupation, Company Name, Designation, Purpose, Visit Type, 
-                        First Visit, How did you hear, CP Firm Name, CP Name, CP Phone, CP RERA Number, Is Pretagged
-                    </p>
-                </div>
+                <button type="button" onclick="clearFile()" class="text-red-600 hover:text-red-800">Remove</button>
             </div>
-            
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <h3 class="font-semibold text-yellow-900 mb-2">ℹ️ Auto-Mapping</h3>
-                <p class="text-sm text-yellow-800">
-                    The system will automatically detect column names even if they differ slightly. 
-                    For example: "Full Name" → Name, "Mobile Number" → Phone, "Lead Status" → Status.
-                </p>
-            </div>
-            
-            <div class="flex justify-end space-x-4">
-                <a href="{% url 'leads:list' %}" class="px-6 py-2 border border-border-light rounded-lg hover:bg-gray-50">Cancel</a>
-                <button type="submit" class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary">Upload Leads</button>
-            </div>
-        </form>
+        </div>
+        
+        <!-- Project Selection -->
+        <div class="mt-6">
+            <label class="block text-sm font-medium mb-2">Select Project *</label>
+            <select id="project-select" name="project" required class="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary">
+                <option value="">-- Select Project --</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}">{{ project.name }} ({{ project.location }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <!-- Next Button -->
+        <div class="mt-6 flex justify-end">
+            <button type="button" id="next-to-mapping" onclick="proceedToMapping()" 
+                    class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                Next: Map Fields →
+            </button>
+        </div>
+    </div>
+    
+    <!-- Step 2: Map Fields -->
+    <div id="step-2" class="hidden bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <h2 class="text-2xl font-heading font-semibold text-olive-primary mb-4">Step 2: Map Fields</h2>
+        <p class="text-sm text-gray-600 mb-6">Review and adjust the field mappings. The system has auto-detected the columns, but you can change them if needed.</p>
+        
+        <div id="mapping-container" class="space-y-4">
+            <!-- Mapping will be loaded here via htmx -->
+        </div>
+        
+        <div class="mt-6 flex justify-between">
+            <button type="button" onclick="goBackToStep1()" 
+                    class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                ← Back
+            </button>
+            <button type="button" id="next-to-review" onclick="proceedToReview()" 
+                    class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">
+                Next: Review & Import →
+            </button>
+        </div>
+    </div>
+    
+    <!-- Step 3: Review & Import -->
+    <div id="step-3" class="hidden bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <h2 class="text-2xl font-heading font-semibold text-olive-primary mb-4">Step 3: Review & Import</h2>
+        
+        <div id="preview-container" class="space-y-4">
+            <!-- Preview will be loaded here -->
+        </div>
+        
+        <div class="mt-6 flex justify-between">
+            <button type="button" onclick="goBackToStep2()" 
+                    class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                ← Back
+            </button>
+            <form id="final-upload-form" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" id="final-project" name="project" />
+                <input type="hidden" id="final-mapping" name="mapping" />
+                <button type="submit" 
+                        class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                ✅ Import Leads
+            </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Info Boxes -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="font-semibold text-blue-900 mb-2">📋 Required Fields</h3>
+            <ul class="text-sm text-blue-800 space-y-1">
+                <li><strong>Name</strong> - Client's full name</li>
+                <li><strong>Phone</strong> - Contact number</li>
+            </ul>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 class="font-semibold text-yellow-900 mb-2">ℹ️ Auto-Mapping</h3>
+            <p class="text-sm text-yellow-800">
+                The system automatically detects column names. You can manually adjust mappings if needed.
+            </p>
+        </div>
     </div>
 </div>
-{% endblock %}
 
+<script>
+let selectedFile = null;
+let fileSessionId = null;
+
+// Drag and Drop Handlers
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-olive-secondary', 'bg-olive-50');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('border-olive-secondary', 'bg-olive-50');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-olive-secondary', 'bg-olive-50');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFileSelect(files[0]);
+    }
+});
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+    }
+});
+
+function handleFileSelect(file) {
+    // Validate file type
+    const validTypes = ['.xlsx', '.xls', '.csv'];
+    const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+    if (!validTypes.includes(fileExt)) {
+        alert('Please upload a valid Excel or CSV file (.xlsx, .xls, .csv)');
+        return;
+    }
+    
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+    }
+    
+    selectedFile = file;
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('file-size').textContent = formatFileSize(file.size);
+    document.getElementById('file-info').classList.remove('hidden');
+    
+    // Enable next button if project is selected
+    checkNextButton();
+}
+
+function clearFile() {
+    selectedFile = null;
+    fileInput.value = '';
+    document.getElementById('file-info').classList.add('hidden');
+    checkNextButton();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function checkNextButton() {
+    const project = document.getElementById('project-select').value;
+    const nextBtn = document.getElementById('next-to-mapping');
+    if (selectedFile && project) {
+        nextBtn.disabled = false;
+    } else {
+        nextBtn.disabled = true;
+    }
+}
+
+document.getElementById('project-select').addEventListener('change', checkNextButton);
+
+// Step Navigation
+function proceedToMapping() {
+    if (!selectedFile || !document.getElementById('project-select').value) {
+        alert('Please select a file and project');
+        return;
+    }
+    
+    // Upload file and get mapping
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('project', document.getElementById('project-select').value);
+    formData.append('action', 'analyze');
+    
+    fetch('{% url "leads:upload_analyze" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            fileSessionId = data.session_id;
+            displayMapping(data.headers, data.mapping);
+            showStep(2);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to analyze file'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while analyzing the file');
+    });
+}
+
+function displayMapping(headers, autoMapping) {
+    const container = document.getElementById('mapping-container');
+    const fieldOptions = {
+        'name': 'Name (Required)',
+        'phone': 'Phone (Required)',
+        'email': 'Email',
+        'age': 'Age',
+        'gender': 'Gender',
+        'locality': 'Locality',
+        'current_residence': 'Current Residence',
+        'occupation': 'Occupation',
+        'company_name': 'Company Name',
+        'designation': 'Designation',
+        'budget': 'Budget',
+        'purpose': 'Purpose',
+        'visit_type': 'Visit Type',
+        'is_first_visit': 'Is First Visit',
+        'how_did_you_hear': 'How did you hear',
+        'status': 'Lead Status',
+        'is_pretagged': 'Is Pretagged',
+        'cp_firm_name': 'CP Firm Name',
+        'cp_name': 'CP Name',
+        'cp_phone': 'CP Phone',
+        'cp_rera_number': 'CP RERA Number',
+    };
+    
+    let html = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detected Column</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Map to Field</th></tr></thead><tbody>';
+    
+    headers.forEach((header, index) => {
+        const mappedField = autoMapping[header] || '';
+        html += `<tr class="bg-white border-b"><td class="px-4 py-3 text-sm text-gray-900">${header}</td><td class="px-4 py-3"><select name="mapping_${index}" data-header="${header}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"><option value="">-- Ignore --</option>`;
+        
+        Object.entries(fieldOptions).forEach(([value, label]) => {
+            const selected = mappedField === value ? 'selected' : '';
+            html += `<option value="${value}" ${selected}>${label}</option>`;
+        });
+        
+        html += `</select></td></tr>`;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function proceedToReview() {
+    // Collect mapping
+    const mapping = {};
+    document.querySelectorAll('[name^="mapping_"]').forEach(select => {
+        const header = select.getAttribute('data-header');
+        const field = select.value;
+        if (field) {
+            mapping[header] = field;
+        }
+    });
+    
+    // Validate required fields
+    const requiredFields = ['name', 'phone'];
+    const mappedFields = Object.values(mapping);
+    const missingFields = requiredFields.filter(field => !mappedFields.includes(field));
+    
+    if (missingFields.length > 0) {
+        alert(`Please map the required fields: ${missingFields.join(', ')}`);
+        return;
+    }
+    
+    // Show preview
+    showPreview(mapping);
+}
+
+function showPreview(mapping) {
+    const container = document.getElementById('preview-container');
+    container.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-olive-primary"></div><p class="mt-4 text-gray-600">Loading preview...</p></div>';
+    
+    const formData = new FormData();
+    formData.append('session_id', fileSessionId);
+    formData.append('mapping', JSON.stringify(mapping));
+    formData.append('action', 'preview');
+    
+    fetch('{% url "leads:upload_preview" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            container.innerHTML = `
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <h3 class="font-semibold text-green-900 mb-2">Ready to Import</h3>
+                    <p class="text-sm text-green-800">Total rows: ${data.total_rows}</p>
+                    <p class="text-sm text-green-800">Valid rows: ${data.valid_rows}</p>
+                    ${data.errors > 0 ? `<p class="text-sm text-yellow-800">Rows with errors: ${data.errors}</p>` : ''}
+                </div>
+            `;
+            
+            // Set final form data
+            document.getElementById('final-project').value = document.getElementById('project-select').value;
+            document.getElementById('final-mapping').value = JSON.stringify(mapping);
+            
+            showStep(3);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to generate preview'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while generating preview');
+    });
+}
+
+function showStep(step) {
+    // Hide all steps
+    document.getElementById('step-1').classList.add('hidden');
+    document.getElementById('step-2').classList.add('hidden');
+    document.getElementById('step-3').classList.add('hidden');
+    
+    // Show current step
+    document.getElementById(`step-${step}`).classList.remove('hidden');
+    
+    // Update indicators
+    [1, 2, 3].forEach(s => {
+        const indicator = document.getElementById(`step-${s}-indicator`);
+        if (s < step) {
+            indicator.classList.remove('bg-gray-300', 'text-gray-600');
+            indicator.classList.add('bg-green-500', 'text-white');
+        } else if (s === step) {
+            indicator.classList.remove('bg-gray-300', 'text-gray-600');
+            indicator.classList.add('bg-olive-primary', 'text-white');
+        } else {
+            indicator.classList.remove('bg-olive-primary', 'text-white', 'bg-green-500');
+            indicator.classList.add('bg-gray-300', 'text-gray-600');
+        }
+    });
+}
+
+function goBackToStep1() {
+    showStep(1);
+}
+
+function goBackToStep2() {
+    showStep(2);
+}
+
+// Handle final form submission
+document.getElementById('final-upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('project', document.getElementById('final-project').value);
+    formData.append('mapping', document.getElementById('final-mapping').value);
+    formData.append('session_id', fileSessionId);
+    
+    // Show loading
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Importing...';
+    
+    fetch('{% url "leads:upload" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+        } else {
+            return response.json();
+        }
+    })
+    .then(data => {
+        if (data && !data.success) {
+            alert('Error: ' + (data.error || 'Failed to upload'));
+            submitBtn.disabled = false;
+            submitBtn.textContent = '✅ Import Leads';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred during upload');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✅ Import Leads';
+    });
+});
+</script>
+{% endblock %}

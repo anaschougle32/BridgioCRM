@@ -1188,8 +1188,169 @@ def _create_column_mapper(headers):
 
 
 @login_required
+def upload_analyze(request):
+    """Analyze uploaded file and return headers with auto-mapping"""
+    if not (request.user.is_super_admin() or request.user.is_site_head()):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
+    
+    try:
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': 'No file provided'}, status=400)
+        
+        # Store file in session temporarily
+        import uuid
+        session_id = str(uuid.uuid4())
+        
+        # Read headers
+        file_name = uploaded_file.name.lower()
+        headers = []
+        
+        if file_name.endswith('.csv'):
+            decoded_file = uploaded_file.read().decode('utf-8')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            headers = list(reader.fieldnames or [])
+            # Store file content in session
+            request.session[f'upload_file_{session_id}'] = {
+                'name': uploaded_file.name,
+                'content': decoded_file,
+                'type': 'csv'
+            }
+        else:
+            if openpyxl is None:
+                return JsonResponse({'success': False, 'error': 'openpyxl not installed'}, status=500)
+            workbook = openpyxl.load_workbook(uploaded_file)
+            worksheet = workbook.active
+            headers = [str(cell.value).strip() if cell.value else '' for cell in worksheet[1]]
+            # Store file in session (we'll need to save it temporarily)
+            uploaded_file.seek(0)
+            file_content = uploaded_file.read()
+            request.session[f'upload_file_{session_id}'] = {
+                'name': uploaded_file.name,
+                'content': file_content,
+                'type': 'excel'
+            }
+        
+        request.session.modified = True
+        
+        # Auto-detect mapping
+        get_value, field_map = _create_column_mapper(headers)
+        
+        # Convert field_map (index-based) to header-based mapping
+        auto_mapping = {}
+        for field, col_idx in field_map.items():
+            if col_idx < len(headers):
+                auto_mapping[headers[col_idx]] = field
+        
+        return JsonResponse({
+            'success': True,
+            'session_id': session_id,
+            'headers': headers,
+            'mapping': auto_mapping
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def upload_preview(request):
+    """Preview upload with custom mapping"""
+    if not (request.user.is_super_admin() or request.user.is_site_head()):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
+    
+    try:
+        session_id = request.POST.get('session_id')
+        mapping_json = request.POST.get('mapping')
+        
+        if not session_id or not mapping_json:
+            return JsonResponse({'success': False, 'error': 'Missing parameters'}, status=400)
+        
+        # Get file from session
+        file_data = request.session.get(f'upload_file_{session_id}')
+        if not file_data:
+            return JsonResponse({'success': False, 'error': 'File not found in session'}, status=400)
+        
+        # Parse mapping
+        import json
+        mapping = json.loads(mapping_json)
+        
+        # Count rows and validate
+        total_rows = 0
+        valid_rows = 0
+        errors = 0
+        
+        if file_data['type'] == 'csv':
+            io_string = io.StringIO(file_data['content'])
+            reader = csv.DictReader(io_string)
+            for row_num, row in enumerate(reader, start=2):
+                total_rows += 1
+                # Check required fields
+                name = row.get(mapping.get('name', ''), '').strip() if mapping.get('name') else ''
+                phone = row.get(mapping.get('phone', ''), '').strip() if mapping.get('phone') else ''
+                if name and phone:
+                    valid_rows += 1
+                else:
+                    errors += 1
+        else:
+            # Excel preview
+            import tempfile
+            import os
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                tmp.write(file_data['content'])
+                tmp_path = tmp.name
+            
+            try:
+                workbook = openpyxl.load_workbook(tmp_path)
+                worksheet = workbook.active
+                headers = [str(cell.value).strip() if cell.value else '' for cell in worksheet[1]]
+                
+                # Create reverse mapping: field -> header
+                field_to_header = {v: k for k, v in mapping.items()}
+                
+                for row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=False), start=2):
+                    total_rows += 1
+                    # Get name and phone using mapping
+                    name_header = field_to_header.get('name', '')
+                    phone_header = field_to_header.get('phone', '')
+                    
+                    name = ''
+                    phone = ''
+                    if name_header in headers:
+                        name_idx = headers.index(name_header)
+                        if name_idx < len(row):
+                            name = str(row[name_idx].value).strip() if row[name_idx].value else ''
+                    if phone_header in headers:
+                        phone_idx = headers.index(phone_header)
+                        if phone_idx < len(row):
+                            phone = str(row[phone_idx].value).strip() if row[phone_idx].value else ''
+                    
+                    if name and phone:
+                        valid_rows += 1
+                    else:
+                        errors += 1
+            finally:
+                os.unlink(tmp_path)
+        
+        return JsonResponse({
+            'success': True,
+            'total_rows': total_rows,
+            'valid_rows': valid_rows,
+            'errors': errors
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
 def lead_upload(request):
-    """Upload leads via Excel/CSV (Admin and Site Head only) with auto-mapping"""
+    """Upload leads via Excel/CSV (Admin and Site Head only) with auto-mapping and manual mapping support"""
     if not (request.user.is_super_admin() or request.user.is_site_head()):
         messages.error(request, 'Only Admins and Site Heads can upload leads.')
         return redirect('dashboard')
@@ -1220,6 +1381,19 @@ def lead_upload(request):
                 messages.error(request, 'Please upload an Excel (.xlsx, .xls) or CSV file.')
                 return redirect('leads:upload')
             
+            # Check if manual mapping is provided
+            manual_mapping_json = request.POST.get('mapping')
+            session_id = request.POST.get('session_id')
+            
+            # Parse manual mapping if provided
+            manual_mapping = {}
+            if manual_mapping_json:
+                import json
+                try:
+                    manual_mapping = json.loads(manual_mapping_json)
+                except:
+                    pass
+            
             # Process file
             leads_created = 0
             errors = []
@@ -1229,14 +1403,32 @@ def lead_upload(request):
             
             if file_name.endswith('.csv'):
                 # Process CSV
-                decoded_file = uploaded_file.read().decode('utf-8')
+                if session_id and request.session.get(f'upload_file_{session_id}'):
+                    file_data = request.session.get(f'upload_file_{session_id}')
+                    decoded_file = file_data['content']
+                    # Clean up session
+                    del request.session[f'upload_file_{session_id}']
+                else:
+                    decoded_file = uploaded_file.read().decode('utf-8')
+                
                 io_string = io.StringIO(decoded_file)
                 reader = csv.DictReader(io_string)
                 
                 # Get headers from CSV
                 csv_headers = reader.fieldnames or []
                 headers = csv_headers
-                get_value, field_map = _create_column_mapper(csv_headers)
+                
+                # Use manual mapping if provided, otherwise auto-detect
+                if manual_mapping:
+                    # Manual mapping: header -> field
+                    header_to_field = manual_mapping
+                else:
+                    get_value, field_map = _create_column_mapper(csv_headers)
+                    # Convert to header->field format
+                    header_to_field = {}
+                    for field, col_idx in field_map.items():
+                        if col_idx < len(csv_headers):
+                            header_to_field[csv_headers[col_idx]] = field
                 
                 # Store mapping info for user feedback
                 if field_map:
@@ -1244,12 +1436,22 @@ def lead_upload(request):
                 
                 for row_num, row in enumerate(reader, start=2):
                     try:
-                        # Use auto-mapping to get values
+                        # Use manual or auto-mapping to get values
                         def get_row_value(field_name):
-                            col_idx = field_map.get(field_name)
-                            if col_idx is not None and col_idx < len(csv_headers):
-                                col_name = csv_headers[col_idx]
-                                return str(row.get(col_name, '')).strip() if row.get(col_name) else ''
+                            if manual_mapping:
+                                # Find header mapped to this field
+                                header = None
+                                for h, f in header_to_field.items():
+                                    if f == field_name:
+                                        header = h
+                                        break
+                                if header:
+                                    return str(row.get(header, '')).strip() if row.get(header) else ''
+                            else:
+                                col_idx = field_map.get(field_name)
+                                if col_idx is not None and col_idx < len(csv_headers):
+                                    col_name = csv_headers[col_idx]
+                                    return str(row.get(col_name, '')).strip() if row.get(col_name) else ''
                             return ''
                         
                         # Required fields
@@ -1360,12 +1562,39 @@ def lead_upload(request):
                 if openpyxl is None:
                     messages.error(request, 'openpyxl is not installed. Please install it: pip install openpyxl')
                     return redirect('leads:upload')
-                workbook = openpyxl.load_workbook(uploaded_file)
+                
+                # Get file from session if available
+                if session_id and request.session.get(f'upload_file_{session_id}'):
+                    file_data = request.session.get(f'upload_file_{session_id}')
+                    import tempfile
+                    import os
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                        tmp.write(file_data['content'])
+                        tmp_path = tmp.name
+                    try:
+                        workbook = openpyxl.load_workbook(tmp_path)
+                    finally:
+                        os.unlink(tmp_path)
+                    # Clean up session
+                    del request.session[f'upload_file_{session_id}']
+                else:
+                    workbook = openpyxl.load_workbook(uploaded_file)
+                
                 worksheet = workbook.active
                 
                 # Get header row
                 headers = [str(cell.value).strip() if cell.value else '' for cell in worksheet[1]]
-                get_value, field_map = _create_column_mapper(headers)
+                
+                # Use manual mapping if provided, otherwise auto-detect
+                if manual_mapping:
+                    header_to_field = manual_mapping
+                else:
+                    get_value, field_map = _create_column_mapper(headers)
+                    # Convert to header->field format
+                    header_to_field = {}
+                    for field, col_idx in field_map.items():
+                        if col_idx < len(headers):
+                            header_to_field[headers[col_idx]] = field
                 
                 # Store mapping info for user feedback
                 if field_map:
@@ -1373,12 +1602,25 @@ def lead_upload(request):
                 
                 for row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=False), start=2):
                     try:
-                        # Use auto-mapping to get values
+                        # Use manual or auto-mapping to get values
                         def get_row_value(field_name):
-                            col_idx = field_map.get(field_name)
-                            if col_idx is not None and col_idx < len(row):
-                                cell = row[col_idx]
-                                return str(cell.value).strip() if cell.value else ''
+                            if manual_mapping:
+                                # Find header mapped to this field
+                                header = None
+                                for h, f in header_to_field.items():
+                                    if f == field_name:
+                                        header = h
+                                        break
+                                if header and header in headers:
+                                    col_idx = headers.index(header)
+                                    if col_idx < len(row):
+                                        cell = row[col_idx]
+                                        return str(cell.value).strip() if cell.value else ''
+                            else:
+                                col_idx = field_map.get(field_name)
+                                if col_idx is not None and col_idx < len(row):
+                                    cell = row[col_idx]
+                                    return str(cell.value).strip() if cell.value else ''
                             return ''
                         
                         # Required fields
