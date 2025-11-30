@@ -1289,11 +1289,23 @@ def upload_preview(request):
         if file_data['type'] == 'csv':
             io_string = io.StringIO(file_data['content'])
             reader = csv.DictReader(io_string)
+            # Create reverse mapping: field -> header
+            field_to_header = {v: k for k, v in mapping.items()}
+            
             for row_num, row in enumerate(reader, start=2):
                 total_rows += 1
-                # Check required fields
-                name = row.get(mapping.get('name', ''), '').strip() if mapping.get('name') else ''
-                phone = row.get(mapping.get('phone', ''), '').strip() if mapping.get('phone') else ''
+                # Check required fields using mapping
+                name_header = field_to_header.get('name', '')
+                phone_header = field_to_header.get('phone', '')
+                
+                name = row.get(name_header, '').strip() if name_header else ''
+                phone = row.get(phone_header, '').strip() if phone_header else ''
+                
+                # Clean phone number (remove spaces, handle multiple contacts)
+                if phone:
+                    phone = phone.split(',')[0].strip()  # Take first phone if multiple
+                    phone = phone.replace(' ', '').replace('-', '')
+                
                 if name and phone:
                     valid_rows += 1
                 else:
@@ -1330,6 +1342,10 @@ def upload_preview(request):
                         phone_idx = headers.index(phone_header)
                         if phone_idx < len(row):
                             phone = str(row[phone_idx].value).strip() if row[phone_idx].value else ''
+                            # Clean phone number (remove spaces, handle multiple contacts)
+                            if phone:
+                                phone = phone.split(',')[0].strip()  # Take first phone if multiple
+                                phone = phone.replace(' ', '').replace('-', '')
                     
                     if name and phone:
                         valid_rows += 1
@@ -1458,6 +1474,16 @@ def lead_upload(request):
                         name = get_row_value('name')
                         phone = get_row_value('phone')
                         
+                        # Clean phone number (handle multiple contacts, remove spaces)
+                        if phone:
+                            phone = phone.split(',')[0].strip()  # Take first phone if multiple
+                            phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                            # Remove leading +91 or 91
+                            if phone.startswith('+91'):
+                                phone = phone[3:]
+                            elif phone.startswith('91') and len(phone) > 10:
+                                phone = phone[2:]
+                        
                         if not name or not phone:
                             errors.append(f"Row {row_num}: Name and Phone are required")
                             continue
@@ -1467,37 +1493,110 @@ def lead_upload(request):
                             errors.append(f"Row {row_num}: Lead with phone {phone} already exists")
                             continue
                         
-                        # Get optional fields
-                        email = get_row_value('email')
-                        age_str = get_row_value('age')
-                        age = int(age_str) if age_str and age_str.isdigit() else None
-                        gender = get_row_value('gender')
-                        locality = get_row_value('locality')
-                        current_residence = get_row_value('current_residence')
-                        occupation = get_row_value('occupation')
-                        company_name = get_row_value('company_name')
-                        designation = get_row_value('designation')
+                        # Get simplified fields (only what's needed for leads upload)
+                        configuration_str = get_row_value('configuration')
                         budget_str = get_row_value('budget')
-                        budget = float(budget_str) if budget_str and budget_str.replace('.', '').replace('-', '').isdigit() else None
-                        purpose = get_row_value('purpose')
-                        visit_type = get_row_value('visit_type')
-                        is_first_visit_str = get_row_value('is_first_visit')
-                        is_first_visit = is_first_visit_str.lower() in ['true', 'yes', '1', 'y'] if is_first_visit_str else True
-                        how_did_you_hear = get_row_value('how_did_you_hear')
+                        feedback = get_row_value('feedback')
+                        cp_id = get_row_value('cp_id')
                         
-                        # Get Lead Status (VERY IMPORTANT - from upload file)
+                        # Parse configuration - try to match to ProjectConfiguration
+                        configuration = None
+                        if configuration_str:
+                            try:
+                                from projects.models import ProjectConfiguration
+                                config_qs = ProjectConfiguration.objects.filter(
+                                    project=project,
+                                    name__icontains=configuration_str
+                                )
+                                if config_qs.exists():
+                                    configuration = config_qs.first()
+                            except:
+                                pass
+                        
+                        # Parse budget - handle ranges like "35-40 L", "1.2-1.3 Cr", "Open Budget", "Low Budget"
+                        budget = None
+                        if budget_str:
+                            budget_str = budget_str.strip()
+                            # Handle "Open Budget" and "Low Budget"
+                            if budget_str.lower() in ['open budget', 'open']:
+                                budget = None  # Will be stored in notes
+                            elif budget_str.lower() in ['low budget', 'low']:
+                                budget = None  # Will be stored in notes
+                            else:
+                                # Parse numeric ranges
+                                try:
+                                    import re
+                                    from decimal import Decimal
+                                    budget_clean = budget_str.replace(' ', '').upper()
+                                    if 'L' in budget_clean or 'LAKH' in budget_clean:
+                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
+                                        if numbers:
+                                            avg = sum(float(n) for n in numbers) / len(numbers)
+                                            budget = Decimal(avg * 100000)
+                                    elif 'CR' in budget_clean or 'CRORE' in budget_clean:
+                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
+                                        if numbers:
+                                            avg = sum(float(n) for n in numbers) / len(numbers)
+                                            budget = Decimal(avg * 10000000)
+                                    else:
+                                        # Try direct number parsing
+                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
+                                        if numbers:
+                                            avg = sum(float(n) for n in numbers) / len(numbers)
+                                            # Assume lakhs if less than 100, crores if more
+                                            if avg < 100:
+                                                budget = Decimal(avg * 100000)
+                                            else:
+                                                budget = Decimal(avg * 10000000)
+                                except:
+                                    budget = None
+                        
+                        # Get CP data if provided
+                        channel_partner = None
+                        is_cp_data = request.POST.get('is_cp_data', 'no') == 'yes'
+                        if is_cp_data:
+                            cp_id_from_form = request.POST.get('channel_partner_id')
+                            if cp_id_from_form:
+                                try:
+                                    from channel_partners.models import ChannelPartner
+                                    channel_partner = ChannelPartner.objects.get(pk=cp_id_from_form)
+                                except:
+                                    pass
+                        elif cp_id:
+                            # Try to find CP by ID
+                            try:
+                                from channel_partners.models import ChannelPartner
+                                channel_partner = ChannelPartner.objects.filter(cp_unique_id=cp_id).first()
+                            except:
+                                pass
+                        
+                        # Get Lead Status
                         status_str = get_row_value('status')
+                        # Map feedback to status if status not provided
+                        if not status_str and feedback:
+                            feedback_lower = feedback.lower()
+                            if 'interested' in feedback_lower or 'intrested' in feedback_lower:
+                                status_str = 'hot'
+                            elif 'not interested' in feedback_lower or 'not intrested' in feedback_lower:
+                                status_str = 'lost'
+                            elif 'call back' in feedback_lower or 'callback' in feedback_lower:
+                                status_str = 'contacted'
+                            elif 'busy' in feedback_lower or 'not answering' in feedback_lower:
+                                status_str = 'contacted'
+                            elif 'already booked' in feedback_lower:
+                                status_str = 'lost'
+                            else:
+                                status_str = 'contacted'
+                        
                         # Validate status against choices
                         valid_statuses = [choice[0] for choice in Lead.LEAD_STATUS_CHOICES]
                         if status_str:
                             status_str = status_str.lower().strip()
-                            # Try to match status (case-insensitive, handle spaces/underscores)
                             status_matched = None
                             for valid_status in valid_statuses:
                                 if status_str == valid_status or status_str.replace('_', ' ') == valid_status.replace('_', ' '):
                                     status_matched = valid_status
                                     break
-                            # If no match, try display name matching
                             if not status_matched:
                                 for valid_status, display_name in Lead.LEAD_STATUS_CHOICES:
                                     display_lower = display_name.lower()
@@ -1506,52 +1605,35 @@ def lead_upload(request):
                                         break
                             status = status_matched if status_matched else 'new'
                         else:
-                            status = 'new'  # Default status
+                            status = 'new'
                         
-                        # Handle pretagged leads
-                        is_pretagged_str = get_row_value('is_pretagged')
-                        is_pretagged = is_pretagged_str.lower() in ['yes', 'true', '1', 'y', 'pretagged'] if is_pretagged_str else False
+                        # Handle pretagged leads (if CP data)
+                        is_pretagged = is_cp_data and channel_partner is not None
                         
-                        cp_firm_name = get_row_value('cp_firm_name')
-                        cp_name = get_row_value('cp_name')
-                        cp_phone = get_row_value('cp_phone')
-                        cp_rera_number = get_row_value('cp_rera_number')
+                        # Store feedback in notes
+                        notes = ''
+                        if feedback:
+                            notes = f"Feedback: {feedback}"
+                        if budget_str and budget is None:
+                            # Budget is "Open Budget" or "Low Budget"
+                            if notes:
+                                notes += f"\nBudget: {budget_str}"
+                            else:
+                                notes = f"Budget: {budget_str}"
                         
-                        # Validate pretagged requirements
-                        if is_pretagged:
-                            if not cp_firm_name or not cp_name or not cp_phone:
-                                errors.append(f"Row {row_num}: Pretagged leads require CP Firm Name, CP Name, and CP Phone")
-                                continue
-                        
-                        # Create lead (LEADS ONLY - visits are created separately when leads actually visit)
-                        # Note: This upload creates leads, not visits. Visits are created when:
-                        # 1. Telecaller/any user schedules a visit (status='visit_scheduled')
-                        # 2. Closing Manager completes visit form when lead arrives (status='visit_completed')
+                        # Create lead with simplified fields
                         Lead.objects.create(
                             name=name,
                             phone=phone,
-                            email=email,
-                            age=age,
-                            gender=gender,
-                            locality=locality,
-                            current_residence=current_residence,
-                            occupation=occupation,
-                            company_name=company_name,
-                            designation=designation,
                             project=project,
+                            configuration=configuration,
                             budget=budget,
-                            purpose=purpose,
-                            visit_type=visit_type,
-                            is_first_visit=is_first_visit,
-                            how_did_you_hear=how_did_you_hear,
-                            cp_firm_name=cp_firm_name,
-                            cp_name=cp_name,
-                            cp_phone=cp_phone,
-                            cp_rera_number=cp_rera_number,
+                            notes=notes,
+                            channel_partner=channel_partner,
                             is_pretagged=is_pretagged,
                             pretag_status='pending_verification' if is_pretagged else '',
                             phone_verified=False,
-                            status=status,  # Use status from upload file
+                            status=status,
                             created_by=request.user,
                         )
                         leads_created += 1
@@ -1627,6 +1709,16 @@ def lead_upload(request):
                         name = get_row_value('name')
                         phone = get_row_value('phone')
                         
+                        # Clean phone number (handle multiple contacts, remove spaces)
+                        if phone:
+                            phone = phone.split(',')[0].strip()  # Take first phone if multiple
+                            phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                            # Remove leading +91 or 91
+                            if phone.startswith('+91'):
+                                phone = phone[3:]
+                            elif phone.startswith('91') and len(phone) > 10:
+                                phone = phone[2:]
+                        
                         if not name or not phone:
                             errors.append(f"Row {row_num}: Name and Phone are required")
                             continue
@@ -1636,37 +1728,110 @@ def lead_upload(request):
                             errors.append(f"Row {row_num}: Lead with phone {phone} already exists")
                             continue
                         
-                        # Get optional fields
-                        email = get_row_value('email')
-                        age_str = get_row_value('age')
-                        age = int(age_str) if age_str and age_str.isdigit() else None
-                        gender = get_row_value('gender')
-                        locality = get_row_value('locality')
-                        current_residence = get_row_value('current_residence')
-                        occupation = get_row_value('occupation')
-                        company_name = get_row_value('company_name')
-                        designation = get_row_value('designation')
+                        # Get simplified fields (only what's needed for leads upload)
+                        configuration_str = get_row_value('configuration')
                         budget_str = get_row_value('budget')
-                        budget = float(budget_str) if budget_str and budget_str.replace('.', '').replace('-', '').isdigit() else None
-                        purpose = get_row_value('purpose')
-                        visit_type = get_row_value('visit_type')
-                        is_first_visit_str = get_row_value('is_first_visit')
-                        is_first_visit = is_first_visit_str.lower() in ['true', 'yes', '1', 'y'] if is_first_visit_str else True
-                        how_did_you_hear = get_row_value('how_did_you_hear')
+                        feedback = get_row_value('feedback')
+                        cp_id = get_row_value('cp_id')
                         
-                        # Get Lead Status (VERY IMPORTANT - from upload file)
+                        # Parse configuration - try to match to ProjectConfiguration
+                        configuration = None
+                        if configuration_str:
+                            try:
+                                from projects.models import ProjectConfiguration
+                                config_qs = ProjectConfiguration.objects.filter(
+                                    project=project,
+                                    name__icontains=configuration_str
+                                )
+                                if config_qs.exists():
+                                    configuration = config_qs.first()
+                            except:
+                                pass
+                        
+                        # Parse budget - handle ranges like "35-40 L", "1.2-1.3 Cr", "Open Budget", "Low Budget"
+                        budget = None
+                        if budget_str:
+                            budget_str = budget_str.strip()
+                            # Handle "Open Budget" and "Low Budget"
+                            if budget_str.lower() in ['open budget', 'open']:
+                                budget = None  # Will be stored in notes
+                            elif budget_str.lower() in ['low budget', 'low']:
+                                budget = None  # Will be stored in notes
+                            else:
+                                # Parse numeric ranges
+                                try:
+                                    import re
+                                    from decimal import Decimal
+                                    budget_clean = budget_str.replace(' ', '').upper()
+                                    if 'L' in budget_clean or 'LAKH' in budget_clean:
+                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
+                                        if numbers:
+                                            avg = sum(float(n) for n in numbers) / len(numbers)
+                                            budget = Decimal(avg * 100000)
+                                    elif 'CR' in budget_clean or 'CRORE' in budget_clean:
+                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
+                                        if numbers:
+                                            avg = sum(float(n) for n in numbers) / len(numbers)
+                                            budget = Decimal(avg * 10000000)
+                                    else:
+                                        # Try direct number parsing
+                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
+                                        if numbers:
+                                            avg = sum(float(n) for n in numbers) / len(numbers)
+                                            # Assume lakhs if less than 100, crores if more
+                                            if avg < 100:
+                                                budget = Decimal(avg * 100000)
+                                            else:
+                                                budget = Decimal(avg * 10000000)
+                                except:
+                                    budget = None
+                        
+                        # Get CP data if provided
+                        channel_partner = None
+                        is_cp_data = request.POST.get('is_cp_data', 'no') == 'yes'
+                        if is_cp_data:
+                            cp_id_from_form = request.POST.get('channel_partner_id')
+                            if cp_id_from_form:
+                                try:
+                                    from channel_partners.models import ChannelPartner
+                                    channel_partner = ChannelPartner.objects.get(pk=cp_id_from_form)
+                                except:
+                                    pass
+                        elif cp_id:
+                            # Try to find CP by ID
+                            try:
+                                from channel_partners.models import ChannelPartner
+                                channel_partner = ChannelPartner.objects.filter(cp_unique_id=cp_id).first()
+                            except:
+                                pass
+                        
+                        # Get Lead Status
                         status_str = get_row_value('status')
+                        # Map feedback to status if status not provided
+                        if not status_str and feedback:
+                            feedback_lower = feedback.lower()
+                            if 'interested' in feedback_lower or 'intrested' in feedback_lower:
+                                status_str = 'hot'
+                            elif 'not interested' in feedback_lower or 'not intrested' in feedback_lower:
+                                status_str = 'lost'
+                            elif 'call back' in feedback_lower or 'callback' in feedback_lower:
+                                status_str = 'contacted'
+                            elif 'busy' in feedback_lower or 'not answering' in feedback_lower:
+                                status_str = 'contacted'
+                            elif 'already booked' in feedback_lower:
+                                status_str = 'lost'
+                            else:
+                                status_str = 'contacted'
+                        
                         # Validate status against choices
                         valid_statuses = [choice[0] for choice in Lead.LEAD_STATUS_CHOICES]
                         if status_str:
                             status_str = status_str.lower().strip()
-                            # Try to match status (case-insensitive, handle spaces/underscores)
                             status_matched = None
                             for valid_status in valid_statuses:
                                 if status_str == valid_status or status_str.replace('_', ' ') == valid_status.replace('_', ' '):
                                     status_matched = valid_status
                                     break
-                            # If no match, try display name matching
                             if not status_matched:
                                 for valid_status, display_name in Lead.LEAD_STATUS_CHOICES:
                                     display_lower = display_name.lower()
@@ -1675,52 +1840,35 @@ def lead_upload(request):
                                         break
                             status = status_matched if status_matched else 'new'
                         else:
-                            status = 'new'  # Default status
+                            status = 'new'
                         
-                        # Handle pretagged leads
-                        is_pretagged_str = get_row_value('is_pretagged')
-                        is_pretagged = is_pretagged_str.lower() in ['yes', 'true', '1', 'y', 'pretagged'] if is_pretagged_str else False
+                        # Handle pretagged leads (if CP data)
+                        is_pretagged = is_cp_data and channel_partner is not None
                         
-                        cp_firm_name = get_row_value('cp_firm_name')
-                        cp_name = get_row_value('cp_name')
-                        cp_phone = get_row_value('cp_phone')
-                        cp_rera_number = get_row_value('cp_rera_number')
+                        # Store feedback in notes
+                        notes = ''
+                        if feedback:
+                            notes = f"Feedback: {feedback}"
+                        if budget_str and budget is None:
+                            # Budget is "Open Budget" or "Low Budget"
+                            if notes:
+                                notes += f"\nBudget: {budget_str}"
+                            else:
+                                notes = f"Budget: {budget_str}"
                         
-                        # Validate pretagged requirements
-                        if is_pretagged:
-                            if not cp_firm_name or not cp_name or not cp_phone:
-                                errors.append(f"Row {row_num}: Pretagged leads require CP Firm Name, CP Name, and CP Phone")
-                                continue
-                        
-                        # Create lead (LEADS ONLY - visits are created separately when leads actually visit)
-                        # Note: This upload creates leads, not visits. Visits are created when:
-                        # 1. Telecaller/any user schedules a visit (status='visit_scheduled')
-                        # 2. Closing Manager completes visit form when lead arrives (status='visit_completed')
+                        # Create lead with simplified fields
                         Lead.objects.create(
                             name=name,
                             phone=phone,
-                            email=email,
-                            age=age,
-                            gender=gender,
-                            locality=locality,
-                            current_residence=current_residence,
-                            occupation=occupation,
-                            company_name=company_name,
-                            designation=designation,
                             project=project,
+                            configuration=configuration,
                             budget=budget,
-                            purpose=purpose,
-                            visit_type=visit_type,
-                            is_first_visit=is_first_visit,
-                            how_did_you_hear=how_did_you_hear,
-                            cp_firm_name=cp_firm_name,
-                            cp_name=cp_name,
-                            cp_phone=cp_phone,
-                            cp_rera_number=cp_rera_number,
+                            notes=notes,
+                            channel_partner=channel_partner,
                             is_pretagged=is_pretagged,
                             pretag_status='pending_verification' if is_pretagged else '',
                             phone_verified=False,
-                            status=status,  # Use status from upload file
+                            status=status,
                             created_by=request.user,
                         )
                         leads_created += 1

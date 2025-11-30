@@ -107,6 +107,22 @@
     <div id="step-3" class="hidden bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
         <h2 class="text-2xl font-heading font-semibold text-olive-primary mb-4">Step 3: Review & Import</h2>
         
+        <!-- CP Selection (if CP data) -->
+        <div id="cp-selection" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg hidden">
+            <label class="block text-sm font-medium mb-2">Is this CP Data? *</label>
+            <select id="is-cp-data" name="is_cp_data" class="w-full px-4 py-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                <option value="no">No - Regular Leads</option>
+                <option value="yes">Yes - Channel Partner Data</option>
+            </select>
+            <div id="cp-select-container" class="mt-4 hidden">
+                <label class="block text-sm font-medium mb-2">Select Channel Partner *</label>
+                <select id="cp-select" name="channel_partner" class="w-full px-4 py-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                    <option value="">-- Select CP --</option>
+                    <!-- Will be populated via AJAX -->
+                </select>
+            </div>
+        </div>
+        
         <div id="preview-container" class="space-y-4">
             <!-- Preview will be loaded here -->
         </div>
@@ -120,6 +136,8 @@
                 {% csrf_token %}
                 <input type="hidden" id="final-project" name="project" />
                 <input type="hidden" id="final-mapping" name="mapping" />
+                <input type="hidden" id="final-is-cp" name="is_cp_data" />
+                <input type="hidden" id="final-cp-id" name="channel_partner_id" />
                 <button type="submit" 
                         class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                 ✅ Import Leads
@@ -267,28 +285,15 @@ function proceedToMapping() {
 
 function displayMapping(headers, autoMapping) {
     const container = document.getElementById('mapping-container');
+    // Simplified field options - only the required fields for leads upload
     const fieldOptions = {
         'name': 'Name (Required)',
-        'phone': 'Phone (Required)',
-        'email': 'Email',
-        'age': 'Age',
-        'gender': 'Gender',
-        'locality': 'Locality',
-        'current_residence': 'Current Residence',
-        'occupation': 'Occupation',
-        'company_name': 'Company Name',
-        'designation': 'Designation',
+        'phone': 'Phone Number (Required)',
+        'configuration': 'Configuration',
         'budget': 'Budget',
-        'purpose': 'Purpose',
-        'visit_type': 'Visit Type',
-        'is_first_visit': 'Is First Visit',
-        'how_did_you_hear': 'How did you hear',
-        'status': 'Lead Status',
-        'is_pretagged': 'Is Pretagged',
-        'cp_firm_name': 'CP Firm Name',
-        'cp_name': 'CP Name',
-        'cp_phone': 'CP Phone',
-        'cp_rera_number': 'CP RERA Number',
+        'status': 'Status',
+        'feedback': 'Feedback',
+        'cp_id': 'CP ID (if CP data)',
     };
     
     let html = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detected Column</th><th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Map to Field</th></tr></thead><tbody>';
@@ -330,8 +335,48 @@ function proceedToReview() {
         return;
     }
     
+    // Check if CP ID is mapped - show CP selection if yes
+    const hasCpId = mappedFields.includes('cp_id');
+    if (hasCpId) {
+        document.getElementById('cp-selection').classList.remove('hidden');
+        document.getElementById('is-cp-data').addEventListener('change', function() {
+            if (this.value === 'yes') {
+                document.getElementById('cp-select-container').classList.remove('hidden');
+                loadChannelPartners();
+            } else {
+                document.getElementById('cp-select-container').classList.add('hidden');
+            }
+        });
+    }
+    
     // Show preview
     showPreview(mapping);
+}
+
+function loadChannelPartners() {
+    // Load channel partners via AJAX
+    fetch('{% url "channel_partners:list" %}', {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const select = document.getElementById('cp-select');
+        select.innerHTML = '<option value="">-- Select CP --</option>';
+        if (data.partners) {
+            data.partners.forEach(cp => {
+                const option = document.createElement('option');
+                option.value = cp.id;
+                option.textContent = `${cp.name} (${cp.cp_unique_id})`;
+                select.appendChild(option);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading channel partners:', error);
+    });
 }
 
 function showPreview(mapping) {
@@ -365,6 +410,13 @@ function showPreview(mapping) {
             // Set final form data
             document.getElementById('final-project').value = document.getElementById('project-select').value;
             document.getElementById('final-mapping').value = JSON.stringify(mapping);
+            
+            // Set CP data if applicable
+            const isCpData = document.getElementById('is-cp-data')?.value || 'no';
+            document.getElementById('final-is-cp').value = isCpData;
+            if (isCpData === 'yes') {
+                document.getElementById('final-cp-id').value = document.getElementById('cp-select')?.value || '';
+            }
             
             showStep(3);
         } else {
@@ -419,6 +471,14 @@ document.getElementById('final-upload-form').addEventListener('submit', function
     formData.append('project', document.getElementById('final-project').value);
     formData.append('mapping', document.getElementById('final-mapping').value);
     formData.append('session_id', fileSessionId);
+    formData.append('is_cp_data', document.getElementById('final-is-cp').value);
+    if (document.getElementById('final-is-cp').value === 'yes') {
+        formData.append('channel_partner_id', document.getElementById('final-cp-id').value);
+    }
+    formData.append('is_cp_data', document.getElementById('final-is-cp').value);
+    if (document.getElementById('final-is-cp').value === 'yes') {
+        formData.append('channel_partner_id', document.getElementById('final-cp-id').value);
+    }
     
     // Show loading
     const submitBtn = this.querySelector('button[type="submit"]');
