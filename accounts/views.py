@@ -68,6 +68,9 @@ def user_list(request):
     if role:
         users = users.filter(role=role)
     
+    # Order by created_at to avoid pagination warning
+    users = users.order_by('-created_at')
+    
     # Pagination
     paginator = Paginator(users, 25)
     page = request.GET.get('page', 1)

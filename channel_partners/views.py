@@ -5,6 +5,7 @@ from django.db.models import Q, Count, Sum
 from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
+from django.conf import settings
 try:
     import openpyxl
 except ImportError:
@@ -290,8 +291,14 @@ def cp_upload_preview(request):
         if not file_data:
             return JsonResponse({'success': False, 'error': 'File not found in session'}, status=400)
         
-        # Parse mapping
-        mapping = json.loads(mapping_json)
+        # Parse mapping - handle both string and already-parsed JSON
+        try:
+            if isinstance(mapping_json, str):
+                mapping = json.loads(mapping_json)
+            else:
+                mapping = mapping_json
+        except json.JSONDecodeError as e:
+            return JsonResponse({'success': False, 'error': f'Invalid mapping JSON: {str(e)}'}, status=400)
         
         # Count rows and validate
         total_rows = 0
@@ -341,8 +348,9 @@ def cp_upload_preview(request):
                 tmp.write(file_content_bytes)
                 tmp_path = tmp.name
             
+            workbook = None
             try:
-                workbook = openpyxl.load_workbook(tmp_path)
+                workbook = openpyxl.load_workbook(tmp_path, read_only=True)
                 worksheet = workbook.active
                 headers = [str(cell.value).strip() if cell.value else '' for cell in worksheet[1]]
                 
@@ -370,10 +378,18 @@ def cp_upload_preview(request):
                     if phone_header in headers:
                         phone_idx = headers.index(phone_header)
                         if phone_idx < len(row):
-                            phone = str(row[phone_idx].value).strip() if row[phone_idx].value else ''
+                            phone_value = row[phone_idx].value
+                            # Handle Excel numeric phone numbers (convert float to int, then to string)
+                            if phone_value is not None:
+                                if isinstance(phone_value, (int, float)):
+                                    phone = str(int(phone_value))
+                                else:
+                                    phone = str(phone_value).strip()
+                            else:
+                                phone = ''
                             # Clean phone
                             if phone:
-                                phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                                phone = phone.replace(' ', '').replace('-', '').replace('/', '').replace('.', '')
                                 if phone.startswith('+91'):
                                     phone = phone[3:]
                                 elif phone.startswith('91') and len(phone) > 10:
@@ -389,7 +405,24 @@ def cp_upload_preview(request):
                             'data': {headers[i]: str(row[i].value) if i < len(row) and row[i].value else '' for i in range(len(headers))}
                         })
             finally:
-                os.unlink(tmp_path)
+                # Close workbook before deleting file (Windows requires this)
+                if workbook:
+                    workbook.close()
+                # Safe delete with retry for Windows
+                try:
+                    import time
+                    for attempt in range(3):
+                        try:
+                            os.unlink(tmp_path)
+                            break
+                        except (OSError, PermissionError) as e:
+                            if attempt < 2:
+                                time.sleep(0.1)  # Wait 100ms before retry
+                            else:
+                                # Last attempt failed, log but don't crash
+                                pass
+                except Exception:
+                    pass  # Ignore deletion errors
         
         return JsonResponse({
             'success': True,
@@ -398,8 +431,18 @@ def cp_upload_preview(request):
             'errors': errors,
             'error_rows': error_rows[:50]  # Limit to first 50 errors for preview
         })
+    except json.JSONDecodeError as e:
+        return JsonResponse({'success': False, 'error': f'JSON parsing error: {str(e)}'}, status=400)
+    except KeyError as e:
+        return JsonResponse({'success': False, 'error': f'Missing key in file data: {str(e)}'}, status=400)
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        import traceback
+        error_trace = traceback.format_exc()
+        return JsonResponse({
+            'success': False, 
+            'error': str(e),
+            'traceback': error_trace if settings.DEBUG else None
+        }, status=500)
 
 
 @login_required
@@ -458,11 +501,18 @@ def cp_upload(request):
                         # Required fields
                         name = get_row_value('name')
                         firm_name = get_row_value('firm_name')
-                        phone = get_row_value('phone')
+                        phone_raw = get_row_value('phone')
                         
-                        # Clean phone
-                        if phone:
-                            phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                        # Clean phone - handle Excel numeric format
+                        phone = ''
+                        if phone_raw:
+                            # Handle Excel numeric phone numbers (convert float to int, then to string)
+                            if isinstance(phone_raw, (int, float)):
+                                phone = str(int(phone_raw))
+                            else:
+                                phone = str(phone_raw).strip()
+                            # Clean phone
+                            phone = phone.replace(' ', '').replace('-', '').replace('/', '').replace('.', '')
                             if phone.startswith('+91'):
                                 phone = phone[3:]
                             elif phone.startswith('91') and len(phone) > 10:
@@ -558,8 +608,9 @@ def cp_upload(request):
                     tmp.write(file_content_bytes)
                     tmp_path = tmp.name
                 
+                workbook = None
                 try:
-                    workbook = openpyxl.load_workbook(tmp_path)
+                    workbook = openpyxl.load_workbook(tmp_path, read_only=True)
                     worksheet = workbook.active
                     headers = [str(cell.value).strip() if cell.value else '' for cell in worksheet[1]]
                     
@@ -574,17 +625,29 @@ def cp_upload(request):
                                 if header and header in headers:
                                     col_idx = headers.index(header)
                                     if col_idx < len(row):
-                                        return str(row[col_idx].value).strip() if row[col_idx].value else ''
+                                        value = row[col_idx].value
+                                        if value is not None:
+                                            # Handle Excel numeric phone numbers (convert float to int, then to string)
+                                            if isinstance(value, (int, float)) and field_name == 'phone':
+                                                return str(int(value))
+                                            return str(value).strip()
                                 return ''
                             
                             # Required fields
                             name = get_row_value('name')
                             firm_name = get_row_value('firm_name')
-                            phone = get_row_value('phone')
+                            phone_raw = get_row_value('phone')
                             
-                            # Clean phone
-                            if phone:
-                                phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                            # Clean phone - handle Excel numeric format
+                            phone = ''
+                            if phone_raw:
+                                # Handle Excel numeric phone numbers (convert float to int, then to string)
+                                if isinstance(phone_raw, (int, float)):
+                                    phone = str(int(phone_raw))
+                                else:
+                                    phone = str(phone_raw).strip()
+                                # Clean phone
+                                phone = phone.replace(' ', '').replace('-', '').replace('/', '').replace('.', '')
                                 if phone.startswith('+91'):
                                     phone = phone[3:]
                                 elif phone.startswith('91') and len(phone) > 10:
@@ -669,7 +732,24 @@ def cp_upload(request):
                                 'data': {headers[i]: str(row[i].value) if i < len(row) and row[i].value else '' for i in range(len(headers))}
                             })
                 finally:
-                    os.unlink(tmp_path)
+                    # Close workbook before deleting file (Windows requires this)
+                    if workbook:
+                        workbook.close()
+                    # Safe delete with retry for Windows
+                    try:
+                        import time
+                        for attempt in range(3):
+                            try:
+                                os.unlink(tmp_path)
+                                break
+                            except (OSError, PermissionError) as e:
+                                if attempt < 2:
+                                    time.sleep(0.1)  # Wait 100ms before retry
+                                else:
+                                    # Last attempt failed, log but don't crash
+                                    pass
+                    except Exception:
+                        pass  # Ignore deletion errors
             
             # Clean up session
             del request.session[f'cp_upload_file_{session_id}']

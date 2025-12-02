@@ -93,17 +93,141 @@ class Project(models.Model):
 
 
 class ProjectConfiguration(models.Model):
-    """Project Configuration Types (1BHK, 2BHK, etc.)"""
+    """Project Configuration Types (1BHK, 2BHK, etc.) with detailed pricing and area information"""
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='configurations')
     name = models.CharField(max_length=50)  # e.g., "1BHK", "2BHK", "3BHK"
     description = models.TextField(blank=True)
     
+    # Pricing (per sqft)
+    price_per_sqft = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Price per square foot")
+    
+    # Charges (percentages and flat amounts)
+    stamp_duty_percent = models.DecimalField(max_digits=5, decimal_places=2, default=5.00, help_text="Stamp duty percentage (default 5%)")
+    gst_percent = models.DecimalField(max_digits=5, decimal_places=2, default=5.00, help_text="GST percentage (default 5%)")
+    registration_charges = models.DecimalField(max_digits=10, decimal_places=2, default=30000.00, help_text="Registration charges (default ₹30,000)")
+    legal_charges = models.DecimalField(max_digits=10, decimal_places=2, default=30000.00, help_text="Legal charges (default ₹30,000)")
+    development_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Development charges (flat amount in ₹)")
+    
     class Meta:
         db_table = 'project_configurations'
         unique_together = ['project', 'name']
+        ordering = ['name']
     
     def __str__(self):
         return f"{self.project.name} - {self.name}"
+    
+    def calculate_agreement_value(self, carpet_area=None, buildup_area=None):
+        """Calculate agreement value based on area and price per sqft
+        Formula: Agreement Value = price_per_sqft * buildup_area
+        """
+        if not self.price_per_sqft:
+            return None
+        
+        # Use buildup area (as per requirement: price per sqft * buildup area)
+        if not buildup_area:
+            return None
+        
+        return self.price_per_sqft * buildup_area
+    
+    def calculate_total_cost(self, carpet_area=None, buildup_area=None):
+        """Calculate total cost including all charges"""
+        agreement_value = self.calculate_agreement_value(carpet_area, buildup_area)
+        if not agreement_value:
+            return None
+        
+        stamp_duty = agreement_value * (self.stamp_duty_percent / 100)
+        gst = agreement_value * (self.gst_percent / 100)
+        
+        total = agreement_value + stamp_duty + gst + self.registration_charges + self.legal_charges + self.development_charges
+        return {
+            'agreement_value': agreement_value,
+            'stamp_duty': stamp_duty,
+            'gst': gst,
+            'registration_charges': self.registration_charges,
+            'legal_charges': self.legal_charges,
+            'development_charges': self.development_charges,
+            'total': total
+        }
+
+
+class ConfigurationAreaType(models.Model):
+    """Different carpet area options for the same configuration (e.g., 1BHK can have 500 sqft or 600 sqft)"""
+    configuration = models.ForeignKey(ProjectConfiguration, on_delete=models.CASCADE, related_name='area_types')
+    carpet_area = models.DecimalField(max_digits=10, decimal_places=2, help_text="Carpet area in sqft")
+    buildup_area = models.DecimalField(max_digits=10, decimal_places=2, help_text="Buildup area in sqft")
+    rera_area = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="RERA area in sqft")
+    description = models.CharField(max_length=200, blank=True, help_text="Optional description (e.g., 'Compact', 'Spacious')")
+    
+    class Meta:
+        db_table = 'configuration_area_types'
+        unique_together = ['configuration', 'carpet_area', 'buildup_area']
+        ordering = ['carpet_area']
+    
+    def __str__(self):
+        return f"{self.configuration.name} - {self.carpet_area} sqft (Carpet) / {self.buildup_area} sqft (Buildup)"
+    
+    def calculate_agreement_value(self):
+        """Calculate agreement value for this area type"""
+        return self.configuration.calculate_agreement_value(
+            carpet_area=self.carpet_area,
+            buildup_area=self.buildup_area
+        )
+    
+    def calculate_total_cost(self):
+        """Calculate total cost for this area type"""
+        return self.configuration.calculate_total_cost(
+            carpet_area=self.carpet_area,
+            buildup_area=self.buildup_area
+        )
+    
+    def get_display_name(self):
+        """Get display name for dropdowns: e.g., '1BHK-379sqft'"""
+        return f"{self.configuration.name}-{int(self.carpet_area)}sqft"
+
+
+class ConfigurationFloorMapping(models.Model):
+    """Map which configurations are available on which floors and how many units per floor"""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='floor_configurations')
+    configuration = models.ForeignKey(ProjectConfiguration, on_delete=models.CASCADE, related_name='floor_mappings')
+    floor_number = models.IntegerField(help_text="Floor number (1 = Ground floor, 2 = First floor, etc.)")
+    units_per_floor = models.IntegerField(default=1, help_text="Number of units of this configuration on this floor")
+    unit_number_start = models.IntegerField(default=1, help_text="Starting unit number for this floor (e.g., 201 for floor 2, unit 1)")
+    
+    class Meta:
+        db_table = 'configuration_floor_mappings'
+        unique_together = ['project', 'configuration', 'floor_number']
+        ordering = ['floor_number', 'configuration__name']
+    
+    def __str__(self):
+        return f"{self.project.name} - Floor {self.floor_number} - {self.configuration.name} ({self.units_per_floor} units, starting from {self.unit_number_start})"
+    
+    def get_unit_numbers(self):
+        """Get list of unit numbers for this floor mapping (e.g., [201, 202, 203])"""
+        return [self.unit_number_start + i for i in range(self.units_per_floor)]
+
+
+class UnitConfiguration(models.Model):
+    """Map each individual unit to a specific configuration area type"""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='unit_configurations')
+    tower_number = models.IntegerField(default=1, help_text="Tower number (1, 2, 3, etc.)")
+    floor_number = models.IntegerField(help_text="Floor number (1 = Ground floor, 2 = First floor, etc.)")
+    unit_number = models.IntegerField(help_text="Unit number (e.g., 101, 102, 201, 202) - same numbers can exist in different towers")
+    area_type = models.ForeignKey(ConfigurationAreaType, on_delete=models.SET_NULL, null=True, blank=True, 
+                                  related_name='unit_configurations', 
+                                  help_text="Configuration variant assigned to this unit (e.g., 1BHK-379sqft)")
+    is_excluded = models.BooleanField(default=False, help_text="Exclude this unit (e.g., for commercial floors)")
+    
+    class Meta:
+        db_table = 'unit_configurations'
+        unique_together = ['project', 'tower_number', 'floor_number', 'unit_number']
+        ordering = ['tower_number', 'floor_number', 'unit_number']
+    
+    def __str__(self):
+        if self.is_excluded:
+            return f"{self.project.name} - Tower {self.tower_number} - Floor {self.floor_number} - Unit {self.unit_number} (Excluded)"
+        if self.area_type:
+            return f"{self.project.name} - Tower {self.tower_number} - Floor {self.floor_number} - Unit {self.unit_number} - {self.area_type.configuration.name}-{self.area_type.carpet_area}sqft"
+        return f"{self.project.name} - Tower {self.tower_number} - Floor {self.floor_number} - Unit {self.unit_number} (Unassigned)"
 
 
 class PaymentMilestone(models.Model):

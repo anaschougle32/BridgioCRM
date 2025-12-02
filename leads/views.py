@@ -69,6 +69,47 @@ def lead_list(request):
     if pretag_status:
         leads = leads.filter(pretag_status=pretag_status)
     
+    # Filter by configuration
+    configuration_id = request.GET.get('configuration', '')
+    if configuration_id:
+        if configuration_id == 'open_budget':
+            # Open Budget: leads with no configuration and no budget
+            leads = leads.filter(configuration__isnull=True, budget__isnull=True)
+        else:
+            leads = leads.filter(configuration_id=configuration_id)
+    
+    # Filter by budget range
+    budget_filter = request.GET.get('budget', '')
+    if budget_filter:
+        if budget_filter == 'no_budget':
+            leads = leads.filter(budget__isnull=True)
+        elif budget_filter == 'under_50l':
+            leads = leads.filter(budget__lt=5000000)
+        elif budget_filter == '50l_to_1cr':
+            leads = leads.filter(budget__gte=5000000, budget__lt=10000000)
+        elif budget_filter == '1cr_to_2cr':
+            leads = leads.filter(budget__gte=10000000, budget__lt=20000000)
+        elif budget_filter == 'over_2cr':
+            leads = leads.filter(budget__gte=20000000)
+    
+    # Filter by assigned_to
+    assigned_to_id = request.GET.get('assigned_to', '')
+    if assigned_to_id:
+        leads = leads.filter(assigned_to_id=assigned_to_id)
+    
+    # Filter by channel partner
+    cp_id = request.GET.get('channel_partner', '')
+    if cp_id:
+        leads = leads.filter(channel_partner_id=cp_id)
+    
+    # Filter by date range
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        leads = leads.filter(created_at__date__gte=date_from)
+    if date_to:
+        leads = leads.filter(created_at__date__lte=date_to)
+    
     # Order by created date
     leads = leads.order_by('-created_at')
     
@@ -117,16 +158,85 @@ def lead_list(request):
             'tel_link': tel_link,
         }
     
+    # Get unique configurations for filter dropdown
+    configurations = []
+    if project_id:
+        from projects.models import ProjectConfiguration
+        configurations = ProjectConfiguration.objects.filter(project_id=project_id).order_by('name')
+    else:
+        # Get all configurations from active projects
+        from projects.models import ProjectConfiguration
+        configurations = ProjectConfiguration.objects.filter(project__is_active=True).distinct().order_by('name')
+    
+    # Get assignees for filter
+    assignees = User.objects.filter(
+        role__in=['closing_manager', 'telecaller', 'sourcing_manager']
+    ).order_by('username')
+    
+    # Get channel partners for filter
+    from channel_partners.models import ChannelPartner
+    channel_partners = ChannelPartner.objects.filter(status='active').order_by('cp_name')
+    
+    # Get call metrics for current user
+    from datetime import datetime, timedelta
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=today_start.weekday())
+    month_start = today_start.replace(day=1)
+    
+    call_metrics = {
+        'today': CallLog.objects.filter(called_by=request.user, created_at__gte=today_start).count(),
+        'this_week': CallLog.objects.filter(called_by=request.user, created_at__gte=week_start).count(),
+        'this_month': CallLog.objects.filter(called_by=request.user, created_at__gte=month_start).count(),
+        'total': CallLog.objects.filter(called_by=request.user).count(),
+    }
+    
+    # Generate budget choices for dropdown (common budget ranges)
+    budget_choices = [
+        ('2000000', '₹20L'),
+        ('2500000', '₹25L'),
+        ('3000000', '₹30L'),
+        ('3500000', '₹35L'),
+        ('4000000', '₹40L'),
+        ('4500000', '₹45L'),
+        ('5000000', '₹50L'),
+        ('5500000', '₹55L'),
+        ('6000000', '₹60L'),
+        ('6500000', '₹65L'),
+        ('7000000', '₹70L'),
+        ('7500000', '₹75L'),
+        ('8000000', '₹80L'),
+        ('8500000', '₹85L'),
+        ('9000000', '₹90L'),
+        ('9500000', '₹95L'),
+        ('10000000', '₹1Cr'),
+        ('12000000', '₹1.2Cr'),
+        ('15000000', '₹1.5Cr'),
+        ('20000000', '₹2Cr'),
+        ('25000000', '₹2.5Cr'),
+        ('30000000', '₹3Cr'),
+    ]
+    
     context = {
         'leads': leads_page,
         'projects': Project.objects.filter(is_active=True),
         'status_choices': Lead.LEAD_STATUS_CHOICES,
         'pretag_status_choices': Lead.PRETAG_STATUS_CHOICES,
+        'configurations': configurations,
+        'assignees': assignees,
+        'channel_partners': channel_partners,
         'search': search,
         'selected_status': status,
         'selected_project': project_id,
         'selected_pretag_status': pretag_status,
+        'selected_configuration': configuration_id,
+        'selected_budget': budget_filter,
+        'selected_assigned_to': assigned_to_id,
+        'selected_channel_partner': cp_id,
+        'date_from': date_from,
+        'date_to': date_to,
         'lead_notifications': lead_notifications,
+        'call_metrics': call_metrics,
+        'budget_choices': budget_choices,
         'now': now,
         'today': today,
     }
@@ -172,6 +282,48 @@ def lead_download(request):
     project_id = request.GET.get('project', '')
     if project_id:
         leads = leads.filter(project_id=project_id)
+    
+    # Apply pretag status filter
+    pretag_status = request.GET.get('pretag_status', '')
+    if pretag_status:
+        leads = leads.filter(pretag_status=pretag_status)
+    
+    # Apply configuration filter
+    configuration_id = request.GET.get('configuration', '')
+    if configuration_id:
+        leads = leads.filter(configuration_id=configuration_id)
+    
+    # Apply budget filter
+    budget_filter = request.GET.get('budget', '')
+    if budget_filter:
+        if budget_filter == 'no_budget':
+            leads = leads.filter(budget__isnull=True)
+        elif budget_filter == 'under_50l':
+            leads = leads.filter(budget__lt=5000000)
+        elif budget_filter == '50l_to_1cr':
+            leads = leads.filter(budget__gte=5000000, budget__lt=10000000)
+        elif budget_filter == '1cr_to_2cr':
+            leads = leads.filter(budget__gte=10000000, budget__lt=20000000)
+        elif budget_filter == 'over_2cr':
+            leads = leads.filter(budget__gte=20000000)
+    
+    # Apply assigned_to filter
+    assigned_to_id = request.GET.get('assigned_to', '')
+    if assigned_to_id:
+        leads = leads.filter(assigned_to_id=assigned_to_id)
+    
+    # Apply channel partner filter
+    cp_id = request.GET.get('channel_partner', '')
+    if cp_id:
+        leads = leads.filter(channel_partner_id=cp_id)
+    
+    # Apply date range filter
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        leads = leads.filter(created_at__date__gte=date_from)
+    if date_to:
+        leads = leads.filter(created_at__date__lte=date_to)
     
     # Apply pretag status filter
     pretag_status = request.GET.get('pretag_status', '')
@@ -743,8 +895,8 @@ def verify_otp(request, pk):
             user=request.user,
             action='otp_verified',
             model_name='Lead',
-            object_id=lead.id,
-            details=f'OTP verified for lead {lead.name} ({lead.phone})',
+            object_id=str(lead.id),
+            changes={'lead_name': lead.name, 'phone': lead.phone, 'message': 'OTP verified'},
         )
         
         # Return updated HTML
@@ -917,6 +1069,21 @@ def log_call(request, pk):
         notes=notes,
     )
     
+    # Auto-update status: if lead is "new", change to "contacted" when called
+    if lead.status == 'new':
+        lead.status = 'contacted'
+        lead.save()
+    
+    # Create audit log for call
+    from accounts.models import AuditLog
+    AuditLog.objects.create(
+        user=request.user,
+        action='call_logged',
+        model_name='Lead',
+        object_id=str(lead.id),
+        changes={'outcome': call_log.outcome, 'outcome_display': call_log.get_outcome_display(), 'lead_name': lead.name},
+    )
+    
     # Handle next action
     if next_action == 'callback':
         # Create reminder for callback
@@ -939,12 +1106,6 @@ def log_call(request, pk):
     elif next_action == 'not_interested':
         lead.status = 'lost'
         lead.save()
-    
-    # Update lead status based on outcome
-    if outcome == 'connected':
-        if lead.status == 'new':
-            lead.status = 'contacted'
-            lead.save()
     
     # Return HTML to close modal and show success
     return HttpResponse('<div class="p-3 bg-green-50 text-green-800 rounded-lg mb-4">Call logged successfully!</div><script>setTimeout(() => { const modal = document.getElementById("log-call-modal"); if (modal) modal.classList.add("hidden"); location.reload(); }, 1500);</script>')
@@ -1010,8 +1171,8 @@ def update_status(request, pk):
         user=request.user,
         action='status_updated',
         model_name='Lead',
-        object_id=lead.id,
-        details=f'Lead status changed to {lead.get_status_display()}',
+        object_id=str(lead.id),
+        changes={'status': new_status, 'status_display': lead.get_status_display()},
     )
     
     messages.success(request, f'Lead status updated to {lead.get_status_display()}.')
@@ -1054,12 +1215,117 @@ def update_notes(request, pk):
             user=request.user,
             action='notes_updated',
             model_name='Lead',
-            object_id=lead.id,
-            details=f'Notes updated for lead {lead.name}',
+            object_id=str(lead.id),
+            changes={'notes': notes},
         )
         
-        # Return success response
+        # Return success response with updated notes for htmx
+        if request.headers.get('HX-Request'):
+            return HttpResponse(f'<div id="notes-result" class="text-green-600">Notes updated successfully!</div>')
         return JsonResponse({'success': True, 'message': 'Notes updated successfully'})
+
+
+@login_required
+def update_budget(request, pk):
+    """Update lead budget via dropdown"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    lead = get_object_or_404(Lead, pk=pk, is_archived=False)
+    
+    # Permission check
+    if request.user.is_telecaller() or request.user.is_closing_manager():
+        if lead.assigned_to != request.user:
+            return JsonResponse({'success': False, 'error': 'You do not have permission to update this lead.'}, status=403)
+    
+    budget_value = request.POST.get('budget', '').strip()
+    
+    if not budget_value:
+        # Clear budget
+        lead.budget = None
+        lead.save()
+    else:
+        # Budget value is already in rupees (from dropdown choices)
+        try:
+            from decimal import Decimal
+            budget = Decimal(budget_value)
+            lead.budget = budget
+            lead.save()
+        except (ValueError, TypeError):
+            return JsonResponse({'success': False, 'error': 'Invalid budget value.'}, status=400)
+    
+    # Create audit log
+    from accounts.models import AuditLog
+    AuditLog.objects.create(
+        user=request.user,
+        action='budget_updated',
+        model_name='Lead',
+        object_id=str(lead.id),
+        changes={'budget': str(lead.budget) if lead.budget else 'None'},
+    )
+    
+    messages.success(request, 'Budget updated successfully.')
+    return redirect('leads:list')
+
+
+@login_required
+def update_configuration(request, pk):
+    """Update lead configuration via dropdown"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    lead = get_object_or_404(Lead, pk=pk, is_archived=False)
+    
+    # Permission check
+    if request.user.is_telecaller() or request.user.is_closing_manager():
+        if lead.assigned_to != request.user:
+            return JsonResponse({'success': False, 'error': 'You do not have permission to update this lead.'}, status=403)
+    
+    configuration_id = request.POST.get('configuration', '').strip()
+    
+    if not configuration_id:
+        # Clear configuration
+        lead.configuration = None
+        lead.save()
+    elif configuration_id == 'open_budget':
+        # Set as Open Budget: clear configuration and budget
+        lead.configuration = None
+        lead.budget = None
+        lead.save()
+    else:
+        try:
+            from projects.models import ProjectConfiguration
+            configuration = ProjectConfiguration.objects.get(pk=configuration_id, project=lead.project)
+            lead.configuration = configuration
+            lead.save()
+        except ProjectConfiguration.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Invalid configuration.'}, status=400)
+    
+    # Create audit log
+    from accounts.models import AuditLog
+    AuditLog.objects.create(
+        user=request.user,
+        action='configuration_updated',
+        model_name='Lead',
+        object_id=str(lead.id),
+        changes={'configuration': str(lead.configuration) if lead.configuration else 'None'},
+    )
+    
+    messages.success(request, 'Configuration updated successfully.')
+    return redirect('leads:list')
+
+
+@login_required
+def track_call_click(request, pk):
+    """Track when user clicks call button (for metrics)"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    lead = get_object_or_404(Lead, pk=pk, is_archived=False)
+    
+    # This is just for tracking - actual call logging happens in log_call
+    # We could add a separate "call_clicked" log if needed, but for now just return success
+    return JsonResponse({'success': True})
     
     return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
 
@@ -1168,8 +1434,8 @@ def lead_assign(request):
                             user=request.user,
                             action='lead_assigned',
                             model_name='Lead',
-                            object_id=lead.id,
-                            details=f'Lead {lead.name} assigned to {employee.username}',
+                            object_id=str(lead.id),
+                            changes={'lead_name': lead.name, 'assigned_to': employee.username},
                         )
             
             messages.success(request, f'Successfully assigned {assigned_count} lead(s) to employees.')
@@ -1603,57 +1869,35 @@ def lead_upload(request):
                         feedback = get_row_value('feedback')
                         cp_id = get_row_value('cp_id')
                         
-                        # Parse configuration - try to match to ProjectConfiguration
+                        # Parse configuration - use flexible matching utility
                         configuration = None
                         if configuration_str:
                             try:
-                                from projects.models import ProjectConfiguration
-                                config_qs = ProjectConfiguration.objects.filter(
-                                    project=project,
-                                    name__icontains=configuration_str
-                                )
-                                if config_qs.exists():
-                                    configuration = config_qs.first()
-                            except:
-                                pass
+                                from leads.utils import match_configuration
+                                import logging
+                                logger = logging.getLogger(__name__)
+                                
+                                # Try to match configuration
+                                configuration = match_configuration(configuration_str, project)
+                                
+                                # If no match found, log for debugging
+                                if not configuration:
+                                    logger.warning(f"Configuration '{configuration_str}' not matched for project '{project.name}'. Available configs: {[c.name for c in project.configurations.all()]}")
+                            except Exception as e:
+                                # Log error but don't fail the upload
+                                import logging
+                                logger = logging.getLogger(__name__)
+                                logger.error(f"Error matching configuration '{configuration_str}': {str(e)}")
                         
-                        # Parse budget - handle ranges like "35-40 L", "1.2-1.3 Cr", "Open Budget", "Low Budget"
+                        # Parse budget - use flexible parsing utility
                         budget = None
                         if budget_str:
-                            budget_str = budget_str.strip()
-                            # Handle "Open Budget" and "Low Budget"
-                            if budget_str.lower() in ['open budget', 'open']:
-                                budget = None  # Will be stored in notes
-                            elif budget_str.lower() in ['low budget', 'low']:
-                                budget = None  # Will be stored in notes
-                            else:
-                                # Parse numeric ranges
-                                try:
-                                    import re
-                                    from decimal import Decimal
-                                    budget_clean = budget_str.replace(' ', '').upper()
-                                    if 'L' in budget_clean or 'LAKH' in budget_clean:
-                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
-                                        if numbers:
-                                            avg = sum(float(n) for n in numbers) / len(numbers)
-                                            budget = Decimal(avg * 100000)
-                                    elif 'CR' in budget_clean or 'CRORE' in budget_clean:
-                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
-                                        if numbers:
-                                            avg = sum(float(n) for n in numbers) / len(numbers)
-                                            budget = Decimal(avg * 10000000)
-                                    else:
-                                        # Try direct number parsing
-                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
-                                        if numbers:
-                                            avg = sum(float(n) for n in numbers) / len(numbers)
-                                            # Assume lakhs if less than 100, crores if more
-                                            if avg < 100:
-                                                budget = Decimal(avg * 100000)
-                                            else:
-                                                budget = Decimal(avg * 10000000)
-                                except:
-                                    budget = None
+                            try:
+                                from leads.utils import parse_budget
+                                budget = parse_budget(budget_str)
+                            except Exception as e:
+                                # Log error but don't fail the upload
+                                budget = None
                         
                         # Get CP data if provided
                         channel_partner = None
@@ -1807,12 +2051,22 @@ def lead_upload(request):
                                     col_idx = headers.index(header)
                                     if col_idx < len(row):
                                         cell = row[col_idx]
-                                        return str(cell.value).strip() if cell.value else ''
+                                        value = cell.value
+                                        if value is not None:
+                                            # Handle Excel numeric phone numbers (convert float to int, then to string)
+                                            if isinstance(value, (int, float)) and field_name == 'phone':
+                                                return str(int(value))
+                                            return str(value).strip()
                             else:
                                 col_idx = field_map.get(field_name)
                                 if col_idx is not None and col_idx < len(row):
                                     cell = row[col_idx]
-                                    return str(cell.value).strip() if cell.value else ''
+                                    value = cell.value
+                                    if value is not None:
+                                        # Handle Excel numeric phone numbers (convert float to int, then to string)
+                                        if isinstance(value, (int, float)) and field_name == 'phone':
+                                            return str(int(value))
+                                        return str(value).strip()
                             return ''
                         
                         # Get phone (required) and name (optional)
@@ -1822,7 +2076,7 @@ def lead_upload(request):
                         # Clean phone number (handle multiple contacts, remove spaces)
                         if phone:
                             phone = phone.split(',')[0].strip()  # Take first phone if multiple
-                            phone = phone.replace(' ', '').replace('-', '').replace('/', '')
+                            phone = phone.replace(' ', '').replace('-', '').replace('/', '').replace('.', '')
                             # Remove leading +91 or 91
                             if phone.startswith('+91'):
                                 phone = phone[3:]
@@ -1848,57 +2102,35 @@ def lead_upload(request):
                         feedback = get_row_value('feedback')
                         cp_id = get_row_value('cp_id')
                         
-                        # Parse configuration - try to match to ProjectConfiguration
+                        # Parse configuration - use flexible matching utility
                         configuration = None
                         if configuration_str:
                             try:
-                                from projects.models import ProjectConfiguration
-                                config_qs = ProjectConfiguration.objects.filter(
-                                    project=project,
-                                    name__icontains=configuration_str
-                                )
-                                if config_qs.exists():
-                                    configuration = config_qs.first()
-                            except:
-                                pass
+                                from leads.utils import match_configuration
+                                import logging
+                                logger = logging.getLogger(__name__)
+                                
+                                # Try to match configuration
+                                configuration = match_configuration(configuration_str, project)
+                                
+                                # If no match found, log for debugging
+                                if not configuration:
+                                    logger.warning(f"Configuration '{configuration_str}' not matched for project '{project.name}'. Available configs: {[c.name for c in project.configurations.all()]}")
+                            except Exception as e:
+                                # Log error but don't fail the upload
+                                import logging
+                                logger = logging.getLogger(__name__)
+                                logger.error(f"Error matching configuration '{configuration_str}': {str(e)}")
                         
-                        # Parse budget - handle ranges like "35-40 L", "1.2-1.3 Cr", "Open Budget", "Low Budget"
+                        # Parse budget - use flexible parsing utility
                         budget = None
                         if budget_str:
-                            budget_str = budget_str.strip()
-                            # Handle "Open Budget" and "Low Budget"
-                            if budget_str.lower() in ['open budget', 'open']:
-                                budget = None  # Will be stored in notes
-                            elif budget_str.lower() in ['low budget', 'low']:
-                                budget = None  # Will be stored in notes
-                            else:
-                                # Parse numeric ranges
-                                try:
-                                    import re
-                                    from decimal import Decimal
-                                    budget_clean = budget_str.replace(' ', '').upper()
-                                    if 'L' in budget_clean or 'LAKH' in budget_clean:
-                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
-                                        if numbers:
-                                            avg = sum(float(n) for n in numbers) / len(numbers)
-                                            budget = Decimal(avg * 100000)
-                                    elif 'CR' in budget_clean or 'CRORE' in budget_clean:
-                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
-                                        if numbers:
-                                            avg = sum(float(n) for n in numbers) / len(numbers)
-                                            budget = Decimal(avg * 10000000)
-                                    else:
-                                        # Try direct number parsing
-                                        numbers = re.findall(r'\d+\.?\d*', budget_clean)
-                                        if numbers:
-                                            avg = sum(float(n) for n in numbers) / len(numbers)
-                                            # Assume lakhs if less than 100, crores if more
-                                            if avg < 100:
-                                                budget = Decimal(avg * 100000)
-                                            else:
-                                                budget = Decimal(avg * 10000000)
-                                except:
-                                    budget = None
+                            try:
+                                from leads.utils import parse_budget
+                                budget = parse_budget(budget_str)
+                            except Exception as e:
+                                # Log error but don't fail the upload
+                                budget = None
                         
                         # Get CP data if provided
                         channel_partner = None

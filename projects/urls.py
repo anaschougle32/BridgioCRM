@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import project_list, project_create, project_detail, project_edit, migrate_leads
+from .views import project_list, project_create, project_detail, project_edit, migrate_leads, unit_selection
 
 app_name = 'projects'
 
@@ -9,5 +9,6 @@ urlpatterns = [
     path('<int:pk>/', project_detail, name='detail'),
     path('<int:pk>/edit/', project_edit, name='edit'),
     path('<int:pk>/migrate-leads/', migrate_leads, name='migrate_leads'),
+    path('<int:pk>/units/', unit_selection, name='unit_selection'),
 ]
 

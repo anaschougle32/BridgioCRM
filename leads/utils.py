@@ -1,6 +1,11 @@
+"""
+Utility functions for leads module
+"""
 import random
 import hashlib
 import hmac
+import re
+from decimal import Decimal
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
@@ -126,3 +131,207 @@ def get_whatsapp_templates():
         'project_details': 'Thank you for your interest! I\'d be happy to share project details with you. Would you like to schedule a site visit?',
         'booking_confirmation': 'Congratulations on your booking! Your booking ID is {booking_id}. We will send you further details shortly.',
     }
+
+
+def normalize_configuration_name(config_str):
+    """
+    Normalize configuration string to handle variations like:
+    - "1BHK", "1bhk", "1 BHK", "1 bhk", "1Bhk"
+    - "1 or 2 BHK", "1/2 BHK", "1bhk/2bhk"
+    - "1/2/3 BHK"
+    Returns normalized string for matching
+    """
+    if not config_str:
+        return ''
+    
+    # Convert to uppercase and remove extra spaces
+    normalized = str(config_str).upper().strip()
+    
+    # Remove common separators and normalize
+    normalized = normalized.replace('/', ' ').replace('-', ' ').replace('OR', ' ').replace('AND', ' ')
+    
+    # Remove extra spaces
+    normalized = ' '.join(normalized.split())
+    
+    # Normalize BHK variations
+    normalized = re.sub(r'\s*BHK\s*', ' BHK ', normalized, flags=re.IGNORECASE)
+    normalized = normalized.strip()
+    
+    return normalized
+
+
+def match_configuration(config_str, project):
+    """
+    Match configuration string to ProjectConfiguration objects using NLP-like fuzzy matching.
+    Handles flexible matching for variations with improved intelligence.
+    """
+    if not config_str:
+        return None
+    
+    from projects.models import ProjectConfiguration
+    import logging
+    from difflib import SequenceMatcher
+    logger = logging.getLogger(__name__)
+    
+    config_str = str(config_str).strip()
+    if not config_str:
+        return None
+    
+    # Normalize the input
+    normalized_input = normalize_configuration_name(config_str)
+    
+    # Get all configurations for this project
+    all_configs = list(project.configurations.all())
+    
+    if not all_configs:
+        logger.warning(f"No configurations found for project '{project.name}' (ID: {project.id})")
+        return None
+    
+    # Extract key numbers from input (e.g., "1", "2" from "1 or 2 BHK")
+    input_numbers = set(re.findall(r'\d+', normalized_input))
+    
+    # Score each configuration
+    best_match = None
+    best_score = 0.0
+    
+    for config in all_configs:
+        normalized_config = normalize_configuration_name(config.name)
+        score = 0.0
+        
+        # 1. Exact match (highest priority)
+        if normalized_input == normalized_config:
+            logger.info(f"Exact match: '{config_str}' -> '{config.name}' for project '{project.name}'")
+            return config
+        
+        # 2. Contains match (high priority)
+        if normalized_input in normalized_config or normalized_config in normalized_input:
+            score = 0.9
+        # 3. Fuzzy string similarity (using SequenceMatcher)
+        else:
+            similarity = SequenceMatcher(None, normalized_input, normalized_config).ratio()
+            score = similarity * 0.7
+        
+        # 4. Number matching boost
+        config_numbers = set(re.findall(r'\d+', normalized_config))
+        if input_numbers and config_numbers:
+            # Calculate number overlap
+            overlap = len(input_numbers & config_numbers) / max(len(input_numbers), len(config_numbers))
+            score += overlap * 0.3
+        
+        # 5. Word overlap (for "1 or 2 BHK" matching "1BHK" or "2BHK")
+        input_words = set(normalized_input.split())
+        config_words = set(normalized_config.split())
+        if input_words and config_words:
+            word_overlap = len(input_words & config_words) / max(len(input_words), len(config_words))
+            score += word_overlap * 0.2
+        
+        if score > best_score:
+            best_score = score
+            best_match = config
+    
+    # Threshold for acceptance (0.5 = 50% similarity)
+    if best_match and best_score >= 0.5:
+        logger.info(f"Fuzzy match (score: {best_score:.2f}): '{config_str}' -> '{best_match.name}' for project '{project.name}'")
+        return best_match
+    
+    logger.warning(f"No match found for configuration '{config_str}' in project '{project.name}'. Available: {[c.name for c in all_configs]}")
+    return None
+
+
+def parse_budget(budget_str):
+    """
+    Parse budget string with flexible handling.
+    Handles:
+    - "35-40 L", "35-40L", "35L", "35 L"
+    - "1.2-1.3 Cr", "1.2Cr", "1.2 Cr"
+    - "5000000" (direct rupees)
+    - "Open Budget", "Low Budget"
+    Returns Decimal or None
+    """
+    if not budget_str:
+        return None
+    
+    budget_str = str(budget_str).strip()
+    if not budget_str:
+        return None
+    
+    # Extract numbers and units using regex
+    # Pattern: number(s) followed by unit (L/Cr) or just numbers
+    budget_pattern = r'(\d+\.?\d*)\s*-\s*(\d+\.?\d*)\s*([LC]R?|LAKHS?|CRORES?)'
+    match = re.search(budget_pattern, budget_str, re.IGNORECASE)
+    
+    if match:
+        # Range format: "35-40 L" or "1.2-1.3 Cr"
+        lower = float(match.group(1))
+        upper = float(match.group(2))
+        unit = match.group(3).upper()
+        
+        # Use average of range
+        avg = (lower + upper) / 2
+        
+        if 'CR' in unit or 'CRORE' in unit:
+            return Decimal(str(avg * 10000000))
+        elif 'L' in unit or 'LAKH' in unit:
+            return Decimal(str(avg * 100000))
+    
+    # Single number with unit: "35L", "1.2Cr"
+    single_pattern = r'(\d+\.?\d*)\s*([LC]R?|LAKHS?|CRORES?)'
+    match = re.search(single_pattern, budget_str, re.IGNORECASE)
+    if match:
+        value = float(match.group(1))
+        unit = match.group(2).upper()
+        
+        if 'CR' in unit or 'CRORE' in unit:
+            return Decimal(str(value * 10000000))
+        elif 'L' in unit or 'LAKH' in unit:
+            return Decimal(str(value * 100000))
+    
+    # Pure number (assume rupees): "5000000"
+    number_only = re.search(r'(\d+\.?\d*)', budget_str)
+    if number_only:
+        try:
+            return Decimal(number_only.group(1))
+        except:
+            pass
+    
+    # Handle "Open Budget" and "Low Budget"
+    if budget_str.lower() in ['open budget', 'open', 'low budget', 'low']:
+        return None  # Will be stored in notes
+    
+    try:
+        # Clean the string
+        budget_clean = budget_str.replace(' ', '').replace(',', '').upper()
+        
+        # Handle lakhs
+        if 'L' in budget_clean or 'LAKH' in budget_clean:
+            numbers = re.findall(r'\d+\.?\d*', budget_clean)
+            if numbers:
+                # If range, take average
+                avg = sum(float(n) for n in numbers) / len(numbers)
+                return Decimal(avg * 100000)
+        
+        # Handle crores
+        elif 'CR' in budget_clean or 'CRORE' in budget_clean:
+            numbers = re.findall(r'\d+\.?\d*', budget_clean)
+            if numbers:
+                avg = sum(float(n) for n in numbers) / len(numbers)
+                return Decimal(avg * 10000000)
+        
+        # Try direct number parsing
+        else:
+            numbers = re.findall(r'\d+\.?\d*', budget_clean)
+            if numbers:
+                avg = sum(float(n) for n in numbers) / len(numbers)
+                # If it's a large number (> 100000), assume it's already in rupees
+                if avg >= 100000:
+                    return Decimal(avg)
+                # Otherwise assume lakhs
+                elif avg < 100:
+                    return Decimal(avg * 100000)
+                else:
+                    # Could be in thousands, assume lakhs
+                    return Decimal(avg * 100000)
+    except Exception:
+        return None
+    
+    return None

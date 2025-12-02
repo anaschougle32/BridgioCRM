@@ -28,6 +28,8 @@ wheels/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+# Allow db.sqlite to be committed
+!db.sqlite
 /media
 /staticfiles
 

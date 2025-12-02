@@ -1,0 +1,347 @@
+{% extends 'base.html' %}
+
+{% block title %}Unit Selection - {{ project.name }} - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-heading font-bold text-olive-primary mb-2">{{ project.name }}</h1>
+                <p class="text-gray-600">{{ project.builder_name }} • {{ project.location }}</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{% url 'projects:detail' project.pk %}" 
+                   class="bg-gray-200 text-gray-800 px-4 py-2 rounded-custom hover:bg-gray-300 transition">
+                    ← Back to Project
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters and Legend -->
+    <div class="bg-white rounded-custom shadow-md p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Configuration Filter -->
+            <div>
+                <label class="block text-sm font-medium mb-2">Filter by Configuration</label>
+                <select id="config-filter" class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                    <option value="">All Configurations</option>
+                    {% for config in configurations %}
+                    <option value="{{ config.id }}">{{ config.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Legend -->
+            <div>
+                <label class="block text-sm font-medium mb-2">Unit Status Legend</label>
+                <div class="flex flex-wrap gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-green-100 border-2 border-green-500 rounded"></div>
+                        <span class="text-sm">Available</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-blue-100 border-2 border-blue-500 rounded"></div>
+                        <span class="text-sm">Selected</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-red-100 border-2 border-red-500 rounded"></div>
+                        <span class="text-sm">Booked</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-gray-200 border-2 border-gray-400 rounded"></div>
+                        <span class="text-sm">Excluded</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Unit Selection Grid (BookMyShow-style) -->
+    <div id="unit-selection-container" class="space-y-8">
+        {% for tower_num, floors in units_by_tower.items %}
+        <div class="bg-white rounded-custom shadow-md p-6">
+            <h2 class="text-2xl font-heading font-bold mb-6 text-center">Tower {{ tower_num }}</h2>
+            
+            <!-- Floors (displayed from top to bottom, like building floors) -->
+            <div class="space-y-4">
+                {% for floor_num, floor_units in floors.items|dictsortreversed:0 %}
+                <div class="tower-{{ tower_num }}-floor-{{ floor_num }}" data-tower="{{ tower_num }}" data-floor="{{ floor_num }}">
+                    <div class="flex items-center gap-4 mb-3">
+                        <h3 class="text-lg font-semibold text-gray-700 min-w-[100px]">Floor {{ floor_num }}</h3>
+                        <div class="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                            {% for unit_data in floor_units %}
+                            {% with unit=unit_data.unit_config pricing=unit_data.pricing_info is_booked=unit_data.is_booked %}
+                            <div class="unit-card relative group" 
+                                 data-unit-id="{{ unit.id }}"
+                                 data-tower="{{ unit.tower_number }}"
+                                 data-floor="{{ unit.floor_number }}"
+                                 data-unit-number="{{ unit.unit_number }}"
+                                 data-config-id="{% if unit.area_type %}{{ unit.area_type.configuration.id }}{% endif %}"
+                                 onclick="selectUnit({{ unit.id }}, {{ unit.tower_number }}, {{ unit.floor_number }}, {{ unit.unit_number }})">
+                                <div class="unit-box p-3 rounded-lg border-2 transition-all cursor-pointer
+                                    {% if unit.is_excluded %}
+                                        bg-gray-200 border-gray-400 opacity-60
+                                    {% elif is_booked %}
+                                        bg-red-100 border-red-500
+                                    {% else %}
+                                        bg-green-100 border-green-500 hover:border-blue-500 hover:bg-blue-100
+                                    {% endif %}
+                                    {% if unit.area_type %}
+                                        selected-unit
+                                    {% endif %}
+                                ">
+                                    <div class="text-center">
+                                        <div class="text-sm font-bold text-gray-800 mb-1">{{ unit.unit_number }}</div>
+                                        {% if unit.area_type %}
+                                        <div class="text-xs text-gray-600 mb-1">{{ unit.area_type.configuration.name }}</div>
+                                        <div class="text-xs text-gray-500">{{ unit.area_type.carpet_area|floatformat:0 }}sqft</div>
+                                        {% elif not unit.is_excluded %}
+                                        <div class="text-xs text-gray-400">Unassigned</div>
+                                        {% else %}
+                                        <div class="text-xs text-gray-500">Excluded</div>
+                                        {% endif %}
+                                        {% if is_booked %}
+                                        <div class="text-xs text-red-600 font-semibold mt-1">Booked</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Tooltip on hover -->
+                                {% if pricing and not unit.is_excluded %}
+                                <div class="unit-tooltip hidden absolute z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 min-w-[250px] mt-2 left-1/2 transform -translate-x-1/2">
+                                    <div class="text-sm">
+                                        <p class="font-bold text-gray-800 mb-2">{{ pricing.configuration_name }} - {{ pricing.area_display }}</p>
+                                        <div class="space-y-1 text-xs">
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Carpet Area:</span>
+                                                <span class="font-medium">{{ pricing.carpet_area|floatformat:0 }} sqft</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Buildup Area:</span>
+                                                <span class="font-medium">{{ pricing.buildup_area|floatformat:0 }} sqft</span>
+                                            </div>
+                                            {% if pricing.rera_area %}
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">RERA Area:</span>
+                                                <span class="font-medium">{{ pricing.rera_area|floatformat:0 }} sqft</span>
+                                            </div>
+                                            {% endif %}
+                                            {% if pricing.price_per_sqft %}
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Price/sqft:</span>
+                                                <span class="font-medium">₹{{ pricing.price_per_sqft|floatformat:0 }}</span>
+                                            </div>
+                                            {% endif %}
+                                            {% if pricing.agreement_value %}
+                                            <div class="border-t pt-2 mt-2">
+                                                <div class="flex justify-between mb-1">
+                                                    <span class="text-gray-600">Agreement Value:</span>
+                                                    <span class="font-medium">
+                                                        ₹{% widthratio pricing.agreement_value 100000 1 %}L
+                                                    </span>
+                                                </div>
+                                                {% if pricing.cost_breakdown %}
+                                                <div class="space-y-1 text-xs">
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-500">+ Stamp Duty ({{ pricing.stamp_duty_percent }}%):</span>
+                                                        <span>₹{% widthratio pricing.cost_breakdown.stamp_duty 100000 1 %}L</span>
+                                                    </div>
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-500">+ GST ({{ pricing.gst_percent }}%):</span>
+                                                        <span>₹{% widthratio pricing.cost_breakdown.gst 100000 1 %}L</span>
+                                                    </div>
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-500">+ Registration:</span>
+                                                        <span>₹{% widthratio pricing.cost_breakdown.registration_charges 100000 1 %}L</span>
+                                                    </div>
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-500">+ Legal Charges:</span>
+                                                        <span>₹{% widthratio pricing.cost_breakdown.legal_charges 100000 1 %}L</span>
+                                                    </div>
+                                                    {% if pricing.cost_breakdown.development_charges %}
+                                                    <div class="flex justify-between">
+                                                        <span class="text-gray-500">+ Development:</span>
+                                                        <span>₹{% widthratio pricing.cost_breakdown.development_charges 100000 1 %}L</span>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+                                            {% if pricing.total_cost %}
+                                            <div class="border-t pt-2 mt-2">
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-600 font-bold">Total Estimate:</span>
+                                                    <span class="font-bold text-blue-600 text-base">
+                                                        ₹{% widthratio pricing.total_cost 100000 1 %}L
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endwith %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Selected Unit Details Panel (Fixed at bottom) -->
+    <div id="selected-unit-panel" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-olive-primary shadow-2xl p-6 z-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-olive-primary">Selected Unit Details</h3>
+                <button onclick="closeUnitPanel()" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="selected-unit-content" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Unit details will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedUnits = new Set();
+    
+    // Filter by configuration
+    document.getElementById('config-filter').addEventListener('change', function() {
+        const configId = this.value;
+        const unitCards = document.querySelectorAll('.unit-card');
+        
+        unitCards.forEach(card => {
+            const cardConfigId = card.dataset.configId;
+            if (!configId || cardConfigId === configId) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+    
+    function selectUnit(unitId, towerNum, floorNum, unitNumber) {
+        const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
+        const unitBox = unitCard.querySelector('.unit-box');
+        
+        // Check if unit is excluded or booked
+        if (unitBox.classList.contains('bg-gray-200') || unitBox.classList.contains('bg-red-100')) {
+            return; // Don't allow selection of excluded or booked units
+        }
+        
+        // Toggle selection
+        if (selectedUnits.has(unitId)) {
+            selectedUnits.delete(unitId);
+            unitBox.classList.remove('bg-blue-100', 'border-blue-500');
+            unitBox.classList.add('bg-green-100', 'border-green-500');
+        } else {
+            selectedUnits.add(unitId);
+            unitBox.classList.remove('bg-green-100', 'border-green-500');
+            unitBox.classList.add('bg-blue-100', 'border-blue-500');
+        }
+        
+        updateSelectedUnitPanel();
+    }
+    
+    function updateSelectedUnitPanel() {
+        const panel = document.getElementById('selected-unit-panel');
+        const content = document.getElementById('selected-unit-content');
+        
+        if (selectedUnits.size === 0) {
+            panel.classList.add('hidden');
+            return;
+        }
+        
+        panel.classList.remove('hidden');
+        
+        // Fetch unit details via AJAX or use data attributes
+        // For now, we'll show basic info
+        let html = '';
+        selectedUnits.forEach(unitId => {
+            const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
+            const unitNumber = unitCard.dataset.unitNumber;
+            const towerNum = unitCard.dataset.tower;
+            const floorNum = unitCard.dataset.floor;
+            
+            html += `
+                <div class="border rounded-lg p-4 bg-gray-50">
+                    <h4 class="font-bold text-lg mb-2">Tower ${towerNum} - Floor ${floorNum} - Unit ${unitNumber}</h4>
+                    <p class="text-sm text-gray-600">Click unit for detailed pricing</p>
+                </div>
+            `;
+        });
+        
+        content.innerHTML = html;
+    }
+    
+    function closeUnitPanel() {
+        document.getElementById('selected-unit-panel').classList.add('hidden');
+        // Clear selections
+        selectedUnits.forEach(unitId => {
+            const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
+            const unitBox = unitCard.querySelector('.unit-box');
+            unitBox.classList.remove('bg-blue-100', 'border-blue-500');
+            unitBox.classList.add('bg-green-100', 'border-green-500');
+        });
+        selectedUnits.clear();
+    }
+    
+    // Show tooltip on hover
+    document.querySelectorAll('.unit-card').forEach(card => {
+        const tooltip = card.querySelector('.unit-tooltip');
+        if (tooltip) {
+            card.addEventListener('mouseenter', function() {
+                tooltip.classList.remove('hidden');
+            });
+            card.addEventListener('mouseleave', function() {
+                tooltip.classList.add('hidden');
+            });
+        }
+    });
+    
+    // Close panel when clicking outside
+    document.addEventListener('click', function(e) {
+        const panel = document.getElementById('selected-unit-panel');
+        if (panel && !panel.contains(e.target) && !e.target.closest('.unit-card')) {
+            // Don't close on unit card clicks
+        }
+    });
+</script>
+
+<style>
+    .unit-box {
+        min-height: 80px;
+        position: relative;
+    }
+    
+    .unit-tooltip {
+        pointer-events: none;
+    }
+    
+    .unit-card:hover .unit-tooltip {
+        display: block !important;
+    }
+    
+    #selected-unit-panel {
+        max-height: 50vh;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+

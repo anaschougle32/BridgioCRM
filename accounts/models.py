@@ -41,6 +41,12 @@ class User(AbstractUser):
         verbose_name = 'User'
         verbose_name_plural = 'Users'
     
+    def save(self, *args, **kwargs):
+        # Automatically set role to 'super_admin' if user is a superuser
+        if self.is_superuser and self.role != 'super_admin':
+            self.role = 'super_admin'
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
     

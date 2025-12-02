@@ -3,7 +3,8 @@ from .views import (
     lead_list, lead_create, lead_pretag, lead_detail, send_otp, verify_otp, 
     upcoming_visits, visits_list, log_call, create_reminder, complete_reminder, whatsapp, 
     lead_assign, lead_upload, lead_assign_admin, update_status, update_notes,
-    upload_analyze, upload_preview, lead_upload_errors_csv, lead_download
+    upload_analyze, upload_preview, lead_upload_errors_csv, lead_download,
+    update_budget, update_configuration, track_call_click
 )
 
 app_name = 'leads'
@@ -25,7 +26,10 @@ urlpatterns = [
     path('<int:pk>/send-otp/', send_otp, name='send_otp'),
     path('<int:pk>/verify-otp/', verify_otp, name='verify_otp'),
     path('<int:pk>/update-status/', update_status, name='update_status'),
+    path('<int:pk>/update-budget/', update_budget, name='update_budget'),
+    path('<int:pk>/update-configuration/', update_configuration, name='update_configuration'),
     path('<int:pk>/log-call/', log_call, name='log_call'),
+    path('<int:pk>/track-call-click/', track_call_click, name='track_call_click'),
     path('<int:pk>/create-reminder/', create_reminder, name='create_reminder'),
     path('<int:pk>/complete-reminder/<int:reminder_id>/', complete_reminder, name='complete_reminder'),
     path('<int:pk>/update-notes/', update_notes, name='update_notes'),

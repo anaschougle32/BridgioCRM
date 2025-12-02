@@ -65,7 +65,7 @@
                         <td class="px-4 py-3 text-sm font-semibold text-olive-primary">{{ cp.cp_unique_id|default:"—" }}</td>
                         <td class="px-4 py-3 text-sm">{{ cp.cp_name }}</td>
                         <td class="px-4 py-3 text-sm">{{ cp.firm_name }}</td>
-                        <td class="px-4 py-3 text-sm">{{ cp.phone }}</td>
+                        <td class="px-4 py-3 text-sm">{{ cp.get_formatted_phone }}</td>
                         <td class="px-4 py-3 text-sm">{{ cp.phone2|default:"—" }}</td>
                         <td class="px-4 py-3 text-sm">{{ cp.locality|default:"—" }}</td>
                         <td class="px-4 py-3 text-sm">

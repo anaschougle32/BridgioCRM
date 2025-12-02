@@ -75,5 +75,15 @@ class ChannelPartner(models.Model):
             self.cp_unique_id = generate_cp_id(self.cp_name)
         super().save(*args, **kwargs)
     
+    def get_formatted_phone(self):
+        """Return phone number without decimal point if it's a float string"""
+        if not self.phone:
+            return ''
+        # Remove .0 if present (from Excel float conversion)
+        phone = str(self.phone)
+        if phone.endswith('.0'):
+            phone = phone[:-2]
+        return phone
+    
     def __str__(self):
         return f"{self.firm_name} - {self.cp_name} ({self.cp_unique_id})"
