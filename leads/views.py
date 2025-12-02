@@ -29,18 +29,15 @@ def lead_list(request):
     leads = Lead.objects.filter(is_archived=False)
     
     # Role-based filtering
-    # Super Admin sees all leads
-    if request.user.is_super_admin() or (request.user.is_superuser and request.user.is_staff):
-        pass  # No filtering for super admin
+    # Super Admin and Mandate Owner see all leads
+    if request.user.is_super_admin() or request.user.is_mandate_owner() or (request.user.is_superuser and request.user.is_staff):
+        pass  # No filtering for super admin and mandate owner
     elif request.user.is_telecaller() or request.user.is_closing_manager():
         # Telecallers and Closing Managers see only their assigned leads
         leads = leads.filter(assigned_to=request.user)
     elif request.user.is_site_head():
-        # Site head sees leads for their projects
+        # Site head sees leads ONLY for their assigned projects (strict isolation)
         leads = leads.filter(project__site_head=request.user)
-    elif request.user.is_mandate_owner():
-        # Mandate owner sees leads for their projects
-        leads = leads.filter(project__mandate_owner=request.user)
     elif request.user.is_sourcing_manager():
         # Sourcing managers see leads they created or are assigned to
         leads = leads.filter(Q(created_by=request.user) | Q(assigned_to=request.user))
@@ -252,15 +249,13 @@ def lead_download(request):
     
     leads = Lead.objects.filter(is_archived=False)
     
-    # Apply same filters as lead_list
-    if request.user.is_super_admin() or (request.user.is_superuser and request.user.is_staff):
+    # Apply same filters as lead_list - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner() or (request.user.is_superuser and request.user.is_staff):
         pass
     elif request.user.is_telecaller() or request.user.is_closing_manager():
         leads = leads.filter(assigned_to=request.user)
     elif request.user.is_site_head():
         leads = leads.filter(project__site_head=request.user)
-    elif request.user.is_mandate_owner():
-        leads = leads.filter(project__mandate_owner=request.user)
     elif request.user.is_sourcing_manager():
         leads = leads.filter(Q(created_by=request.user) | Q(assigned_to=request.user))
     
@@ -590,6 +585,40 @@ def lead_create(request):
         'projects': Project.objects.filter(is_active=True),
     }
     return render(request, 'leads/create.html', context)
+
+
+@login_required
+def search_channel_partners(request):
+    """Search channel partners API endpoint for autocomplete"""
+    query = request.GET.get('q', '').strip()
+    
+    if not query:
+        return JsonResponse({'results': []})
+    
+    from channel_partners.models import ChannelPartner
+    
+    # Search by firm name, CP name, phone, or CP ID
+    channel_partners = ChannelPartner.objects.filter(
+        status='active'
+    ).filter(
+        Q(firm_name__icontains=query) |
+        Q(cp_name__icontains=query) |
+        Q(phone__icontains=query) |
+        Q(cp_unique_id__icontains=query)
+    )[:20]  # Limit to 20 results
+    
+    results = []
+    for cp in channel_partners:
+        results.append({
+            'id': cp.id,
+            'firm_name': cp.firm_name,
+            'cp_name': cp.cp_name,
+            'phone': cp.get_formatted_phone(),
+            'rera_id': cp.rera_id or '',
+            'cp_unique_id': cp.cp_unique_id or '',
+        })
+    
+    return JsonResponse({'results': results})
 
 
 @login_required
@@ -938,16 +967,10 @@ def visits_list(request):
     visit_source = request.GET.get('visit_source', '')
     search_query = request.GET.get('search', '')
     
-    # Base queryset - only visited leads
-    if request.user.is_super_admin():
+    # Base queryset - only visited leads - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         leads_qs = Lead.objects.filter(status='visit_completed', is_archived=False)
-    elif request.user.is_mandate_owner():
-        leads_qs = Lead.objects.filter(
-            project__mandate_owner=request.user,
-            status='visit_completed',
-            is_archived=False
-        )
-    else:  # Site Head
+    else:  # Site Head - strict isolation
         leads_qs = Lead.objects.filter(
             project__site_head=request.user,
             status='visit_completed',
@@ -969,10 +992,8 @@ def visits_list(request):
         )
     
     # Get projects for filter dropdown
-    if request.user.is_super_admin():
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         projects = Project.objects.filter(is_active=True).order_by('name')
-    elif request.user.is_mandate_owner():
-        projects = Project.objects.filter(mandate_owner=request.user, is_active=True).order_by('name')
     else:  # Site Head
         projects = Project.objects.filter(site_head=request.user, is_active=True).order_by('name')
     
@@ -1395,11 +1416,21 @@ def lead_assign(request):
                 messages.error(request, 'Please assign at least one lead to an employee.')
                 return redirect('leads:assign')
             
-            # Get employees
-            employees = User.objects.filter(
-                Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
-                mandate_owner=request.user.mandate_owner
-            )
+            # Get employees - Site Head only sees employees assigned to their projects
+            if request.user.is_site_head():
+                # Get employees assigned to this site head's projects
+                site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+                employees = User.objects.filter(
+                    Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
+                    assigned_projects__in=site_head_projects,
+                    is_active=True
+                ).distinct()
+            else:
+                # Super Admin and Mandate Owner see all employees
+                employees = User.objects.filter(
+                    Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
+                    is_active=True
+                )
             
             # Use atomic transaction with row locking to prevent race conditions
             from django.db import transaction
@@ -1457,12 +1488,21 @@ def lead_assign(request):
             'unassigned_count': unassigned_count
         })
     
-    # Get employees
-    employees = User.objects.filter(
-        Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
-        mandate_owner=request.user.mandate_owner,
-        is_active=True
-    ).order_by('username')
+    # Get employees - Site Head only sees employees assigned to their projects
+    if request.user.is_site_head():
+        # Get employees assigned to this site head's projects
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+        employees = User.objects.filter(
+            Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
+            assigned_projects__in=site_head_projects,
+            is_active=True
+        ).distinct().order_by('username')
+    else:
+        # Super Admin and Mandate Owner see all employees
+        employees = User.objects.filter(
+            Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
+            is_active=True
+        ).order_by('username')
     
     context = {
         'projects': projects_with_counts,
@@ -1531,7 +1571,7 @@ def _create_column_mapper(headers):
 @login_required
 def upload_analyze(request):
     """Analyze uploaded file and return headers with auto-mapping"""
-    if not (request.user.is_super_admin() or request.user.is_site_head()):
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
         return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
     
     if request.method != 'POST':
@@ -1600,7 +1640,7 @@ def upload_analyze(request):
 @login_required
 def upload_preview(request):
     """Preview upload with custom mapping"""
-    if not (request.user.is_super_admin() or request.user.is_site_head()):
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
         return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
     
     if request.method != 'POST':
@@ -1731,9 +1771,9 @@ def upload_preview(request):
 
 @login_required
 def lead_upload(request):
-    """Upload leads via Excel/CSV (Admin and Site Head only) with auto-mapping and manual mapping support"""
-    if not (request.user.is_super_admin() or request.user.is_site_head()):
-        messages.error(request, 'Only Admins and Site Heads can upload leads.')
+    """Upload leads via Excel/CSV (Admin, Mandate Owner, and Site Head only) with auto-mapping and manual mapping support"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
+        messages.error(request, 'Only Admins, Mandate Owners, and Site Heads can upload leads.')
         return redirect('dashboard')
     
     if request.method == 'POST':
@@ -2267,7 +2307,7 @@ def lead_upload(request):
             messages.error(request, f'Error uploading file: {str(e)}')
     
     # Get available projects
-    if request.user.is_super_admin():
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         projects = Project.objects.filter(is_active=True)
     else:  # Site Head
         projects = Project.objects.filter(site_head=request.user, is_active=True)
@@ -2285,15 +2325,15 @@ def lead_upload(request):
 
 @login_required
 def lead_assign_admin(request):
-    """Assign leads to employees (Admin and Site Head)"""
-    if not (request.user.is_super_admin() or request.user.is_site_head()):
-        messages.error(request, 'Only Admins and Site Heads can assign leads.')
+    """Assign leads to employees (Super Admin, Mandate Owner, and Site Head)"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
+        messages.error(request, 'Only Super Admins, Mandate Owners, and Site Heads can assign leads.')
         return redirect('dashboard')
     
-    # Get projects
-    if request.user.is_super_admin():
+    # Get projects - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         projects = Project.objects.filter(is_active=True)
-    else:  # Site Head
+    else:  # Site Head - strict isolation
         projects = Project.objects.filter(site_head=request.user, is_active=True)
     
     if request.method == 'POST':
@@ -2384,35 +2424,48 @@ def lead_assign_admin(request):
             'unassigned_count': unassigned_count
         })
     
-    # Get employees with their existing quotas for selected project
-    if request.user.is_super_admin():
+    # Get employees - Site Head only sees employees assigned to their projects
+    # Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         employees = User.objects.filter(
             Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
             is_active=True
         ).order_by('username')
-    else:  # Site Head
+    else:  # Site Head - only employees assigned to their projects (strict isolation)
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
         employees = User.objects.filter(
             Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
-            mandate_owner=request.user.mandate_owner,
+            assigned_projects__in=site_head_projects,
             is_active=True
-        ).order_by('username')
+        ).distinct().order_by('username')
     
     # Get existing quotas for each project-employee combination
+    # Also filter employees by project assignment
     project_quotas = {}
+    project_employees = {}  # Store employees per project
     for item in projects_with_counts:
-        project_quotas[str(item['project'].id)] = {}
+        project = item['project']
+        project_quotas[str(project.id)] = {}
+        # Get employees assigned to this project
+        project_employees[str(project.id)] = list(
+            project.assigned_telecallers.filter(
+                Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
+                is_active=True
+            ).values_list('id', flat=True)
+        )
         quotas = DailyAssignmentQuota.objects.filter(
-            project=item['project'],
+            project=project,
             is_active=True
         )
         for quota in quotas:
-            project_quotas[str(item['project'].id)][str(quota.employee.id)] = quota.daily_quota
+            project_quotas[str(project.id)][str(quota.employee.id)] = quota.daily_quota
     
     import json
     context = {
         'projects': projects_with_counts,
         'employees': employees,
         'project_quotas_json': json.dumps(project_quotas),
+        'project_employees_json': json.dumps(project_employees),
     }
     return render(request, 'leads/assign_admin.html', context)
 
@@ -2420,7 +2473,7 @@ def lead_assign_admin(request):
 @login_required
 def lead_upload_errors_csv(request, session_id):
     """Download error rows as CSV"""
-    if not (request.user.is_super_admin() or request.user.is_site_head()):
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
         messages.error(request, 'You do not have permission to download error files.')
         return redirect('dashboard')
     

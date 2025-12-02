@@ -8,6 +8,7 @@ from accounts.models import User
 from leads.models import Lead
 from bookings.models import Booking, Payment
 from decimal import Decimal
+from leads.models import DailyAssignmentQuota
 
 
 @login_required
@@ -222,9 +223,13 @@ def project_create(request):
     mandate_owners = User.objects.filter(role='mandate_owner')
     site_heads = User.objects.filter(role='site_head')
     
+    # Get project type choices for dropdown
+    project_type_choices = Project.PROJECT_TYPE_CHOICES
+    
     context = {
         'mandate_owners': mandate_owners,
         'site_heads': site_heads,
+        'project_type_choices': project_type_choices,
     }
     return render(request, 'projects/create.html', context)
 
@@ -234,12 +239,9 @@ def project_detail(request, pk):
     """Project detail view"""
     project = get_object_or_404(Project, pk=pk)
     
-    # Permission check
-    if request.user.is_super_admin():
-        pass  # Super admin can see all
-    elif request.user.is_mandate_owner() and project.mandate_owner != request.user:
-        messages.error(request, 'You do not have permission to view this project.')
-        return redirect('projects:list')
+    # Permission check - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
+        pass  # Super admin and Mandate Owner can see all
     elif request.user.is_site_head() and project.site_head != request.user:
         messages.error(request, 'You do not have permission to view this project.')
         return redirect('projects:list')
@@ -539,6 +541,10 @@ def project_edit(request, pk):
         key = f"{uc.tower_number}_{uc.floor_number}_{uc.unit_number}"
         unit_configurations[key] = uc
     
+    # Get project type choices for dropdown
+    from projects.models import Project
+    project_type_choices = Project.PROJECT_TYPE_CHOICES
+    
     context = {
         'project': project,
         'mandate_owners': mandate_owners,
@@ -546,6 +552,7 @@ def project_edit(request, pk):
         'configurations': configurations,
         'all_area_types': all_area_types,
         'unit_configurations': unit_configurations,
+        'project_type_choices': project_type_choices,
     }
     return render(request, 'projects/edit.html', context)
 
@@ -555,12 +562,9 @@ def unit_selection(request, pk):
     """Interactive unit selection page (BookMyShow-style UI)"""
     project = get_object_or_404(Project, pk=pk)
     
-    # Permission check - all user types can view units
-    if request.user.is_super_admin():
-        pass  # Super admin can see all
-    elif request.user.is_mandate_owner() and project.mandate_owner != request.user:
-        messages.error(request, 'You do not have permission to view this project.')
-        return redirect('projects:list')
+    # Permission check - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
+        pass  # Super admin and Mandate Owner can see all
     elif request.user.is_site_head() and project.site_head != request.user:
         messages.error(request, 'You do not have permission to view this project.')
         return redirect('projects:list')
@@ -663,9 +667,9 @@ def unit_selection(request, pk):
 
 @login_required
 def migrate_leads(request, pk):
-    """Migrate leads from one project to another - Mandate Owners only"""
+    """Migrate leads from one project to another - Super Admin and Mandate Owners only"""
     project = get_object_or_404(Project, pk=pk)
-    if not request.user.is_mandate_owner():
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner()):
         messages.error(request, 'You do not have permission to migrate leads.')
         return redirect('projects:detail', pk=project.pk)
     
@@ -677,22 +681,110 @@ def migrate_leads(request, pk):
         
         target_project = get_object_or_404(Project, pk=target_project_id)
         
-        # Migrate leads
-        leads_to_migrate = Lead.objects.filter(project=project, is_archived=False)
-        count = leads_to_migrate.count()
-        leads_to_migrate.update(project=target_project)
+        # Get selected lead IDs or migrate all if none selected
+        selected_lead_ids = request.POST.getlist('lead_ids')
+        if selected_lead_ids:
+            # Migrate only selected leads
+            leads_to_migrate = Lead.objects.filter(
+                project=project, 
+                id__in=selected_lead_ids,
+                is_archived=False
+            )
+        else:
+            # Migrate all leads if none selected
+            leads_to_migrate = Lead.objects.filter(project=project, is_archived=False)
         
-        messages.success(request, f'Successfully migrated {count} lead(s) to {target_project.name}.')
+        count = leads_to_migrate.count()
+        if count > 0:
+            leads_to_migrate.update(project=target_project)
+            messages.success(request, f'Successfully migrated {count} lead(s) to {target_project.name}.')
+        else:
+            messages.warning(request, 'No leads selected for migration.')
+        
         return redirect('projects:detail', pk=project.pk)
     
     # GET request - show form
-    # Get all projects owned by the same mandate owner
-    target_projects = Project.objects.filter(
-        mandate_owner=project.mandate_owner
-    ).exclude(pk=project.pk).order_by('name')
+    # Get all projects owned by the same mandate owner (or all projects for mandate owners)
+    if request.user.is_mandate_owner():
+        # Mandate owners can migrate to any project
+        target_projects = Project.objects.filter(is_active=True).exclude(pk=project.pk).order_by('name')
+    else:
+        # For other roles, only projects with same mandate owner
+        target_projects = Project.objects.filter(
+            mandate_owner=project.mandate_owner
+        ).exclude(pk=project.pk).order_by('name')
+    
+    # Get leads for the source project
+    leads = Lead.objects.filter(project=project, is_archived=False).order_by('-created_at')
+    
+    context = {
+        'source_project': project,  # Use source_project for template consistency
+        'project': project,  # Also include project for backward compatibility
+        'target_projects': target_projects,
+        'leads': leads,
+    }
+    return render(request, 'projects/migrate_leads.html', context)
+
+
+@login_required
+def assign_employees(request, pk):
+    """Assign employees (closing, sourcing, telecallers) to a project - Super Admin and Mandate Owners only"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Permission check
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner()):
+        messages.error(request, 'You do not have permission to assign employees to projects.')
+        return redirect('projects:detail', pk=project.pk)
+    
+    if request.method == 'POST':
+        # Get selected employee IDs
+        selected_employee_ids = request.POST.getlist('employees')
+        selected_employee_ids = [int(eid) for eid in selected_employee_ids if eid]
+        
+        # Mandate owners and Super admins can assign any employee
+        available_employees = User.objects.filter(
+            role__in=['closing_manager', 'sourcing_manager', 'telecaller'],
+            is_active=True
+        )
+        
+        # Validate that all selected employees are in the available list
+        valid_employee_ids = set(available_employees.values_list('id', flat=True))
+        selected_employee_ids = [eid for eid in selected_employee_ids if eid in valid_employee_ids]
+        
+        # Update project assignments (works for all three roles: closing_manager, sourcing_manager, telecaller)
+        project.assigned_telecallers.set(selected_employee_ids)
+        
+        messages.success(request, f'Successfully updated employee assignments for {project.name}.')
+        return redirect('projects:detail', pk=project.pk)
+    
+    # GET request - show form
+    # Mandate owners and Super admins can see all employees
+    employees = User.objects.filter(
+        role__in=['closing_manager', 'sourcing_manager', 'telecaller'],
+        is_active=True
+    ).order_by('role', 'username')
+    
+    # Get currently assigned employees for this project
+    assigned_employee_ids = set(project.assigned_telecallers.values_list('id', flat=True))
+    
+    # Group employees by role and mark assigned status
+    employees_by_role = {
+        'closing_manager': [],
+        'sourcing_manager': [],
+        'telecaller': [],
+    }
+    
+    for employee in employees:
+        is_assigned = employee.id in assigned_employee_ids
+        role_key = employee.role
+        if role_key in employees_by_role:
+            employees_by_role[role_key].append({
+                'employee': employee,
+                'is_assigned': is_assigned,
+            })
     
     context = {
         'project': project,
-        'target_projects': target_projects,
+        'employees_by_role': employees_by_role,
     }
-    return render(request, 'projects/migrate_leads.html', context)
+    return render(request, 'projects/assign_employees.html', context)

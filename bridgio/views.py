@@ -106,46 +106,88 @@ def dashboard(request):
             }
             return render(request, 'dashboard_super_admin.html', context)
         
-        # Mandate Owner Dashboard
+        # Mandate Owner Dashboard - Same as Super Admin (they see all data)
         elif user_role == 'mandate_owner':
-            leads_qs = Lead.objects.filter(project__mandate_owner=user, is_archived=False)
-            bookings_qs = Booking.objects.filter(project__mandate_owner=user, is_archived=False)
-            projects = Project.objects.filter(mandate_owner=user, is_active=True)
+            # All leads - handle if table doesn't exist
+            try:
+                all_leads = Lead.objects.filter(is_archived=False)
+            except Exception:
+                all_leads = Lead.objects.none()
             
-            # Calculate revenue
-            total_revenue = Payment.objects.filter(booking__project__mandate_owner=user).aggregate(
-                total=Sum('amount')
-            )['total'] or 0
+            try:
+                all_bookings = Booking.objects.filter(is_archived=False)
+            except Exception:
+                all_bookings = Booking.objects.none()
             
-            # Project comparison with stats
-            project_comparison = projects.annotate(
-                lead_count=Count('leads', filter=Q(leads__is_archived=False)),
-                booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-                revenue=Sum('bookings__payments__amount')
-            ).order_by('-revenue', '-booking_count')
+            # Revenue calculations - handle None values
+            try:
+                total_revenue = Payment.objects.aggregate(total=Sum('amount'))['total'] or 0
+            except Exception:
+                total_revenue = 0
             
-            # Employee stats
-            employees = User.objects.filter(mandate_owner=user, is_active=True)
-            employee_stats = employees.values('role').annotate(
-                count=Count('id')
-            ).order_by('role')
+            bookings_count = all_bookings.count() if all_bookings else 0
+            
+            try:
+                avg_booking_value = all_bookings.aggregate(avg=Avg('final_negotiated_price'))['avg'] or 0
+            except Exception:
+                avg_booking_value = 0
+            
+            # CP Leaderboard - handle empty queryset
+            try:
+                cp_leaderboard = list(ChannelPartner.objects.annotate(
+                    booking_count=Count('bookings'),
+                    total_revenue=Sum('bookings__payments__amount')
+                ).filter(booking_count__gt=0).order_by('-total_revenue')[:10])
+            except Exception:
+                cp_leaderboard = []
+            
+            # Project stats - handle empty queryset
+            try:
+                project_stats = list(Project.objects.annotate(
+                    lead_count=Count('leads', filter=Q(leads__is_archived=False)),
+                    booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
+                    revenue=Sum('bookings__payments__amount')
+                ).order_by('-revenue')[:10])
+            except Exception:
+                project_stats = []
+            
+            # User stats
+            try:
+                user_stats = list(User.objects.values('role').annotate(
+                    count=Count('id')
+                ).order_by('role'))
+            except Exception:
+                user_stats = []
+            
+            # Count projects and mandate owners safely
+            try:
+                total_projects = Project.objects.filter(is_active=True).count()
+            except Exception:
+                total_projects = 0
+            
+            try:
+                total_mandate_owners = User.objects.filter(role='mandate_owner', is_active=True).count()
+            except Exception:
+                total_mandate_owners = 0
             
             context = {
                 'is_mandate_owner': True,
-                'total_leads': leads_qs.count(),
-                'new_visits_today': leads_qs.filter(created_at__date=today).count(),
-                'total_bookings': bookings_qs.count(),
-                'pending_otp': leads_qs.filter(
+                'total_leads': all_leads.count(),
+                'new_visits_today': all_leads.filter(created_at__date=today).count(),
+                'total_bookings': bookings_count,
+                'pending_otp': all_leads.filter(
                     is_pretagged=True,
                     pretag_status='pending_verification'
                 ).count(),
-                'total_projects': projects.count(),
                 'total_revenue': total_revenue,
-                'project_comparison': project_comparison,
-                'employee_stats': employee_stats,
-                'total_employees': employees.count(),
+                'avg_booking_value': avg_booking_value,
+                'total_projects': total_projects,
+                'total_mandate_owners': total_mandate_owners,
+                'cp_leaderboard': cp_leaderboard,
+                'project_stats': project_stats,
+                'user_stats': user_stats,
             }
-            return render(request, 'dashboard_mandate_owner.html', context)
+            return render(request, 'dashboard_super_admin.html', context)
         
         # Site Head Dashboard
         elif user_role == 'site_head':
@@ -156,11 +198,13 @@ def dashboard(request):
             # Unassigned leads
             unassigned_leads = leads_qs.filter(assigned_to__isnull=True).count()
             
-            # Employee stats
+            # Employee stats - Only show employees assigned to this site head's projects
+            # Get all employees assigned to projects where this site head is in charge
+            site_head_projects = Project.objects.filter(site_head=user, is_active=True)
             employees = User.objects.filter(
                 Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
-                mandate_owner=user.mandate_owner
-            )
+                assigned_projects__in=site_head_projects
+            ).distinct()
             
             context = {
                 'is_site_head': True,

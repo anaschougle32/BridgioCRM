@@ -53,6 +53,7 @@
                         <label class="block text-sm font-medium mb-2">Project Type *</label>
                         <select name="project_type" required
                                 class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                            <option value="">Select Type</option>
                             {% for value, label in project_type_choices %}
                             <option value="{{ value }}" {% if project.project_type == value %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
@@ -321,7 +322,7 @@
             </div>
             
             <!-- Floor Mapping Section -->
-            <div id="floor-mapping-section" class="hidden">
+            <div id="floor-mapping-section" class="{% if configurations %}block{% else %}hidden{% endif %}">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-heading font-bold">Floor & Unit Mapping</h2>
                 </div>
@@ -362,7 +363,7 @@
             </div>
             
             <!-- Submit -->
-            <div id="submit-section" class="hidden flex justify-end space-x-4">
+            <div id="submit-section" class="{% if configurations %}flex{% else %}hidden{% endif %} justify-end space-x-4">
                 <a href="{% url 'projects:detail' project.pk %}" 
                    class="px-6 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition">
                     Cancel
@@ -743,6 +744,7 @@
         }
         if (submitSection) {
             submitSection.classList.remove('hidden');
+            submitSection.classList.add('flex');
             console.log('Shown submit section');
         } else {
             console.error('submit-section element not found!');
@@ -1064,6 +1066,22 @@
         if (typeof populateAreaTypeOptions === 'function') {
             populateAreaTypeOptions();
         }
+        
+        // If configurations exist, show floor mapping and submit sections
+        {% if configurations %}
+        const floorSection = document.getElementById('floor-mapping-section');
+        const submitSection = document.getElementById('submit-section');
+        if (floorSection && submitSection) {
+            floorSection.classList.remove('hidden');
+            floorSection.classList.add('block');
+            submitSection.classList.remove('hidden');
+            submitSection.classList.add('flex');
+            // Generate floor mapping if not already generated
+            if (typeof generateFloorMapping === 'function') {
+                generateFloorMapping();
+            }
+        }
+        {% endif %}
     });
 </script>
 {% endblock %}

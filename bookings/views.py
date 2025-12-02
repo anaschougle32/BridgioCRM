@@ -15,11 +15,9 @@ def booking_list(request):
     """List all bookings - Super Admin sees all"""
     bookings = Booking.objects.filter(is_archived=False)
     
-    # Role-based filtering
-    if request.user.is_super_admin() or (request.user.is_superuser and request.user.is_staff):
-        pass  # Super admin sees all
-    elif request.user.is_mandate_owner():
-        bookings = bookings.filter(project__mandate_owner=request.user)
+    # Role-based filtering - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner() or (request.user.is_superuser and request.user.is_staff):
+        pass  # Super admin and mandate owner see all
     elif request.user.is_site_head():
         bookings = bookings.filter(project__site_head=request.user)
     elif request.user.is_closing_manager():
@@ -67,12 +65,9 @@ def booking_detail(request, pk):
     """Booking detail view with payments"""
     booking = get_object_or_404(Booking, pk=pk, is_archived=False)
     
-    # Permission check
-    if request.user.is_super_admin() or (request.user.is_superuser and request.user.is_staff):
-        pass
-    elif request.user.is_mandate_owner() and booking.project.mandate_owner != request.user:
-        messages.error(request, 'You do not have permission to view this booking.')
-        return redirect('bookings:list')
+    # Permission check - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner() or (request.user.is_superuser and request.user.is_staff):
+        pass  # Super Admin and Mandate Owner can view all bookings
     elif request.user.is_site_head() and booking.project.site_head != request.user:
         messages.error(request, 'You do not have permission to view this booking.')
         return redirect('bookings:list')
@@ -101,8 +96,8 @@ def booking_create(request, lead_id):
     """Create booking from lead (Closing Manager only)"""
     lead = get_object_or_404(Lead, pk=lead_id, is_archived=False)
     
-    # Permission check - Only Closing Managers can create bookings
-    if not (request.user.is_closing_manager() or request.user.is_super_admin()):
+    # Permission check - Closing Managers, Super Admin, and Mandate Owners can create bookings
+    if not (request.user.is_closing_manager() or request.user.is_super_admin() or request.user.is_mandate_owner()):
         messages.error(request, 'Only Closing Managers can create bookings.')
         return redirect('leads:detail', pk=lead_id)
     

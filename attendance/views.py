@@ -15,11 +15,9 @@ def attendance_list(request):
     """List all attendance records"""
     attendances = Attendance.objects.all()
     
-    # Role-based filtering
-    if request.user.is_super_admin() or (request.user.is_superuser and request.user.is_staff):
-        pass  # Super admin sees all
-    elif request.user.is_mandate_owner():
-        attendances = attendances.filter(project__mandate_owner=request.user)
+    # Role-based filtering - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner() or (request.user.is_superuser and request.user.is_staff):
+        pass  # Super admin and mandate owner see all
     elif request.user.is_site_head():
         attendances = attendances.filter(project__site_head=request.user)
     else:
@@ -52,11 +50,9 @@ def attendance_list(request):
     page = request.GET.get('page', 1)
     attendances_page = paginator.get_page(page)
     
-    # Get projects for filter
-    if request.user.is_super_admin():
+    # Get projects for filter - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         projects = Project.objects.filter(is_active=True)
-    elif request.user.is_mandate_owner():
-        projects = Project.objects.filter(mandate_owner=request.user, is_active=True)
     elif request.user.is_site_head():
         projects = Project.objects.filter(site_head=request.user, is_active=True)
     else:
@@ -85,13 +81,10 @@ def attendance_summary(request):
     
     today = timezone.now().date()
     
-    # Get projects
-    if request.user.is_super_admin():
+    # Get projects - Mandate Owner has same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         projects = Project.objects.filter(is_active=True)
         users = User.objects.filter(is_active=True)
-    elif request.user.is_mandate_owner():
-        projects = Project.objects.filter(mandate_owner=request.user, is_active=True)
-        users = User.objects.filter(mandate_owner=request.user, is_active=True)
     else:  # Site Head
         projects = Project.objects.filter(site_head=request.user, is_active=True)
         users = User.objects.filter(mandate_owner=request.user.mandate_owner, is_active=True)
@@ -195,10 +188,8 @@ def attendance_checkin(request):
             messages.error(request, f'Error during check-in: {str(e)}')
     
     # Get available projects for user
-    if request.user.is_super_admin():
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         projects = Project.objects.filter(is_active=True)
-    elif request.user.is_mandate_owner():
-        projects = Project.objects.filter(mandate_owner=request.user, is_active=True)
     elif request.user.is_site_head():
         projects = Project.objects.filter(site_head=request.user, is_active=True)
     else:

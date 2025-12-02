@@ -4,7 +4,7 @@ from .views import (
     upcoming_visits, visits_list, log_call, create_reminder, complete_reminder, whatsapp, 
     lead_assign, lead_upload, lead_assign_admin, update_status, update_notes,
     upload_analyze, upload_preview, lead_upload_errors_csv, lead_download,
-    update_budget, update_configuration, track_call_click
+    update_budget, update_configuration, track_call_click, search_channel_partners
 )
 
 app_name = 'leads'
@@ -34,6 +34,7 @@ urlpatterns = [
     path('<int:pk>/complete-reminder/<int:reminder_id>/', complete_reminder, name='complete_reminder'),
     path('<int:pk>/update-notes/', update_notes, name='update_notes'),
     path('<int:pk>/whatsapp/', whatsapp, name='whatsapp'),
+    path('search-cp/', search_channel_partners, name='search_cp'),
 ]
 
 

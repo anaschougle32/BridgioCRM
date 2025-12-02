@@ -46,11 +46,7 @@ def user_list(request):
     
     users = User.objects.all()
     
-    # Mandate Owner can only see their employees
-    if request.user.is_mandate_owner():
-        users = users.filter(
-            Q(mandate_owner=request.user) | Q(pk=request.user.pk)
-        )
+    # Mandate Owners have same permissions as Super Admin - they see all users
     
     # Search
     search = request.GET.get('search', '')
@@ -128,7 +124,7 @@ def user_create(request):
                 # Force mandate_owner to be the current user
                 mandate_owner_id = str(request.user.id)
             
-            # Super Admin can create Mandate Owners and Site Heads
+            # Super Admin can create Mandate Owners (mandate owners cannot create other mandate owners)
             if request.user.is_super_admin() and role == 'mandate_owner':
                 mandate_owner_id = None
             
@@ -160,8 +156,8 @@ def user_create(request):
                     user.mandate_owner_id = None
             user.save()
             
-            # Assign projects for telecallers
-            if role == 'telecaller':
+            # Assign projects for closing managers, sourcing managers, and telecallers
+            if role in ['closing_manager', 'sourcing_manager', 'telecaller']:
                 project_ids = request.POST.getlist('assigned_projects')
                 if project_ids:
                     projects = Project.objects.filter(id__in=project_ids, is_active=True)
@@ -177,15 +173,15 @@ def user_create(request):
             messages.error(request, f'Error creating user: {str(e)}')
             return redirect('accounts:user_create')
     
-    # Get mandate owners for dropdown (only for Super Admin)
+    # Get mandate owners for dropdown (Super Admin and Mandate Owners)
     mandate_owners = None
-    if request.user.is_super_admin():
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         mandate_owners = User.objects.filter(role='mandate_owner', is_active=True)
     
-    # Determine allowed roles
-    if request.user.is_super_admin():
+    # Determine allowed roles - Mandate Owners have same permissions as Super Admin
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         allowed_roles = User.ROLE_CHOICES
-    else:  # Mandate Owner
+    else:
         allowed_roles = [
             ('site_head', 'Site Head'),
             ('closing_manager', 'Closing Manager'),
@@ -193,12 +189,10 @@ def user_create(request):
             ('telecaller', 'Telecaller'),
         ]
     
-    # Get projects for telecaller assignment (only for Super Admin and Mandate Owners)
+    # Get projects for telecaller assignment - Mandate Owners see ALL projects
     projects = None
-    if request.user.is_super_admin():
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         projects = Project.objects.filter(is_active=True)
-    elif request.user.is_mandate_owner():
-        projects = Project.objects.filter(mandate_owner=request.user, is_active=True)
     
     context = {
         'role_choices': allowed_roles,
@@ -217,10 +211,7 @@ def user_edit(request, pk):
         messages.error(request, 'You do not have permission to access this page.')
         return redirect('dashboard')
     
-    # Mandate Owner can only edit their employees
-    if request.user.is_mandate_owner() and user.mandate_owner != request.user and user != request.user:
-        messages.error(request, 'You can only edit your employees.')
-        return redirect('accounts:user_list')
+    # Mandate Owners have same permissions as Super Admin - they can edit all users
     
     if request.method == 'POST':
         user.email = request.POST.get('email', user.email)
@@ -229,8 +220,8 @@ def user_edit(request, pk):
         user.last_name = request.POST.get('last_name', '')
         user.is_active = request.POST.get('is_active') == 'on'
         
-        # Role can only be changed by Super Admin
-        if request.user.is_super_admin():
+        # Role can be changed by Super Admin and Mandate Owners
+        if request.user.is_super_admin() or request.user.is_mandate_owner():
             user.role = request.POST.get('role', user.role)
             mandate_owner_id = request.POST.get('mandate_owner')
             if mandate_owner_id:
@@ -243,8 +234,8 @@ def user_edit(request, pk):
         if new_password:
             user.set_password(new_password)
         
-        # Update project assignments for telecallers
-        if user.role == 'telecaller':
+        # Update project assignments for closing managers, sourcing managers, and telecallers
+        if user.role in ['closing_manager', 'sourcing_manager', 'telecaller']:
             project_ids = request.POST.getlist('assigned_projects')
             if project_ids:
                 projects = Project.objects.filter(id__in=project_ids, is_active=True)
@@ -256,21 +247,19 @@ def user_edit(request, pk):
         messages.success(request, f'User {user.username} updated successfully!')
         return redirect('accounts:user_list')
     
-    # Get mandate owners for dropdown (only for Super Admin)
+    # Get mandate owners for dropdown (Super Admin and Mandate Owners)
     mandate_owners = None
-    if request.user.is_super_admin():
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         mandate_owners = User.objects.filter(role='mandate_owner', is_active=True)
     
-    # Get projects for telecaller assignment
+    # Get projects for telecaller assignment - Mandate Owners see ALL projects
     projects = None
-    if request.user.is_super_admin():
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
         projects = Project.objects.filter(is_active=True)
-    elif request.user.is_mandate_owner():
-        projects = Project.objects.filter(mandate_owner=request.user, is_active=True)
     
-    # Get user's assigned projects
+    # Get user's assigned projects (for closing managers, sourcing managers, and telecallers)
     user_assigned_projects = []
-    if user.role == 'telecaller' and projects:
+    if user.role in ['closing_manager', 'sourcing_manager', 'telecaller'] and projects:
         user_assigned_projects = list(user.assigned_projects.values_list('id', flat=True))
     
     context = {

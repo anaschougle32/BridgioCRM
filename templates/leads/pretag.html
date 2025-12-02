@@ -169,26 +169,40 @@
                 <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">
                     Channel Partner Information <span class="text-red-600">*</span>
                 </h2>
-                <p class="text-sm text-text-secondary mb-4">CP details are mandatory for pretagged leads.</p>
+                <p class="text-sm text-text-secondary mb-4">CP details are mandatory for pretagged leads. Search for an existing CP or enter manually.</p>
+                
+                <!-- CP Search -->
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold text-text-primary mb-2">Search Channel Partner</label>
+                    <div class="relative">
+                        <input type="text" id="cp-search" placeholder="Search by Firm Name, CP Name, Phone, or CP ID..." autocomplete="off"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        <div id="cp-search-results" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <!-- Results will be populated here -->
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Start typing to search for an existing Channel Partner</p>
+                </div>
+                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">CP Firm Name *</label>
-                        <input type="text" name="cp_firm_name" required
+                        <input type="text" name="cp_firm_name" id="cp_firm_name" required
                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">CP Name *</label>
-                        <input type="text" name="cp_name" required
+                        <input type="text" name="cp_name" id="cp_name" required
                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">CP Phone *</label>
-                        <input type="tel" name="cp_phone" required
+                        <input type="tel" name="cp_phone" id="cp_phone" required
                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">CP RERA Number</label>
-                        <input type="text" name="cp_rera_number"
+                        <input type="text" name="cp_rera_number" id="cp_rera_number"
                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                     </div>
                 </div>
@@ -208,4 +222,120 @@
         </form>
     </div>
 </div>
+
+<script>
+(function() {
+    const cpSearch = document.getElementById('cp-search');
+    const cpSearchResults = document.getElementById('cp-search-results');
+    const cpFirmName = document.getElementById('cp_firm_name');
+    const cpName = document.getElementById('cp_name');
+    const cpPhone = document.getElementById('cp_phone');
+    const cpReraNumber = document.getElementById('cp_rera_number');
+    
+    let searchTimeout;
+    
+    // Search CP as user types
+    cpSearch.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            cpSearchResults.classList.add('hidden');
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`{% url 'leads:search_cp' %}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    displaySearchResults(data.results);
+                })
+                .catch(error => {
+                    console.error('Error searching CP:', error);
+                });
+        }, 300); // Debounce 300ms
+    });
+    
+    // Display search results
+    function displaySearchResults(results) {
+        if (results.length === 0) {
+            cpSearchResults.innerHTML = '<div class="p-4 text-gray-500 text-center">No Channel Partners found</div>';
+            cpSearchResults.classList.remove('hidden');
+            return;
+        }
+        
+        cpSearchResults.innerHTML = results.map(cp => `
+            <div class="cp-result-item p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
+                 data-firm-name="${cp.firm_name.replace(/"/g, '&quot;')}" 
+                 data-cp-name="${cp.cp_name.replace(/"/g, '&quot;')}" 
+                 data-phone="${cp.phone.replace(/"/g, '&quot;')}" 
+                 data-rera-id="${(cp.rera_id || '').replace(/"/g, '&quot;')}">
+                <div class="font-medium text-gray-900">${cp.firm_name}</div>
+                <div class="text-sm text-gray-600">${cp.cp_name} • ${cp.phone}</div>
+                ${cp.cp_unique_id ? `<div class="text-xs text-gray-500">ID: ${cp.cp_unique_id}</div>` : ''}
+            </div>
+        `).join('');
+        
+        cpSearchResults.classList.remove('hidden');
+        
+        // Add click handlers
+        cpSearchResults.querySelectorAll('.cp-result-item').forEach(item => {
+            item.addEventListener('click', function() {
+                cpFirmName.value = this.dataset.firmName;
+                cpName.value = this.dataset.cpName;
+                cpPhone.value = this.dataset.phone;
+                cpReraNumber.value = this.dataset.reraId || '';
+                
+                // Clear search
+                cpSearch.value = '';
+                cpSearchResults.classList.add('hidden');
+                
+                // Show success feedback
+                const originalBg = cpFirmName.style.backgroundColor;
+                cpFirmName.style.backgroundColor = '#d4edda';
+                cpName.style.backgroundColor = '#d4edda';
+                cpPhone.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    cpFirmName.style.backgroundColor = originalBg;
+                    cpName.style.backgroundColor = originalBg;
+                    cpPhone.style.backgroundColor = originalBg;
+                }, 1000);
+            });
+        });
+    }
+    
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!cpSearch.contains(e.target) && !cpSearchResults.contains(e.target)) {
+            cpSearchResults.classList.add('hidden');
+        }
+    });
+    
+    // Allow keyboard navigation
+    cpSearch.addEventListener('keydown', function(e) {
+        const results = cpSearchResults.querySelectorAll('.cp-result-item');
+        if (results.length === 0) return;
+        
+        const currentIndex = Array.from(results).findIndex(item => item.classList.contains('bg-gray-200'));
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const nextIndex = currentIndex < results.length - 1 ? currentIndex + 1 : 0;
+            results.forEach((item, idx) => {
+                item.classList.toggle('bg-gray-200', idx === nextIndex);
+            });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prevIndex = currentIndex > 0 ? currentIndex - 1 : results.length - 1;
+            results.forEach((item, idx) => {
+                item.classList.toggle('bg-gray-200', idx === prevIndex);
+            });
+        } else if (e.key === 'Enter' && currentIndex >= 0) {
+            e.preventDefault();
+            results[currentIndex].click();
+        }
+    });
+})();
+</script>
 {% endblock %}

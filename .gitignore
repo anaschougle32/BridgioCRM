@@ -26,10 +26,9 @@ wheels/
 # Django
 *.log
 local_settings.py
-db.sqlite3
+# Allow db.sqlite3 to be committed (uncomment to exclude)
+# db.sqlite3
 db.sqlite3-journal
-# Allow db.sqlite to be committed
-!db.sqlite
 /media
 /staticfiles
 

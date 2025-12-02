@@ -29,11 +29,17 @@
             <!-- Daily Assignment Quotas -->
             <div>
                 <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Set Daily Assignment Quotas</h2>
-                <p class="text-sm text-gray-600 mb-4">Set the number of leads to assign daily to each employee. The system will automatically assign leads based on these quotas.</p>
+                <p class="text-sm text-gray-600 mb-4">
+                    <strong>How it works:</strong> Select a project above, then set the number of leads that should flow to each employee daily from the main lead source of that project. 
+                    The system will automatically assign leads based on these quotas. You can also assign leads immediately by checking the box below.
+                </p>
+                <p class="text-sm text-blue-600 mb-4">
+                    <strong>Note:</strong> Only employees assigned to the selected project will be shown. To assign employees to projects, go to the project detail page and click "Assign Employees".
+                </p>
                 {% if employees %}
                 <div class="space-y-4">
                     {% for employee in employees %}
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-border-light">
+                    <div id="employee-row-{{ employee.id }}" class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-border-light" style="display: none;">
                         <div>
                             <p class="font-medium">{{ employee.get_full_name|default:employee.username }}</p>
                             <p class="text-sm text-gray-600">{{ employee.get_role_display }}</p>
@@ -73,9 +79,24 @@
     // Load existing quotas when project is selected
     const projectSelect = document.getElementById('project-select');
     const projectQuotas = {{ project_quotas_json|safe }};
+    const projectEmployees = {{ project_employees_json|safe }};
     
     function updateQuotas() {
         const projectId = projectSelect.value;
+        
+        // Show/hide employees based on project assignment
+        {% for employee in employees %}
+        const employeeRow{{ employee.id }} = document.getElementById('employee-row-{{ employee.id }}');
+        if (employeeRow{{ employee.id }}) {
+            if (projectId && projectEmployees[projectId] && projectEmployees[projectId].includes({{ employee.id }})) {
+                employeeRow{{ employee.id }}.style.display = 'flex';
+            } else {
+                employeeRow{{ employee.id }}.style.display = 'none';
+            }
+        }
+        {% endfor %}
+        
+        // Update quota values
         if (projectId && projectQuotas[projectId]) {
             const quotas = projectQuotas[projectId];
             {% for employee in employees %}
@@ -99,7 +120,13 @@
     
     if (projectSelect) {
         projectSelect.addEventListener('change', updateQuotas);
-        updateQuotas(); // Load on page load if project is pre-selected
+        // Check if project is pre-selected from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const preSelectedProject = urlParams.get('project');
+        if (preSelectedProject) {
+            projectSelect.value = preSelectedProject;
+        }
+        updateQuotas(); // Load on page load
     }
 </script>
 {% endblock %}

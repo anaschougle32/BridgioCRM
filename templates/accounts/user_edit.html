@@ -92,8 +92,8 @@
                 </div>
             </div>
             
-            <!-- Project Assignment (for Telecallers) -->
-            <div id="project-assignment-section" style="display: {% if user_obj.role == 'telecaller' %}block{% else %}none{% endif %};" class="mb-8">
+            <!-- Project Assignment (for Closing Managers, Sourcing Managers, and Telecallers) -->
+            <div id="project-assignment-section" style="display: {% if user_obj.role == 'closing_manager' or user_obj.role == 'sourcing_manager' or user_obj.role == 'telecaller' %}block{% else %}none{% endif %};" class="mb-8">
                 <h2 class="text-lg sm:text-xl font-heading font-bold mb-4 text-olive-primary pb-2 border-b border-gray-200">Project Assignment</h2>
                 {% if projects %}
                 <div class="space-y-2">
@@ -106,7 +106,7 @@
                     </div>
                     {% endfor %}
                 </div>
-                <p class="text-xs text-gray-500 mt-2">Select projects to assign this telecaller to</p>
+                <p class="text-xs text-gray-500 mt-2">Select projects to assign this employee to</p>
                 {% else %}
                 <p class="text-sm text-gray-500">No active projects available</p>
                 {% endif %}
@@ -133,7 +133,7 @@
     const projectSection = document.getElementById('project-assignment-section');
     
     function toggleProjectSection() {
-        if (roleSelect && roleSelect.value === 'telecaller') {
+        if (roleSelect && ['closing_manager', 'sourcing_manager', 'telecaller'].includes(roleSelect.value)) {
             projectSection.style.display = 'block';
         } else {
             projectSection.style.display = 'none';

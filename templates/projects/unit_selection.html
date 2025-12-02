@@ -111,7 +111,7 @@
                                 
                                 <!-- Tooltip on hover -->
                                 {% if pricing and not unit.is_excluded %}
-                                <div class="unit-tooltip hidden absolute z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 min-w-[250px] mt-2 left-1/2 transform -translate-x-1/2">
+                                <div class="unit-tooltip hidden absolute z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 min-w-[250px] bottom-full left-1/2 transform -translate-x-1/2 mb-2">
                                     <div class="text-sm">
                                         <p class="font-bold text-gray-800 mb-2">{{ pricing.configuration_name }} - {{ pricing.area_display }}</p>
                                         <div class="space-y-1 text-xs">
@@ -302,12 +302,39 @@
         selectedUnits.clear();
     }
     
-    // Show tooltip on hover
+    // Show tooltip on hover with proper positioning
     document.querySelectorAll('.unit-card').forEach(card => {
         const tooltip = card.querySelector('.unit-tooltip');
         if (tooltip) {
-            card.addEventListener('mouseenter', function() {
+            card.addEventListener('mouseenter', function(e) {
                 tooltip.classList.remove('hidden');
+                // Position tooltip dynamically based on available space
+                const rect = card.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const spaceAbove = rect.top;
+                const spaceBelow = viewportHeight - rect.bottom;
+                
+                // Remove all positioning classes first
+                tooltip.classList.remove('bottom-full', 'mb-2', 'top-full', 'mt-2', 'left-0', 'right-0', 'left-1/2', '-translate-x-1/2');
+                
+                // Check if there's enough space above
+                if (spaceAbove >= tooltipRect.height + 10) {
+                    // Position above
+                    tooltip.classList.add('bottom-full', 'mb-2', 'left-1/2', '-translate-x-1/2');
+                } else if (spaceBelow >= tooltipRect.height + 10) {
+                    // Position below
+                    tooltip.classList.add('top-full', 'mt-2', 'left-1/2', '-translate-x-1/2');
+                } else {
+                    // Not enough space above or below, position to the side
+                    if (rect.left > viewportHeight / 2) {
+                        // Position to the left
+                        tooltip.classList.add('right-0', 'top-0');
+                    } else {
+                        // Position to the right
+                        tooltip.classList.add('left-full', 'ml-2', 'top-0');
+                    }
+                }
             });
             card.addEventListener('mouseleave', function() {
                 tooltip.classList.add('hidden');

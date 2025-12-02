@@ -24,14 +24,14 @@ def mandate_owner_reports(request):
     last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
     last_month_end = this_month_start - timedelta(days=1)
     
-    # Get all projects - Super Admin sees all, Mandate Owner sees their projects
-    if user.is_super_admin() or (user.is_superuser and user.is_staff):
+    # Get all projects - Super Admin and Mandate Owner see all projects
+    if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
         projects = Project.objects.filter(is_active=True)
     else:
         projects = Project.objects.filter(mandate_owner=user, is_active=True)
     
-    # Lead Analytics - Super Admin sees all, Mandate Owner sees their leads
-    if user.is_super_admin() or (user.is_superuser and user.is_staff):
+    # Lead Analytics - Super Admin and Mandate Owner see all leads
+    if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
         all_leads = Lead.objects.filter(is_archived=False)
     else:
         all_leads = Lead.objects.filter(project__mandate_owner=user, is_archived=False)
@@ -43,15 +43,15 @@ def mandate_owner_reports(request):
         count=Count('id')
     ).order_by('-count')
     
-    # Booking Analytics - Super Admin sees all, Mandate Owner sees their bookings
-    if user.is_super_admin() or (user.is_superuser and user.is_staff):
+    # Booking Analytics - Super Admin and Mandate Owner see all bookings
+    if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
         all_bookings = Booking.objects.filter(is_archived=False)
     else:
         all_bookings = Booking.objects.filter(project__mandate_owner=user, is_archived=False)
     bookings_this_month = all_bookings.filter(created_at__date__gte=this_month_start)
     
-    # Revenue Analytics - Super Admin sees all, Mandate Owner sees their revenue
-    if user.is_super_admin() or (user.is_superuser and user.is_staff):
+    # Revenue Analytics - Super Admin and Mandate Owner see all revenue
+    if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
         total_revenue = Payment.objects.all().aggregate(
             total=Sum('amount')
         )['total'] or 0
@@ -94,8 +94,8 @@ def mandate_owner_reports(request):
         else:
             project.conversion_rate = 0
     
-    # Employee Performance - Super Admin sees all employees, Mandate Owner sees their employees
-    if user.is_super_admin() or (user.is_superuser and user.is_staff):
+    # Employee Performance - Super Admin and Mandate Owner see all employees
+    if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
         employees = User.objects.filter(is_active=True).exclude(role='super_admin')
     else:
         employees = User.objects.filter(mandate_owner=user, is_active=True)
@@ -103,7 +103,7 @@ def mandate_owner_reports(request):
     employee_performance = []
     for emp in employees:
         if emp.is_closing_manager():
-            if user.is_super_admin() or (user.is_superuser and user.is_staff):
+            if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
                 bookings_count = Booking.objects.filter(created_by=emp).count()
             else:
                 bookings_count = Booking.objects.filter(created_by=emp, project__mandate_owner=user).count()
@@ -113,7 +113,7 @@ def mandate_owner_reports(request):
                 'bookings': bookings_count,
             })
         elif emp.is_sourcing_manager():
-            if user.is_super_admin() or (user.is_superuser and user.is_staff):
+            if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
                 leads_count = Lead.objects.filter(created_by=emp).count()
             else:
                 leads_count = Lead.objects.filter(created_by=emp, project__mandate_owner=user).count()
@@ -123,7 +123,7 @@ def mandate_owner_reports(request):
                 'leads': leads_count,
             })
         elif emp.is_telecaller():
-            if user.is_super_admin() or (user.is_superuser and user.is_staff):
+            if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
                 calls_count = Lead.objects.filter(assigned_to=emp).count()
             else:
                 calls_count = Lead.objects.filter(assigned_to=emp, project__mandate_owner=user).count()
@@ -141,7 +141,7 @@ def mandate_owner_reports(request):
         
         month_leads = all_leads.filter(created_at__date__gte=month_start, created_at__date__lte=month_end).count()
         month_bookings = all_bookings.filter(created_at__date__gte=month_start, created_at__date__lte=month_end).count()
-        if user.is_super_admin() or (user.is_superuser and user.is_staff):
+        if user.is_super_admin() or user.is_mandate_owner() or (user.is_superuser and user.is_staff):
             month_revenue = Payment.objects.filter(
                 payment_date__gte=month_start,
                 payment_date__lte=month_end
