@@ -134,20 +134,215 @@
         </form>
     </div>
     
-    <!-- Leads Table -->
-    <div class="bg-white rounded-custom shadow-md overflow-hidden">
+    <!-- Leads - Mobile Card View -->
+    <div class="lg:hidden space-y-4">
+        {% for lead in leads %}
+        {% with notif=lead_notifications|get_item:lead.id %}
+        <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200" id="lead-card-{{ lead.id }}">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <h3 class="font-semibold text-base text-gray-900">{{ lead.name }}</h3>
+                        <div class="flex items-center gap-1 flex-wrap">
+                            {% if notif.overdue_count > 0 %}
+                            <span class="px-1.5 py-0.5 text-xs rounded-full bg-red-100 text-red-800 flex items-center gap-1" title="{{ notif.overdue_count }} overdue reminder(s)">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>{{ notif.overdue_count }}
+                            </span>
+                            {% endif %}
+                            {% if notif.today_callbacks > 0 %}
+                            <span class="px-1.5 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800 flex items-center gap-1" title="{{ notif.today_callbacks }} callback(s) today">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>{{ notif.today_callbacks }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <a href="{{ notif.tel_link }}" target="_blank" class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium mb-3">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                        </svg>
+                        Call
+                    </a>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 mb-3 text-sm">
+                <div>
+                    <span class="text-gray-500 text-xs">Budget:</span>
+                    <div class="mt-1">
+                        <div class="relative inline-block text-left">
+                            <button type="button" 
+                                    class="inline-flex items-center px-2 py-1 text-xs rounded-full {% if lead.budget %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-600{% endif %} hover:bg-green-200"
+                                    onclick="toggleBudgetMenu({{ lead.id }})">
+                                {% if lead.budget %}
+                                    {% if lead.budget >= 10000000 %}
+                                        {% widthratio lead.budget 10000000 1 as budget_cr %}
+                                        ₹{{ budget_cr }} Cr
+                                    {% else %}
+                                        {% widthratio lead.budget 100000 1 as budget_l %}
+                                        ₹{{ budget_l }} L
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-gray-400">—</span>
+                                {% endif %}
+                                <svg class="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="budget-menu-mobile-{{ lead.id }}" class="hidden absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                                <div class="py-1 max-h-60 overflow-y-auto">
+                                    <form method="post" action="{% url 'leads:update_budget' lead.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="budget" value="">
+                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Clear Budget</button>
+                                    </form>
+                                    <div class="border-t my-1"></div>
+                                    {% for value, label in budget_choices %}
+                                    <form method="post" action="{% url 'leads:update_budget' lead.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="budget" value="{{ value }}">
+                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm {% if lead.budget == value %}bg-green-50 text-green-800 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">{{ label }}</button>
+                                    </form>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-gray-500 text-xs">Config:</span>
+                    <div class="mt-1">
+                        <div class="relative inline-block text-left">
+                            <button type="button" 
+                                    class="inline-flex items-center px-2 py-1 text-xs rounded-full {% if lead.configuration %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-600{% endif %} hover:bg-blue-200"
+                                    onclick="toggleConfigMenu({{ lead.id }})">
+                                {% if lead.configuration %}
+                                    <span>{{ lead.configuration.name }}</span>
+                                {% else %}
+                                    <span class="text-gray-400">—</span>
+                                {% endif %}
+                                <svg class="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="config-menu-mobile-{{ lead.id }}" class="hidden absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                                <div class="py-1 max-h-60 overflow-y-auto">
+                                    <form method="post" action="{% url 'leads:update_configuration' lead.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="configuration" value="">
+                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Clear Configuration</button>
+                                    </form>
+                                    <div class="border-t my-1"></div>
+                                    <form method="post" action="{% url 'leads:update_configuration' lead.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="configuration" value="open_budget">
+                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm {% if lead.configuration == None and lead.budget == None %}bg-blue-50 text-blue-800 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">Open Budget</button>
+                                    </form>
+                                    <div class="border-t my-1"></div>
+                                    {% for config in configurations %}
+                                    {% if config.project == lead.project %}
+                                    <form method="post" action="{% url 'leads:update_configuration' lead.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="configuration" value="{{ config.id }}">
+                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm {% if lead.configuration.id == config.id %}bg-blue-50 text-blue-800 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">{{ config.name }}</button>
+                                    </form>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-gray-500 text-xs">CP ID:</span>
+                    <div class="mt-1">
+                        {% if lead.channel_partner %}
+                            <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">{{ lead.channel_partner.cp_unique_id }}</span>
+                        {% else %}
+                            <span class="text-gray-400 text-xs">—</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <span class="text-gray-500 text-xs">Status:</span>
+                    <div class="mt-1">
+                        <div class="relative inline-block text-left">
+                            <button type="button" 
+                                    class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200"
+                                    onclick="toggleStatusMenu({{ lead.id }})">
+                                {{ lead.get_status_display }}
+                                <svg class="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="status-menu-mobile-{{ lead.id }}" class="hidden absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                                <div class="py-1">
+                                    <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase border-b">Status</div>
+                                    {% for value, label in status_choices %}
+                                    <form method="post" action="{% url 'leads:update_status' lead.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="{{ value }}">
+                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm {% if lead.status == value %}bg-blue-50 text-blue-800 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">{{ label }}</button>
+                                    </form>
+                                    {% endfor %}
+                                    <div class="border-t my-1"></div>
+                                    <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase border-b">Actions</div>
+                                    <button onclick="openLogCallModal({{ lead.id }}); toggleStatusMenu({{ lead.id }});" class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                                        Log Call
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if lead.notes %}
+            <div class="mb-3">
+                <span class="text-gray-500 text-xs">Notes:</span>
+                <p class="text-sm text-gray-700 mt-1 line-clamp-2">{{ lead.notes|truncatewords:15 }}</p>
+            </div>
+            {% endif %}
+            
+            <div class="flex flex-wrap gap-2 pt-3 border-t border-gray-200">
+                <a href="{% url 'leads:detail' lead.pk %}" class="flex-1 px-3 py-1.5 text-xs text-center text-olive-primary hover:text-olive-secondary border border-olive-primary rounded hover:bg-olive-primary/10">View</a>
+                {% if user.is_super_admin or user.is_mandate_owner or user.is_site_head %}
+                <a href="{% url 'leads:detail' lead.pk %}" class="px-3 py-1.5 text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50">Edit</a>
+                {% endif %}
+                <button onclick="openLogCallModal({{ lead.id }})" class="px-3 py-1.5 text-xs text-blue-600 hover:text-blue-700 border border-blue-300 rounded hover:bg-blue-50">Call</button>
+                <button onclick="openWhatsAppModal({{ lead.id }})" class="px-3 py-1.5 text-xs text-green-600 hover:text-green-700 border border-green-300 rounded hover:bg-green-50">WA</button>
+                <button onclick="openReminderModal({{ lead.id }})" class="px-3 py-1.5 text-xs text-yellow-600 hover:text-yellow-700 border border-yellow-300 rounded hover:bg-yellow-50">
+                    <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </button>
+                {% if lead.notes %}
+                <button onclick="openNotesModal({{ lead.id }})" class="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50">
+                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endwith %}
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-md p-8 text-center">
+            <p class="text-gray-500">No leads found</p>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Leads Table - Desktop View -->
+    <div class="hidden lg:block bg-white rounded-custom shadow-md overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Budget</th>
-                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Configuration</th>
-                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CP ID</th>
-                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
-                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Budget</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Configuration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CP ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -369,7 +564,7 @@
                 {% endwith %}
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="px-3 sm:px-6 py-4 text-center text-gray-500 text-sm sm:text-base">No leads found</td>
+                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">No leads found</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -524,35 +719,41 @@
 <script>
     function toggleStatusMenu(leadId) {
         const menu = document.getElementById('status-menu-' + leadId);
+        const mobileMenu = document.getElementById('status-menu-mobile-' + leadId);
         // Close all other menus
         document.querySelectorAll('[id^="status-menu-"], [id^="budget-menu-"], [id^="config-menu-"]').forEach(m => {
-            if (m.id !== 'status-menu-' + leadId && m.id !== 'budget-menu-' + leadId && m.id !== 'config-menu-' + leadId) {
+            if (m.id !== 'status-menu-' + leadId && m.id !== 'status-menu-mobile-' + leadId && m.id !== 'budget-menu-' + leadId && m.id !== 'budget-menu-mobile-' + leadId && m.id !== 'config-menu-' + leadId && m.id !== 'config-menu-mobile-' + leadId) {
                 m.classList.add('hidden');
             }
         });
-        menu.classList.toggle('hidden');
+        if (menu) menu.classList.toggle('hidden');
+        if (mobileMenu) mobileMenu.classList.toggle('hidden');
     }
     
     function toggleBudgetMenu(leadId) {
         const menu = document.getElementById('budget-menu-' + leadId);
+        const mobileMenu = document.getElementById('budget-menu-mobile-' + leadId);
         // Close all other menus
         document.querySelectorAll('[id^="status-menu-"], [id^="budget-menu-"], [id^="config-menu-"]').forEach(m => {
-            if (m.id !== 'status-menu-' + leadId && m.id !== 'budget-menu-' + leadId && m.id !== 'config-menu-' + leadId) {
+            if (m.id !== 'status-menu-' + leadId && m.id !== 'budget-menu-' + leadId && m.id !== 'budget-menu-mobile-' + leadId && m.id !== 'config-menu-' + leadId && m.id !== 'config-menu-mobile-' + leadId && m.id !== 'status-menu-mobile-' + leadId) {
                 m.classList.add('hidden');
             }
         });
-        menu.classList.toggle('hidden');
+        if (menu) menu.classList.toggle('hidden');
+        if (mobileMenu) mobileMenu.classList.toggle('hidden');
     }
     
     function toggleConfigMenu(leadId) {
         const menu = document.getElementById('config-menu-' + leadId);
+        const mobileMenu = document.getElementById('config-menu-mobile-' + leadId);
         // Close all other menus
         document.querySelectorAll('[id^="status-menu-"], [id^="budget-menu-"], [id^="config-menu-"]').forEach(m => {
-            if (m.id !== 'status-menu-' + leadId && m.id !== 'budget-menu-' + leadId && m.id !== 'config-menu-' + leadId) {
+            if (m.id !== 'status-menu-' + leadId && m.id !== 'status-menu-mobile-' + leadId && m.id !== 'budget-menu-' + leadId && m.id !== 'budget-menu-mobile-' + leadId && m.id !== 'config-menu-' + leadId && m.id !== 'config-menu-mobile-' + leadId) {
                 m.classList.add('hidden');
             }
         });
-        menu.classList.toggle('hidden');
+        if (menu) menu.classList.toggle('hidden');
+        if (mobileMenu) mobileMenu.classList.toggle('hidden');
     }
     
     // Track call when user clicks call button
@@ -572,18 +773,9 @@
     
     // Close menus when clicking outside
     document.addEventListener('click', function(event) {
-        if (!event.target.closest('[id^="status-menu-"], [id^="budget-menu-"], [id^="config-menu-"], button')) {
+        if (!event.target.closest('[id^="status-menu-"], [id^="budget-menu-"], [id^="config-menu-"], button, [onclick*="toggleStatusMenu"], [onclick*="toggleBudgetMenu"], [onclick*="toggleConfigMenu"]')) {
             document.querySelectorAll('[id^="status-menu-"], [id^="budget-menu-"], [id^="config-menu-"]').forEach(m => {
                 m.classList.add('hidden');
-            });
-        }
-    });
-    
-    // Close menus when clicking outside
-    document.addEventListener('click', function(event) {
-        if (!event.target.closest('[onclick*="toggleStatusMenu"]') && !event.target.closest('[id^="status-menu-"]')) {
-            document.querySelectorAll('[id^="status-menu-"]').forEach(menu => {
-                menu.classList.add('hidden');
             });
         }
     });

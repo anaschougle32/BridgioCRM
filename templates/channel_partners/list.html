@@ -5,21 +5,21 @@
 {% block page_title %}Channel Partners{% endblock %}
 {% block content %}
 <div class="space-y-6">
-    <div class="flex justify-between items-center flex-wrap gap-4">
-        <h1 class="text-3xl font-heading font-bold text-olive-primary">Channel Partners</h1>
-        <div class="flex gap-2">
-            <a href="{% url 'channel_partners:upload' %}" class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+        <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Channel Partners</h1>
+        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <a href="{% url 'channel_partners:upload' %}" class="w-full sm:w-auto px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-center text-sm sm:text-base">
                 <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>Import CPs
             </a>
-            <a href="{% url 'channel_partners:create' %}" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+            <a href="{% url 'channel_partners:create' %}" class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-center text-sm sm:text-base">
                 <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>Add CP
             </a>
         </div>
     </div>
     
     <!-- Filters -->
-    <div class="bg-white rounded-custom shadow-md p-4">
-        <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-custom shadow-md p-3 sm:p-4">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <input type="text" name="search" placeholder="Search by firm, name, phone..." 
                    value="{{ search }}"
                    class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
@@ -40,8 +40,73 @@
         </form>
     </div>
     
-    <!-- CP Table -->
-    <div class="bg-white rounded-custom shadow-md overflow-hidden">
+    <!-- CP - Mobile Card View -->
+    <div class="lg:hidden space-y-4">
+        {% for cp in cps %}
+        <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-base text-gray-900 mb-1">{{ cp.cp_name }}</h3>
+                    <p class="text-sm text-gray-600 mb-1">{{ cp.firm_name }}</p>
+                    <p class="text-xs font-semibold text-olive-primary mb-2">ID: {{ cp.cp_unique_id|default:"—" }}</p>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <a href="{% url 'channel_partners:detail' cp.pk %}" class="px-3 py-1.5 text-xs text-center text-olive-primary hover:text-olive-secondary border border-olive-primary rounded hover:bg-olive-primary/10">
+                        View
+                    </a>
+                    {% if user.is_super_admin or user.is_mandate_owner or user.is_site_head or user.is_sourcing_manager %}
+                    <a href="{% url 'channel_partners:edit' cp.pk %}" class="px-3 py-1.5 text-xs text-center text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50">
+                        Edit
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                <div>
+                    <span class="text-gray-500 text-xs">Phone:</span>
+                    <p class="font-medium mt-1">{{ cp.get_formatted_phone }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500 text-xs">Phone 2:</span>
+                    <p class="font-medium mt-1">{{ cp.phone2|default:"—" }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500 text-xs">Locality:</span>
+                    <p class="font-medium mt-1">{{ cp.locality|default:"—" }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500 text-xs">Status:</span>
+                    <p class="mt-1">
+                        <span class="inline-block px-2 py-1 rounded-full text-xs font-medium {% if cp.status == 'active' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ cp.get_status_display|default:cp.status|title }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 pt-3 border-t border-gray-200 text-sm">
+                <div class="text-center">
+                    <p class="text-gray-500 text-xs">Leads</p>
+                    <p class="font-bold text-olive-primary mt-1">{{ cp.lead_count|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-500 text-xs">Bookings</p>
+                    <p class="font-bold text-olive-primary mt-1">{{ cp.booking_count|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-500 text-xs">Revenue</p>
+                    <p class="font-bold text-olive-primary mt-1">₹{{ cp.total_revenue|floatformat:0|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-md p-8 text-center">
+            <p class="text-gray-500">No channel partners found</p>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- CP Table - Desktop View -->
+    <div class="hidden lg:block bg-white rounded-custom shadow-md overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -101,7 +166,7 @@
         
         <!-- Pagination -->
         {% if cps.has_other_pages %}
-        <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+        <div class="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2">
             <div class="text-sm text-gray-700">
                 Showing {{ cps.start_index }} to {{ cps.end_index }} of {{ cps.paginator.count }} results
             </div>
@@ -117,6 +182,7 @@
             </div>
         </div>
         {% endif %}
+    </div>
 </div>
 {% endblock %}
 
