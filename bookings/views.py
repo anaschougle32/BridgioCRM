@@ -124,9 +124,12 @@ def booking_create(request, lead_id):
                 # Get channel partner if CP details exist
                 channel_partner = None
                 if lead.cp_name and lead.cp_phone:
+                    # Normalize CP phone before lookup
+                    from leads.utils import normalize_phone
+                    normalized_cp_phone = normalize_phone(lead.cp_phone)
                     # Try to find existing CP or create new one
                     channel_partner, created = ChannelPartner.objects.get_or_create(
-                        phone=lead.cp_phone,
+                        phone=normalized_cp_phone,
                         defaults={
                             'firm_name': lead.cp_firm_name or 'N/A',
                             'cp_name': lead.cp_name,
@@ -143,6 +146,20 @@ def booking_create(request, lead_id):
                 # Get CP commission percent from project
                 cp_commission_percent = lead.project.default_commission_percent if channel_partner else 0.00
                 
+                # Get self funding and loan percentages (if provided)
+                self_funding_percent = request.POST.get('self_funding_percent', '0')
+                loan_percent = request.POST.get('loan_percent', '0')
+                final_negotiated_price = float(request.POST.get('final_negotiated_price', 0))
+                
+                # Create notes with funding information
+                funding_notes = ''
+                if self_funding_percent and float(self_funding_percent) > 0:
+                    self_funding_amount = final_negotiated_price * (float(self_funding_percent) / 100)
+                    funding_notes += f'Self Funding: {self_funding_percent}% (₹{self_funding_amount:,.2f}). '
+                if loan_percent and float(loan_percent) > 0:
+                    loan_amount = final_negotiated_price * (float(loan_percent) / 100)
+                    funding_notes += f'Loan: {loan_percent}% (₹{loan_amount:,.2f}). '
+                
                 # Create booking
                 booking = Booking.objects.create(
                     lead=lead,
@@ -151,12 +168,20 @@ def booking_create(request, lead_id):
                     unit_number=request.POST.get('unit_number', ''),
                     carpet_area=float(request.POST.get('carpet_area')) if request.POST.get('carpet_area') else None,
                     floor=int(request.POST.get('floor')) if request.POST.get('floor') else None,
-                    final_negotiated_price=float(request.POST.get('final_negotiated_price', 0)),
+                    final_negotiated_price=final_negotiated_price,
                     token_amount=float(request.POST.get('token_amount', 0)),
                     channel_partner=channel_partner,
                     cp_commission_percent=cp_commission_percent,
                     created_by=request.user,
                 )
+                
+                # Update lead notes with funding information if provided
+                if funding_notes:
+                    if lead.notes:
+                        lead.notes += f'\n\n{funding_notes}'
+                    else:
+                        lead.notes = funding_notes
+                    lead.save()
                 
                 # Create initial payment if token amount > 0
                 from django.utils import timezone
@@ -182,8 +207,8 @@ def booking_create(request, lead_id):
                     user=request.user,
                     action='booking_created',
                     model_name='Booking',
-                    object_id=booking.id,
-                    details=f'Booking created for lead {lead.name} - Unit {booking.unit_number}',
+                    object_id=str(booking.id),
+                    changes={'message': f'Booking created for lead {lead.name} - Unit {booking.unit_number}'},
                 )
             
             messages.success(request, f'Booking created successfully! Booking #{booking.id}')
@@ -244,8 +269,8 @@ def payment_create(request, booking_id):
                 user=request.user,
                 action='payment_added',
                 model_name='Payment',
-                object_id=payment.id,
-                details=f'Payment of ₹{payment.amount} added to booking {booking.id}',
+                object_id=str(payment.id),
+                changes={'message': f'Payment of ₹{payment.amount} added to booking {booking.id}'},
             )
             
             messages.success(request, f'Payment of ₹{payment.amount} added successfully!')

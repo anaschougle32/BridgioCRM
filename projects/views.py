@@ -21,6 +21,9 @@ def project_list(request):
         projects = Project.objects.all()
     elif request.user.is_site_head():
         projects = Project.objects.filter(site_head=request.user)
+    elif request.user.is_closing_manager() or request.user.is_sourcing_manager():
+        # Closing and Sourcing managers see projects they're assigned to
+        projects = request.user.assigned_projects.filter(is_active=True)
     else:
         messages.error(request, 'You do not have permission to view projects.')
         return redirect('dashboard')
@@ -240,11 +243,17 @@ def project_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
     
     # Permission check - Mandate Owner has same permissions as Super Admin
+    # Closing and Sourcing managers can view projects they're assigned to
     if request.user.is_super_admin() or request.user.is_mandate_owner():
         pass  # Super admin and Mandate Owner can see all
     elif request.user.is_site_head() and project.site_head != request.user:
         messages.error(request, 'You do not have permission to view this project.')
         return redirect('projects:list')
+    elif request.user.is_closing_manager() or request.user.is_sourcing_manager():
+        # Check if user is assigned to this project
+        if project not in request.user.assigned_projects.all():
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
     elif not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
         messages.error(request, 'You do not have permission to view projects.')
         return redirect('dashboard')
@@ -256,9 +265,22 @@ def project_detail(request, pk):
     from django.utils import timezone
     today = timezone.now().date()
     
+    # Count visits properly - all leads with visit_completed status or pretagged leads
+    total_visits = leads.filter(
+        Q(status='visit_completed') | Q(is_pretagged=True)
+    ).count()
+    
+    # Count CP visits (leads with channel partner)
+    cp_visits = leads.filter(
+        Q(status='visit_completed') | Q(is_pretagged=True),
+        channel_partner__isnull=False
+    ).count()
+    
     stats = {
         'total_leads': leads.count(),
         'new_visits_today': leads.filter(created_at__date=today).count(),
+        'total_visits': total_visits,
+        'cp_visits': cp_visits,
         'total_bookings': bookings.count(),
         'pending_otp': leads.filter(is_pretagged=True, pretag_status='pending_verification').count(),
         'revenue': Payment.objects.filter(booking__project=project).aggregate(total=Sum('amount'))['total'] or 0,
@@ -542,7 +564,6 @@ def project_edit(request, pk):
         unit_configurations[key] = uc
     
     # Get project type choices for dropdown
-    from projects.models import Project
     project_type_choices = Project.PROJECT_TYPE_CHOICES
     
     context = {
@@ -563,11 +584,17 @@ def unit_selection(request, pk):
     project = get_object_or_404(Project, pk=pk)
     
     # Permission check - Mandate Owner has same permissions as Super Admin
+    # Closing and Sourcing managers can view units for projects they're assigned to
     if request.user.is_super_admin() or request.user.is_mandate_owner():
         pass  # Super admin and Mandate Owner can see all
     elif request.user.is_site_head() and project.site_head != request.user:
         messages.error(request, 'You do not have permission to view this project.')
         return redirect('projects:list')
+    elif request.user.is_closing_manager() or request.user.is_sourcing_manager():
+        # Check if user is assigned to this project
+        if project not in request.user.assigned_projects.all():
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
     
     # Get all unit configurations with related data
     unit_configs = UnitConfiguration.objects.filter(project=project).select_related(
@@ -667,10 +694,10 @@ def unit_selection(request, pk):
 
 @login_required
 def migrate_leads(request, pk):
-    """Migrate leads from one project to another - Super Admin and Mandate Owners only"""
+    """Duplicate leads from one project to another - Super Admin and Mandate Owners only"""
     project = get_object_or_404(Project, pk=pk)
     if not (request.user.is_super_admin() or request.user.is_mandate_owner()):
-        messages.error(request, 'You do not have permission to migrate leads.')
+        messages.error(request, 'You do not have permission to duplicate leads.')
         return redirect('projects:detail', pk=project.pk)
     
     if request.method == 'POST':
@@ -681,25 +708,72 @@ def migrate_leads(request, pk):
         
         target_project = get_object_or_404(Project, pk=target_project_id)
         
-        # Get selected lead IDs or migrate all if none selected
+        # Get selected lead IDs or duplicate all if none selected
         selected_lead_ids = request.POST.getlist('lead_ids')
         if selected_lead_ids:
-            # Migrate only selected leads
+            # Duplicate only selected leads
             leads_to_migrate = Lead.objects.filter(
                 project=project, 
                 id__in=selected_lead_ids,
                 is_archived=False
             )
         else:
-            # Migrate all leads if none selected
+            # Duplicate all leads if none selected
             leads_to_migrate = Lead.objects.filter(project=project, is_archived=False)
         
         count = leads_to_migrate.count()
         if count > 0:
-            leads_to_migrate.update(project=target_project)
-            messages.success(request, f'Successfully migrated {count} lead(s) to {target_project.name}.')
+            # Duplicate leads instead of transferring them
+            duplicated_count = 0
+            for lead in leads_to_migrate:
+                # Create a duplicate lead with same data but new project
+                new_lead = Lead.objects.create(
+                    # Client Information
+                    name=lead.name,
+                    phone=lead.phone,
+                    email=lead.email,
+                    age=lead.age,
+                    gender=lead.gender,
+                    locality=lead.locality,
+                    current_residence=lead.current_residence,
+                    occupation=lead.occupation,
+                    company_name=lead.company_name,
+                    designation=lead.designation,
+                    # Requirement Details
+                    project=target_project,  # New project
+                    configuration=None,  # Reset configuration as it might be project-specific
+                    budget=lead.budget,
+                    purpose=lead.purpose,
+                    visit_type=lead.visit_type,
+                    is_first_visit=lead.is_first_visit,
+                    how_did_you_hear=lead.how_did_you_hear,
+                    visit_source=lead.visit_source,
+                    # CP Information
+                    channel_partner=lead.channel_partner,
+                    cp_firm_name=lead.cp_firm_name,
+                    cp_name=lead.cp_name,
+                    cp_phone=lead.cp_phone,
+                    cp_rera_number=lead.cp_rera_number,
+                    # Pretagging Flags
+                    is_pretagged=lead.is_pretagged,
+                    pretag_status=lead.pretag_status,
+                    phone_verified=lead.phone_verified,
+                    # Lead Status
+                    status='new',  # Reset to new for the duplicate
+                    # Assignment - reset assignment
+                    assigned_to=None,
+                    assigned_at=None,
+                    assigned_by=None,
+                    # Notes
+                    notes=f"[Duplicated from {project.name}] {lead.notes}" if lead.notes else f"[Duplicated from {project.name}]",
+                    # System Metadata
+                    created_by=request.user,
+                )
+                duplicated_count += 1
+            
+            messages.success(request, f'Successfully duplicated {duplicated_count} lead(s) to {target_project.name}. Original leads remain in {project.name}.')
         else:
-            messages.warning(request, 'No leads selected for migration.')
+            messages.warning(request, 'No leads selected for duplication.')
         
         return redirect('projects:detail', pk=project.pk)
     
@@ -788,3 +862,80 @@ def assign_employees(request, pk):
         'employees_by_role': employees_by_role,
     }
     return render(request, 'projects/assign_employees.html', context)
+
+
+@login_required
+def unit_calculation(request, pk, unit_id):
+    """Unit calculation page with negotiated price and booking conversion"""
+    project = get_object_or_404(Project, pk=pk)
+    unit_config = get_object_or_404(UnitConfiguration, pk=unit_id, project=project)
+    
+    # Permission check
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
+        pass
+    elif request.user.is_site_head() and project.site_head != request.user:
+        messages.error(request, 'You do not have permission to view this project.')
+        return redirect('projects:list')
+    elif request.user.is_closing_manager() or request.user.is_sourcing_manager():
+        if project not in request.user.assigned_projects.all():
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
+    else:
+        messages.error(request, 'You do not have permission to view this project.')
+        return redirect('projects:list')
+    
+    # Get pricing information
+    pricing_info = None
+    if unit_config.area_type and unit_config.area_type.configuration:
+        config = unit_config.area_type.configuration
+        area_type = unit_config.area_type
+        
+        agreement_value = config.calculate_agreement_value(
+            carpet_area=area_type.carpet_area,
+            buildup_area=area_type.buildup_area
+        )
+        
+        cost_breakdown = config.calculate_total_cost(
+            carpet_area=area_type.carpet_area,
+            buildup_area=area_type.buildup_area
+        ) if agreement_value else None
+        
+        pricing_info = {
+            'agreement_value': agreement_value,
+            'total_cost': cost_breakdown['total'] if cost_breakdown else None,
+            'cost_breakdown': cost_breakdown,
+            'price_per_sqft': config.price_per_sqft,
+            'stamp_duty_percent': config.stamp_duty_percent,
+            'gst_percent': config.gst_percent,
+            'carpet_area': area_type.carpet_area,
+            'buildup_area': area_type.buildup_area,
+            'rera_area': area_type.rera_area,
+            'configuration_name': config.name,
+            'area_display': area_type.get_display_name(),
+        }
+    
+    # Get visited leads for this project (for booking conversion)
+    # Include both visit_completed leads and pretagged leads that are verified
+    visited_leads = Lead.objects.filter(
+        project=project,
+        is_archived=False
+    ).filter(
+        Q(status__in=['visit_completed', 'discussion', 'hot', 'ready_to_book']) |
+        Q(is_pretagged=True, pretag_status='verified')
+    ).exclude(booking__isnull=False).order_by('-updated_at')
+    
+    # Get channel partners linked to this project
+    from channel_partners.models import ChannelPartner
+    channel_partners = ChannelPartner.objects.filter(
+        linked_projects=project,
+        status='active'
+    ).order_by('cp_name')
+    
+    context = {
+        'project': project,
+        'unit_config': unit_config,
+        'pricing_info': pricing_info,
+        'visited_leads': visited_leads,
+        'channel_partners': channel_partners,
+    }
+    return render(request, 'projects/unit_calculation.html', context)

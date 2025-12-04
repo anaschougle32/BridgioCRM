@@ -39,14 +39,22 @@ def logout_view(request):
 
 @login_required
 def user_list(request):
-    """User management - Super Admin and Mandate Owners"""
-    if not (request.user.is_super_admin() or request.user.is_mandate_owner()):
+    """User management - Super Admin, Mandate Owners, and Site Heads"""
+    # Super Admin and Mandate Owners see all users
+    # Site Heads see only employees assigned to their projects
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
+        users = User.objects.all()
+    elif request.user.is_site_head():
+        # Site Head sees only employees assigned to their projects
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+        users = User.objects.filter(
+            Q(role='closing_manager') | Q(role='sourcing_manager') | Q(role='telecaller'),
+            assigned_projects__in=site_head_projects,
+            is_active=True
+        ).distinct()
+    else:
         messages.error(request, 'You do not have permission to access this page.')
         return redirect('dashboard')
-    
-    users = User.objects.all()
-    
-    # Mandate Owners have same permissions as Super Admin - they see all users
     
     # Search
     search = request.GET.get('search', '')
@@ -275,16 +283,21 @@ def user_edit(request, pk):
 @login_required
 def user_toggle_active(request, pk):
     """Toggle user active status"""
-    if not (request.user.is_super_admin() or request.user.is_mandate_owner()):
-        messages.error(request, 'You do not have permission.')
-        return redirect('dashboard')
-    
     user = get_object_or_404(User, pk=pk)
     
-    # Mandate Owner can only toggle their employees
-    if request.user.is_mandate_owner() and user.mandate_owner != request.user:
-        messages.error(request, 'You can only manage your employees.')
-        return redirect('accounts:user_list')
+    # Permission check
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
+        # Super Admin and Mandate Owners can toggle all users
+        pass
+    elif request.user.is_site_head():
+        # Site Heads can only toggle employees assigned to their projects
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+        if user.role not in ['closing_manager', 'sourcing_manager', 'telecaller'] or not user.assigned_projects.filter(id__in=site_head_projects).exists():
+            messages.error(request, 'You can only manage employees assigned to your projects.')
+            return redirect('accounts:user_list')
+    else:
+        messages.error(request, 'You do not have permission.')
+        return redirect('dashboard')
     
     user.is_active = not user.is_active
     user.save()

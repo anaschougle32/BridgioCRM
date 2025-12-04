@@ -1,0 +1,407 @@
+{% extends 'base.html' %}
+{% load price_filters %}
+
+{% block title %}Unit Calculation - {{ project.name }} - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary mb-2">
+                    Unit Calculation - {{ unit_config.unit_number }}
+                </h1>
+                <p class="text-gray-600">
+                    Tower {{ unit_config.tower_number }} • Floor {{ unit_config.floor_number }} • 
+                    {% if pricing_info %}{{ pricing_info.configuration_name }} - {{ pricing_info.area_display }}{% endif %}
+                </p>
+            </div>
+            <a href="{% url 'projects:unit_selection' project.pk %}" 
+               class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                ← Back to Units
+            </a>
+        </div>
+    </div>
+    
+    {% if pricing_info %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Base Pricing -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Base Pricing</h2>
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Price/sqft:</span>
+                    <span class="font-medium">₹{{ pricing_info.price_per_sqft|floatformat:0 }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Buildup Area:</span>
+                    <span class="font-medium">{{ pricing_info.buildup_area|floatformat:0 }} sqft</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Carpet Area:</span>
+                    <span class="font-medium">{{ pricing_info.carpet_area|floatformat:0 }} sqft</span>
+                </div>
+                {% if pricing_info.rera_area %}
+                <div class="flex justify-between">
+                    <span class="text-gray-600">RERA Area:</span>
+                    <span class="font-medium">{{ pricing_info.rera_area|floatformat:0 }} sqft</span>
+                </div>
+                {% endif %}
+                <div class="border-t pt-3 mt-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 font-semibold">Agreement Value:</span>
+                        <span class="font-bold text-lg">{{ pricing_info.agreement_value|format_price_simple }}</span>
+                    </div>
+                </div>
+                {% if pricing_info.cost_breakdown %}
+                <div class="space-y-2 pt-3 border-t">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">+ Stamp Duty ({{ pricing_info.stamp_duty_percent }}%):</span>
+                        <span>{{ pricing_info.cost_breakdown.stamp_duty|format_price_simple }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">+ GST ({{ pricing_info.gst_percent }}%):</span>
+                        <span>{{ pricing_info.cost_breakdown.gst|format_price_simple }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">+ Registration:</span>
+                        <span>{{ pricing_info.cost_breakdown.registration_charges|format_price_simple }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">+ Legal Charges:</span>
+                        <span>{{ pricing_info.cost_breakdown.legal_charges|format_price_simple }}</span>
+                    </div>
+                    {% if pricing_info.cost_breakdown.development_charges %}
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">+ Development:</span>
+                        <span>{{ pricing_info.cost_breakdown.development_charges|format_price_simple }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="border-t pt-2 mt-2">
+                        <div class="flex justify-between">
+                            <span class="font-bold">Total Estimate:</span>
+                            <span class="font-bold text-xl text-blue-600">{{ pricing_info.total_cost|format_price_simple }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Negotiated Price Calculation -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Negotiated Price Calculation</h2>
+            <form id="negotiation-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Negotiated Price/sqft *</label>
+                    <input type="number" id="negotiated-price-sqft" step="0.01" min="0" 
+                           value="{{ pricing_info.price_per_sqft }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
+                           oninput="calculateNegotiatedPrice()">
+                </div>
+                
+                <div id="negotiated-results" class="space-y-3 hidden">
+                    <div class="border-t pt-3">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600 font-semibold">Negotiated Agreement Value:</span>
+                            <span class="font-bold text-lg" id="negotiated-agreement-value">—</span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Stamp Duty ({{ pricing_info.stamp_duty_percent }}%):</span>
+                                <span id="negotiated-stamp-duty">—</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ GST ({{ pricing_info.gst_percent }}%):</span>
+                                <span id="negotiated-gst">—</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Registration:</span>
+                                <span>{{ pricing_info.cost_breakdown.registration_charges|format_price_simple }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Legal Charges:</span>
+                                <span>{{ pricing_info.cost_breakdown.legal_charges|format_price_simple }}</span>
+                            </div>
+                            {% if pricing_info.cost_breakdown.development_charges %}
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Development:</span>
+                                <span>{{ pricing_info.cost_breakdown.development_charges|format_price_simple }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="border-t pt-2 mt-2">
+                                <div class="flex justify-between">
+                                    <span class="font-bold">Negotiated Total:</span>
+                                    <span class="font-bold text-xl text-green-600" id="negotiated-total">—</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border-t pt-3 mt-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Total Discount:</span>
+                            <span class="font-bold text-red-600" id="total-discount">—</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Booking Conversion -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Booking Conversion</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search and Select Visited Lead</label>
+                <input type="text" id="lead-search" placeholder="Search by name, phone..." 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
+                       oninput="searchLeads()">
+                <div id="lead-results" class="mt-2 border border-gray-300 rounded-lg max-h-60 overflow-y-auto hidden">
+                    <!-- Lead results will appear here -->
+                </div>
+            </div>
+            
+            <form id="booking-form" method="post" action="" class="space-y-4 hidden" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="tower_wing" value="Tower {{ unit_config.tower_number }}">
+                <input type="hidden" name="unit_number" value="{{ unit_config.unit_number }}">
+                <input type="hidden" name="floor" value="{{ unit_config.floor_number }}">
+                <input type="hidden" name="carpet_area" value="{{ pricing_info.carpet_area }}">
+                <input type="hidden" name="self_funding_percent" id="self-funding-percent-hidden" value="0">
+                <input type="hidden" name="loan_percent" id="loan-percent-hidden" value="0">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Lead Name</label>
+                        <input type="text" id="lead-name" readonly
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Lead Phone</label>
+                        <input type="text" id="lead-phone" readonly
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Negotiated Price *</label>
+                        <input type="number" id="final-negotiated-price" name="final_negotiated_price" step="0.01" min="0" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Token Amount (First Installment) *</label>
+                        <input type="number" id="token-amount" name="token_amount" step="0.01" min="0" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Self Funding %</label>
+                        <input type="number" id="self-funding-percent" step="0.01" min="0" max="100" value="0"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
+                               oninput="calculateFunding()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Loan %</label>
+                        <input type="number" id="loan-percent" step="0.01" min="0" max="100" value="0"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
+                               oninput="calculateFunding()">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Self Funding Amount</label>
+                        <input type="text" id="self-funding-amount" readonly
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Loan Amount</label>
+                        <input type="text" id="loan-amount" readonly
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Channel Partner (Optional)</label>
+                        <select name="channel_partner" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                            <option value="">None</option>
+                            {% for cp in channel_partners %}
+                            <option value="{{ cp.id }}">{{ cp.cp_name }} ({{ cp.firm_name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-4 pt-4 border-t">
+                    <button type="button" onclick="resetBookingForm()" 
+                            class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                        Reset
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">
+                        Create Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+        <p class="text-gray-500">No pricing information available for this unit.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+const basePricePerSqft = {{ pricing_info.price_per_sqft|default:0 }};
+const buildupArea = {{ pricing_info.buildup_area|default:0 }};
+const baseAgreementValue = {{ pricing_info.agreement_value|default:0 }};
+const baseTotal = {{ pricing_info.total_cost|default:0 }};
+const stampDutyPercent = {{ pricing_info.stamp_duty_percent|default:7 }};
+const gstPercent = {{ pricing_info.gst_percent|default:5 }};
+const registrationCharges = {{ pricing_info.cost_breakdown.registration_charges|default:30000 }};
+const legalCharges = {{ pricing_info.cost_breakdown.legal_charges|default:15000 }};
+const developmentCharges = {{ pricing_info.cost_breakdown.development_charges|default:0 }};
+
+function formatPrice(value) {
+    if (!value) return "—";
+    const lakhs = value / 100000;
+    if (lakhs >= 100) {
+        const crores = lakhs / 100;
+        return crores % 1 === 0 ? `₹${crores} Cr` : `₹${crores.toFixed(2)} Cr`;
+    } else {
+        return lakhs % 1 === 0 ? `₹${lakhs} L` : `₹${lakhs.toFixed(2)} L`;
+    }
+}
+
+function calculateNegotiatedPrice() {
+    const negotiatedPriceSqft = parseFloat(document.getElementById('negotiated-price-sqft').value) || 0;
+    if (negotiatedPriceSqft <= 0) {
+        document.getElementById('negotiated-results').classList.add('hidden');
+        return;
+    }
+    
+    const negotiatedAgreementValue = negotiatedPriceSqft * buildupArea;
+    const negotiatedStampDuty = negotiatedAgreementValue * (stampDutyPercent / 100);
+    const negotiatedGst = negotiatedAgreementValue * (gstPercent / 100);
+    const negotiatedTotal = negotiatedAgreementValue + negotiatedStampDuty + negotiatedGst + registrationCharges + legalCharges + developmentCharges;
+    const totalDiscount = baseTotal - negotiatedTotal;
+    
+    document.getElementById('negotiated-agreement-value').textContent = formatPrice(negotiatedAgreementValue);
+    document.getElementById('negotiated-stamp-duty').textContent = formatPrice(negotiatedStampDuty);
+    document.getElementById('negotiated-gst').textContent = formatPrice(negotiatedGst);
+    document.getElementById('negotiated-total').textContent = formatPrice(negotiatedTotal);
+    document.getElementById('total-discount').textContent = formatPrice(totalDiscount);
+    document.getElementById('negotiated-results').classList.remove('hidden');
+    
+    // Update final negotiated price in booking form
+    document.getElementById('final-negotiated-price').value = negotiatedTotal.toFixed(2);
+    // Recalculate funding if percentages are set
+    calculateFunding();
+}
+
+let leadsData = [
+    {% for lead in visited_leads %}
+    {
+        id: {{ lead.id }},
+        name: "{{ lead.name|escapejs }}",
+        phone: "{{ lead.phone|escapejs }}",
+        email: "{{ lead.email|escapejs }}",
+        budget: {{ lead.budget|default:0 }},
+        configuration: "{% if lead.configuration %}{{ lead.configuration.name|escapejs }}{% endif %}",
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+function searchLeads() {
+    const query = document.getElementById('lead-search').value.toLowerCase();
+    const resultsDiv = document.getElementById('lead-results');
+    
+    if (query.length < 2) {
+        resultsDiv.classList.add('hidden');
+        return;
+    }
+    
+    const filtered = leadsData.filter(lead => 
+        lead.name.toLowerCase().includes(query) || 
+        lead.phone.includes(query)
+    );
+    
+    if (filtered.length === 0) {
+        resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500">No leads found</div>';
+        resultsDiv.classList.remove('hidden');
+        return;
+    }
+    
+    resultsDiv.innerHTML = filtered.map(lead => `
+        <div class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
+             onclick="selectLead(${lead.id})">
+            <div class="font-medium">${lead.name}</div>
+            <div class="text-sm text-gray-600">${lead.phone}</div>
+            ${lead.configuration ? `<div class="text-xs text-gray-500">${lead.configuration}</div>` : ''}
+        </div>
+    `).join('');
+    resultsDiv.classList.remove('hidden');
+}
+
+function selectLead(leadId) {
+    const lead = leadsData.find(l => l.id === leadId);
+    if (!lead) return;
+    
+    document.getElementById('lead-name').value = lead.name;
+    document.getElementById('lead-phone').value = lead.phone;
+    document.getElementById('lead-search').value = lead.name;
+    document.getElementById('lead-results').classList.add('hidden');
+    document.getElementById('booking-form').action = `/bookings/create/${leadId}/`;
+    document.getElementById('booking-form').classList.remove('hidden');
+    
+    // Auto-fill token amount if budget exists
+    if (lead.budget && lead.budget > 0) {
+        const negotiatedTotal = parseFloat(document.getElementById('final-negotiated-price').value) || baseTotal;
+        document.getElementById('token-amount').value = Math.min(lead.budget, negotiatedTotal * 0.1).toFixed(2);
+    }
+}
+
+function calculateFunding() {
+    const negotiatedTotal = parseFloat(document.getElementById('final-negotiated-price').value) || baseTotal;
+    const selfFundingPercent = parseFloat(document.getElementById('self-funding-percent').value) || 0;
+    const loanPercent = parseFloat(document.getElementById('loan-percent').value) || 0;
+    
+    const selfFundingAmount = negotiatedTotal * (selfFundingPercent / 100);
+    const loanAmount = negotiatedTotal * (loanPercent / 100);
+    
+    document.getElementById('self-funding-amount').value = formatPrice(selfFundingAmount);
+    document.getElementById('loan-amount').value = formatPrice(loanAmount);
+    
+    // Update hidden fields for form submission
+    document.getElementById('self-funding-percent-hidden').value = selfFundingPercent;
+    document.getElementById('loan-percent-hidden').value = loanPercent;
+}
+
+function resetBookingForm() {
+    document.getElementById('booking-form').classList.add('hidden');
+    document.getElementById('lead-search').value = '';
+    document.getElementById('lead-name').value = '';
+    document.getElementById('lead-phone').value = '';
+    document.getElementById('final-negotiated-price').value = '';
+    document.getElementById('token-amount').value = '';
+    document.getElementById('self-funding-percent').value = '0';
+    document.getElementById('loan-percent').value = '0';
+    document.getElementById('self-funding-amount').value = '';
+    document.getElementById('loan-amount').value = '';
+    document.getElementById('self-funding-percent-hidden').value = '0';
+    document.getElementById('loan-percent-hidden').value = '0';
+}
+
+// Close lead results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#lead-search') && !e.target.closest('#lead-results')) {
+        document.getElementById('lead-results').classList.add('hidden');
+    }
+});
+
+// Set default payment date to today
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const paymentDateInput = document.getElementById('payment-date');
+    if (paymentDateInput) {
+        paymentDateInput.value = today;
+    }
+});
+</script>
+{% endblock %}
+

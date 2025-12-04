@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load price_filters %}
 
 {% block title %}Unit Selection - {{ project.name }} - Bridgio CRM{% endblock %}
 
@@ -80,7 +81,7 @@
                                  data-floor="{{ unit.floor_number }}"
                                  data-unit-number="{{ unit.unit_number }}"
                                  data-config-id="{% if unit.area_type %}{{ unit.area_type.configuration.id }}{% endif %}"
-                                 onclick="selectUnit({{ unit.id }}, {{ unit.tower_number }}, {{ unit.floor_number }}, {{ unit.unit_number }})">
+                                 onclick="selectUnit({{ unit.id }}, {{ unit.tower_number }}, {{ unit.floor_number }}, {{ unit.unit_number }}, event)">
                                 <div class="unit-box p-3 rounded-lg border-2 transition-all cursor-pointer
                                     {% if unit.is_excluded %}
                                         bg-gray-200 border-gray-400 opacity-60
@@ -111,7 +112,7 @@
                                 
                                 <!-- Tooltip on hover -->
                                 {% if pricing and not unit.is_excluded %}
-                                <div class="unit-tooltip hidden absolute z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 min-w-[250px] bottom-full left-1/2 transform -translate-x-1/2 mb-2">
+                                <div class="unit-tooltip hidden absolute bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 min-w-[280px] max-w-[320px]" style="pointer-events: auto; z-index: 10000; margin: 10px 0;">
                                     <div class="text-sm">
                                         <p class="font-bold text-gray-800 mb-2">{{ pricing.configuration_name }} - {{ pricing.area_display }}</p>
                                         <div class="space-y-1 text-xs">
@@ -140,31 +141,31 @@
                                                 <div class="flex justify-between mb-1">
                                                     <span class="text-gray-600">Agreement Value:</span>
                                                     <span class="font-medium">
-                                                        ₹{% widthratio pricing.agreement_value 100000 1 %}L
+                                                        {{ pricing.agreement_value|format_price_simple }}
                                                     </span>
                                                 </div>
                                                 {% if pricing.cost_breakdown %}
                                                 <div class="space-y-1 text-xs">
                                                     <div class="flex justify-between">
                                                         <span class="text-gray-500">+ Stamp Duty ({{ pricing.stamp_duty_percent }}%):</span>
-                                                        <span>₹{% widthratio pricing.cost_breakdown.stamp_duty 100000 1 %}L</span>
+                                                        <span>{{ pricing.cost_breakdown.stamp_duty|format_price_simple }}</span>
                                                     </div>
                                                     <div class="flex justify-between">
                                                         <span class="text-gray-500">+ GST ({{ pricing.gst_percent }}%):</span>
-                                                        <span>₹{% widthratio pricing.cost_breakdown.gst 100000 1 %}L</span>
+                                                        <span>{{ pricing.cost_breakdown.gst|format_price_simple }}</span>
                                                     </div>
                                                     <div class="flex justify-between">
                                                         <span class="text-gray-500">+ Registration:</span>
-                                                        <span>₹{% widthratio pricing.cost_breakdown.registration_charges 100000 1 %}L</span>
+                                                        <span>{{ pricing.cost_breakdown.registration_charges|format_price_simple }}</span>
                                                     </div>
                                                     <div class="flex justify-between">
                                                         <span class="text-gray-500">+ Legal Charges:</span>
-                                                        <span>₹{% widthratio pricing.cost_breakdown.legal_charges 100000 1 %}L</span>
+                                                        <span>{{ pricing.cost_breakdown.legal_charges|format_price_simple }}</span>
                                                     </div>
                                                     {% if pricing.cost_breakdown.development_charges %}
                                                     <div class="flex justify-between">
                                                         <span class="text-gray-500">+ Development:</span>
-                                                        <span>₹{% widthratio pricing.cost_breakdown.development_charges 100000 1 %}L</span>
+                                                        <span>{{ pricing.cost_breakdown.development_charges|format_price_simple }}</span>
                                                     </div>
                                                     {% endif %}
                                                 </div>
@@ -173,12 +174,17 @@
                                             {% endif %}
                                             {% if pricing.total_cost %}
                                             <div class="border-t pt-2 mt-2">
-                                                <div class="flex justify-between">
+                                                <div class="flex justify-between items-center mb-2">
                                                     <span class="text-gray-600 font-bold">Total Estimate:</span>
                                                     <span class="font-bold text-blue-600 text-base">
-                                                        ₹{% widthratio pricing.total_cost 100000 1 %}L
+                                                        {{ pricing.total_cost|format_price_simple }}
                                                     </span>
                                                 </div>
+                                                <a href="{% url 'projects:unit_calculation' project.pk unit.id %}" 
+                                                        class="w-full bg-olive-primary text-white px-3 py-2 rounded-lg hover:bg-olive-secondary transition text-sm font-medium text-center block calculate-further-btn"
+                                                        onclick="event.stopPropagation();">
+                                                    Calculate Further
+                                                </a>
                                             </div>
                                             {% endif %}
                                         </div>
@@ -198,7 +204,7 @@
     </div>
     
     <!-- Selected Unit Details Panel (Fixed at bottom) -->
-    <div id="selected-unit-panel" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-olive-primary shadow-2xl p-6 z-50">
+    <div id="selected-unit-panel" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-olive-primary shadow-2xl p-6 z-40">
         <div class="max-w-7xl mx-auto">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-bold text-olive-primary">Selected Unit Details</h3>
@@ -236,9 +242,17 @@
         });
     });
     
-    function selectUnit(unitId, towerNum, floorNum, unitNumber) {
+    function selectUnit(unitId, towerNum, floorNum, unitNumber, clickEvent) {
+        // Don't trigger selection if clicking on tooltip or Calculate Further button
+        if (clickEvent && (clickEvent.target.closest('.unit-tooltip') || clickEvent.target.closest('.calculate-further-btn'))) {
+            return;
+        }
+        
         const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
+        if (!unitCard) return;
+        
         const unitBox = unitCard.querySelector('.unit-box');
+        if (!unitBox) return;
         
         // Check if unit is excluded or booked
         if (unitBox.classList.contains('bg-gray-200') || unitBox.classList.contains('bg-red-100')) {
@@ -303,50 +317,156 @@
     }
     
     // Show tooltip on hover with proper positioning
+    // Track active tooltip to hide others
+    let activeTooltip = null;
+    
     document.querySelectorAll('.unit-card').forEach(card => {
         const tooltip = card.querySelector('.unit-tooltip');
         if (tooltip) {
-            card.addEventListener('mouseenter', function(e) {
+            let tooltipTimeout;
+            
+            function showTooltip() {
+                clearTimeout(tooltipTimeout);
+                
+                // Hide any other active tooltip
+                if (activeTooltip && activeTooltip !== tooltip) {
+                    activeTooltip.classList.add('hidden');
+                }
+                activeTooltip = tooltip;
+                
+                // Show tooltip immediately
                 tooltip.classList.remove('hidden');
+                tooltip.style.display = 'block';
+                tooltip.style.opacity = '1';
                 // Position tooltip dynamically based on available space
                 const rect = card.getBoundingClientRect();
-                const tooltipRect = tooltip.getBoundingClientRect();
                 const viewportHeight = window.innerHeight;
+                const viewportWidth = window.innerWidth;
                 const spaceAbove = rect.top;
                 const spaceBelow = viewportHeight - rect.bottom;
+                const spaceLeft = rect.left;
+                const spaceRight = viewportWidth - rect.right;
                 
                 // Remove all positioning classes first
-                tooltip.classList.remove('bottom-full', 'mb-2', 'top-full', 'mt-2', 'left-0', 'right-0', 'left-1/2', '-translate-x-1/2');
+                tooltip.classList.remove('bottom-full', 'mb-2', 'top-full', 'mt-2', 'left-0', 'right-0', 'left-1/2', '-translate-x-1/2', 'right-full', 'mr-2', 'left-full', 'ml-2', 'top-1/2', '-translate-y-1/2');
+                
+                // Force reflow to get actual tooltip dimensions
+                tooltip.style.visibility = 'hidden';
+                tooltip.style.display = 'block';
+                const tooltipRect = tooltip.getBoundingClientRect();
+                tooltip.style.visibility = 'visible';
                 
                 // Check if there's enough space above
-                if (spaceAbove >= tooltipRect.height + 10) {
-                    // Position above
-                    tooltip.classList.add('bottom-full', 'mb-2', 'left-1/2', '-translate-x-1/2');
-                } else if (spaceBelow >= tooltipRect.height + 10) {
-                    // Position below
-                    tooltip.classList.add('top-full', 'mt-2', 'left-1/2', '-translate-x-1/2');
+                if (spaceAbove >= tooltipRect.height + 30) {
+                    // Position above, centered with gap
+                    tooltip.classList.add('bottom-full', 'mb-3', 'left-1/2', '-translate-x-1/2');
+                } else if (spaceBelow >= tooltipRect.height + 30) {
+                    // Position below, centered with gap
+                    tooltip.classList.add('top-full', 'mt-3', 'left-1/2', '-translate-x-1/2');
                 } else {
                     // Not enough space above or below, position to the side
-                    if (rect.left > viewportHeight / 2) {
-                        // Position to the left
-                        tooltip.classList.add('right-0', 'top-0');
-                    } else {
+                    if (spaceRight >= tooltipRect.width + 20) {
                         // Position to the right
-                        tooltip.classList.add('left-full', 'ml-2', 'top-0');
+                        tooltip.classList.add('left-full', 'ml-2', 'top-1/2', '-translate-y-1/2');
+                    } else if (spaceLeft >= tooltipRect.width + 20) {
+                        // Position to the left
+                        tooltip.classList.add('right-full', 'mr-2', 'top-1/2', '-translate-y-1/2');
+                    } else {
+                        // Default: position above, adjust horizontally if needed
+                        tooltip.classList.add('bottom-full', 'mb-2');
+                        if (spaceRight < tooltipRect.width / 2) {
+                            tooltip.classList.add('right-0');
+                        } else if (spaceLeft < tooltipRect.width / 2) {
+                            tooltip.classList.add('left-0');
+                        } else {
+                            tooltip.classList.add('left-1/2', '-translate-x-1/2');
+                        }
                     }
                 }
+            }
+            
+            let isMouseOverTooltip = false;
+            let isMouseOverCard = false;
+            
+            function hideTooltip() {
+                tooltipTimeout = setTimeout(() => {
+                    // Only hide if mouse is not over tooltip or card
+                    if (!isMouseOverTooltip && !isMouseOverCard) {
+                        tooltip.style.opacity = '0';
+                        setTimeout(() => {
+                            if (!isMouseOverTooltip && !isMouseOverCard) {
+                                tooltip.classList.add('hidden');
+                                tooltip.style.display = 'none';
+                                if (activeTooltip === tooltip) {
+                                    activeTooltip = null;
+                                }
+                            }
+                        }, 100);
+                    }
+                }, 200); // Timeout to allow mouse movement
+            }
+            
+            card.addEventListener('mouseenter', function() {
+                isMouseOverCard = true;
+                showTooltip();
             });
+            
             card.addEventListener('mouseleave', function() {
-                tooltip.classList.add('hidden');
+                isMouseOverCard = false;
+                hideTooltip();
             });
+            
+            // Keep tooltip visible when hovering over it
+            tooltip.addEventListener('mouseenter', function() {
+                isMouseOverTooltip = true;
+                clearTimeout(tooltipTimeout);
+                tooltip.classList.remove('hidden');
+                tooltip.style.display = 'block';
+                tooltip.style.opacity = '1';
+            });
+            
+            tooltip.addEventListener('mouseleave', function() {
+                isMouseOverTooltip = false;
+                hideTooltip();
+            });
+            
+            // Prevent tooltip from closing when clicking inside it
+            tooltip.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+                // Keep tooltip visible when clicking
+                clearTimeout(tooltipTimeout);
+            });
+            
+            tooltip.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Handle Calculate Further button click
+            const calculateBtn = tooltip.querySelector('.calculate-further-btn');
+            if (calculateBtn) {
+                calculateBtn.addEventListener('mousedown', function(e) {
+                    e.stopPropagation();
+                    // Keep tooltip visible during click
+                    clearTimeout(tooltipTimeout);
+                });
+                
+                calculateBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Allow navigation - don't prevent default
+                    // The href will handle navigation
+                });
+            }
         }
     });
     
-    // Close panel when clicking outside
+    // Close panel when clicking outside (but not on tooltip or Calculate Further button)
     document.addEventListener('click', function(e) {
         const panel = document.getElementById('selected-unit-panel');
-        if (panel && !panel.contains(e.target) && !e.target.closest('.unit-card')) {
-            // Don't close on unit card clicks
+        if (panel && !panel.contains(e.target) && 
+            !e.target.closest('.unit-card') && 
+            !e.target.closest('.unit-tooltip') &&
+            !e.target.closest('.calculate-further-btn')) {
+            // Don't close on unit card, tooltip, or button clicks
         }
     });
 </script>
@@ -358,16 +478,48 @@
     }
     
     .unit-tooltip {
-        pointer-events: none;
+        pointer-events: auto;
+        z-index: 10000 !important;
+        transition: opacity 0.1s ease-in-out;
     }
     
-    .unit-card:hover .unit-tooltip {
+    .unit-card:hover .unit-tooltip,
+    .unit-tooltip:hover {
         display: block !important;
+        opacity: 1 !important;
+    }
+    
+    /* Ensure tooltip stays connected to card */
+    .unit-card {
+        position: relative;
+        overflow: visible;
+    }
+    
+    /* Make tooltip easier to reach from card */
+    .unit-tooltip.bottom-full {
+        margin-bottom: 5px;
+    }
+    
+    .unit-tooltip.top-full {
+        margin-top: 5px;
     }
     
     #selected-unit-panel {
         max-height: 50vh;
         overflow-y: auto;
+        margin-bottom: 0;
+        z-index: 40;
+    }
+    
+    /* Prevent tooltip from being cut off */
+    .unit-card {
+        position: relative;
+        overflow: visible;
+    }
+    
+    /* Ensure tooltip doesn't interfere with unit selection */
+    .unit-tooltip a {
+        cursor: pointer;
     }
 </style>
 {% endblock %}

@@ -79,6 +79,39 @@ def get_sms_deep_link(phone, otp, project_name=None):
     return whatsapp_link
 
 
+def normalize_phone(phone):
+    """
+    Normalize phone number to +91 format.
+    Handles various input formats:
+    - +91XXXXXXXXXX
+    - 91XXXXXXXXXX
+    - 0XXXXXXXXXX
+    - XXXXXXXXXX (10 digits)
+    Returns: +91XXXXXXXXXX (always with +91 prefix)
+    """
+    if not phone:
+        return ''
+    
+    # Convert to string and remove all spaces, dashes, parentheses
+    clean_phone = str(phone).strip().replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    
+    # Remove +91 or 91 prefix if present
+    if clean_phone.startswith('+91'):
+        clean_phone = clean_phone[3:]
+    elif clean_phone.startswith('91') and len(clean_phone) > 10:
+        clean_phone = clean_phone[2:]
+    elif clean_phone.startswith('0') and len(clean_phone) > 10:
+        clean_phone = clean_phone[1:]
+    
+    # Ensure it's 10 digits
+    if len(clean_phone) != 10 or not clean_phone.isdigit():
+        # Return as-is if invalid (let validation handle it)
+        return phone
+    
+    # Return with +91 prefix
+    return f'+91{clean_phone}'
+
+
 def get_phone_display(phone):
     """Mask phone number for display (show only last 4 digits)"""
     if not phone:

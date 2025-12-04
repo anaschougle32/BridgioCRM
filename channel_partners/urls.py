@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import cp_list, cp_detail, cp_upload, cp_create, cp_edit, cp_upload_analyze, cp_upload_preview, cp_upload_errors_csv
+from .views import cp_list, cp_detail, cp_upload, cp_create, cp_edit, cp_upload_analyze, cp_upload_preview, cp_upload_errors_csv, cp_search
 
 app_name = 'channel_partners'
 
 urlpatterns = [
     path('', cp_list, name='list'),
+    path('search/', cp_search, name='search'),
     path('upload/', cp_upload, name='upload'),
     path('upload/analyze/', cp_upload_analyze, name='upload_analyze'),
     path('upload/preview/', cp_upload_preview, name='upload_preview'),

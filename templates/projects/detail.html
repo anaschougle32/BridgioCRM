@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load price_filters %}
 
 {% block title %}{{ project.name }} - Bridgio CRM{% endblock %}
 
@@ -82,6 +83,12 @@
                 <div>
                     <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1">Pending OTP</p>
                     <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ stats.pending_otp }}</p>
+                    {% if stats.total_visits %}
+                    <p class="text-xs text-gray-500 mt-1">{{ stats.total_visits }} total visits</p>
+                    {% endif %}
+                    {% if stats.cp_visits %}
+                    <p class="text-xs text-gray-500">{{ stats.cp_visits }} CP visits</p>
+                    {% endif %}
                 </div>
                 <svg class="w-8 h-8 sm:w-10 sm:h-10 text-purple-500 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
             </div>
@@ -156,6 +163,20 @@
         <div class="bg-white rounded-custom shadow-md p-6">
             <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Quick Actions</h2>
             <div class="space-y-3">
+                {% if user.is_closing_manager or user.is_sourcing_manager %}
+                <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
+                   class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
+                    View Visited Leads
+                </a>
+                <a href="{% url 'leads:list' %}?project={{ project.id }}&assigned_to={{ user.id }}" 
+                   class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                    View Assigned Leads
+                </a>
+                <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+                   class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                    View Bookings
+                </a>
+                {% else %}
                 <a href="{% url 'leads:list' %}?project={{ project.id }}" 
                    class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
                     View Leads
@@ -168,10 +189,11 @@
                    class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
                     View Visits
                 </a>
-                {% if user.is_mandate_owner %}
+                {% endif %}
+                {% if user.is_mandate_owner or user.is_super_admin %}
                 <a href="{% url 'projects:migrate_leads' project.pk %}" 
                    class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
-                    Migrate Leads
+                    Duplicate Leads
                 </a>
                 {% endif %}
             </div>
@@ -228,7 +250,7 @@
                                 <div class="text-right">
                                     <p class="text-xs text-gray-600">Est. Value</p>
                                     <p class="text-sm font-bold text-green-600">
-                                        ₹{% widthratio config.price_per_sqft area_type.buildup_area 1|floatformat:0 %}L
+                                        {% with est_value=config.price_per_sqft|mul:area_type.buildup_area %}{{ est_value|format_price_simple }}{% endwith %}
                                     </p>
                                 </div>
                                 {% endif %}
@@ -326,26 +348,41 @@
     </div>
     {% endif %}
     
-    <!-- Quick Actions -->
-    <div class="bg-white rounded-custom shadow-md p-6">
+    <!-- Quick Actions (Mobile/Tablet) -->
+    <div class="lg:hidden bg-white rounded-custom shadow-md p-6">
         <h2 class="text-xl font-heading font-bold mb-4">Quick Actions</h2>
-        <div class="flex flex-wrap gap-4">
+        <div class="space-y-3">
+            {% if user.is_closing_manager or user.is_sourcing_manager %}
+            <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
+               class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
+                View Visited Leads
+            </a>
+            <a href="{% url 'leads:list' %}?project={{ project.id }}&assigned_to={{ user.id }}" 
+               class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                View Assigned Leads
+            </a>
+            <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+               class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                View Bookings
+            </a>
+            {% else %}
             <a href="{% url 'leads:list' %}?project={{ project.id }}" 
-               class="bg-olive-primary text-white px-6 py-2 rounded-custom hover:bg-olive-secondary transition">
+               class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
                 View Leads
             </a>
             <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
-               class="bg-gray-200 text-gray-800 px-6 py-2 rounded-custom hover:bg-gray-300 transition">
+               class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
                 View Bookings
             </a>
             <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
-               class="bg-blue-600 text-white px-6 py-2 rounded-custom hover:bg-blue-700 transition">
+               class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
                 View Visits
             </a>
-            {% if user.is_mandate_owner %}
+            {% endif %}
+            {% if user.is_mandate_owner or user.is_super_admin %}
             <a href="{% url 'projects:migrate_leads' project.pk %}" 
-               class="bg-purple-600 text-white px-6 py-2 rounded-custom hover:bg-purple-700 transition">
-                Migrate Leads
+               class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                Duplicate Leads
             </a>
             {% endif %}
         </div>

@@ -54,6 +54,16 @@ def cp_list(request):
             Q(leads__project__mandate_owner=request.user) |
             Q(bookings__project__mandate_owner=request.user)
         ).distinct()
+    elif request.user.is_site_head():
+        # Site Head sees CPs linked to their projects OR CPs with leads/bookings for their projects
+        from leads.models import Lead
+        from bookings.models import Booking
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+        cps = cps.filter(
+            Q(linked_projects__in=site_head_projects) |
+            Q(leads__project__in=site_head_projects) |
+            Q(bookings__project__in=site_head_projects)
+        ).distinct()
     
     # Search
     search = request.GET.get('search', '')
@@ -71,12 +81,19 @@ def cp_list(request):
     if cp_type:
         cps = cps.filter(cp_type=cp_type)
     
-    # Annotate with stats - filter by mandate owner's projects if needed
+    # Annotate with stats - filter by mandate owner's or site head's projects if needed
     if request.user.is_mandate_owner():
         cps = cps.annotate(
             lead_count=Count('leads', filter=Q(leads__project__mandate_owner=request.user, leads__is_archived=False)),
             booking_count=Count('bookings', filter=Q(bookings__project__mandate_owner=request.user, bookings__is_archived=False)),
             total_revenue=Sum('bookings__payments__amount', filter=Q(bookings__project__mandate_owner=request.user))
+        ).order_by('-total_revenue', '-booking_count')
+    elif request.user.is_site_head():
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+        cps = cps.annotate(
+            lead_count=Count('leads', filter=Q(leads__project__in=site_head_projects, leads__is_archived=False)),
+            booking_count=Count('bookings', filter=Q(bookings__project__in=site_head_projects, bookings__is_archived=False)),
+            total_revenue=Sum('bookings__payments__amount', filter=Q(bookings__project__in=site_head_projects))
         ).order_by('-total_revenue', '-booking_count')
     else:
         cps = cps.annotate(
@@ -101,6 +118,38 @@ def cp_list(request):
 
 
 @login_required
+def cp_search(request):
+    """Search Channel Partners - AJAX endpoint for autocomplete"""
+    query = request.GET.get('q', '').strip()
+    
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+    
+    # Search by firm name, CP name, phone, or CP ID
+    channel_partners = ChannelPartner.objects.filter(
+        status='active'
+    ).filter(
+        Q(firm_name__icontains=query) |
+        Q(cp_name__icontains=query) |
+        Q(phone__icontains=query) |
+        Q(cp_unique_id__icontains=query)
+    )[:20]  # Limit to 20 results
+    
+    results = []
+    for cp in channel_partners:
+        results.append({
+            'id': cp.id,
+            'firm_name': cp.firm_name,
+            'cp_name': cp.cp_name,
+            'phone': cp.get_formatted_phone(),
+            'rera_id': cp.rera_id or '',
+            'cp_unique_id': cp.cp_unique_id or '',
+        })
+    
+    return JsonResponse({'results': results})
+
+
+@login_required
 def cp_detail(request, pk):
     """Channel Partner detail view"""
     cp = get_object_or_404(ChannelPartner, pk=pk)
@@ -111,13 +160,18 @@ def cp_detail(request, pk):
         messages.error(request, 'You do not have permission to view channel partners.')
         return redirect('dashboard')
     
-    # Permission check for Mandate Owner
+    # Permission check for Mandate Owner and Site Head
     if request.user.is_mandate_owner():
         if not cp.linked_projects.filter(mandate_owner=request.user).exists():
             messages.error(request, 'You do not have permission to view this channel partner.')
             return redirect('channel_partners:list')
+    elif request.user.is_site_head():
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+        if not cp.linked_projects.filter(id__in=site_head_projects).exists():
+            messages.error(request, 'You do not have permission to view this channel partner.')
+            return redirect('channel_partners:list')
     
-    # Get stats - filter by mandate owner if needed
+    # Get stats - filter by mandate owner or site head if needed
     if request.user.is_mandate_owner():
         leads = cp.leads.filter(project__mandate_owner=request.user, is_archived=False)
         bookings = cp.bookings.filter(project__mandate_owner=request.user, is_archived=False)
@@ -127,6 +181,16 @@ def cp_detail(request, pk):
             booking__project__mandate_owner=request.user
         ).aggregate(total=Sum('amount'))['total'] or 0
         linked_projects = cp.linked_projects.filter(mandate_owner=request.user)
+    elif request.user.is_site_head():
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+        leads = cp.leads.filter(project__in=site_head_projects, is_archived=False)
+        bookings = cp.bookings.filter(project__in=site_head_projects, is_archived=False)
+        from bookings.models import Payment
+        total_revenue = Payment.objects.filter(
+            booking__channel_partner=cp,
+            booking__project__in=site_head_projects
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        linked_projects = cp.linked_projects.filter(id__in=site_head_projects)
     elif request.user.is_sourcing_manager():
         # Sourcing Manager sees all CP data
         leads = cp.leads.filter(is_archived=False)
@@ -557,6 +621,14 @@ def cp_upload(request):
                         else:
                             status = 'active'  # Default to active if not specified
                         
+                        # Normalize phone numbers
+                        from leads.utils import normalize_phone
+                        phone = normalize_phone(phone)
+                        if phone2:
+                            phone2 = normalize_phone(phone2)
+                        if owner_number:
+                            owner_number = normalize_phone(owner_number)
+                        
                         # Check if CP already exists by phone
                         cp, created = ChannelPartner.objects.get_or_create(
                             phone=phone,
@@ -691,6 +763,14 @@ def cp_upload(request):
                                 status = 'active' if status_str.lower() in ['active', '1', 'yes', 'true'] else 'inactive'
                             else:
                                 status = 'active'  # Default to active if not specified
+                            
+                            # Normalize phone numbers
+                            from leads.utils import normalize_phone
+                            phone = normalize_phone(phone)
+                            if phone2:
+                                phone2 = normalize_phone(phone2)
+                            if owner_number:
+                                owner_number = normalize_phone(owner_number)
                             
                             # Check if CP already exists by phone
                             cp, created = ChannelPartner.objects.get_or_create(
@@ -828,15 +908,21 @@ def cp_create(request):
     
     if request.method == 'POST':
         try:
+            # Normalize phone numbers
+            from leads.utils import normalize_phone
+            normalized_phone = normalize_phone(request.POST.get('phone'))
+            normalized_phone2 = normalize_phone(request.POST.get('phone2', '')) if request.POST.get('phone2') else ''
+            normalized_owner_number = normalize_phone(request.POST.get('owner_number', '')) if request.POST.get('owner_number') else ''
+            
             cp = ChannelPartner.objects.create(
                 cp_name=request.POST.get('cp_name'),
                 firm_name=request.POST.get('firm_name'),
-                phone=request.POST.get('phone'),
-                phone2=request.POST.get('phone2', ''),
+                phone=normalized_phone,
+                phone2=normalized_phone2,
                 locality=request.POST.get('locality', ''),
                 team_size=int(request.POST.get('team_size')) if request.POST.get('team_size') else None,
                 owner_name=request.POST.get('owner_name', ''),
-                owner_number=request.POST.get('owner_number', ''),
+                owner_number=normalized_owner_number,
                 rera_id=request.POST.get('rera_id', ''),
                 status=request.POST.get('status', 'active'),
                 email=request.POST.get('email', ''),
@@ -866,14 +952,20 @@ def cp_edit(request, pk):
     
     if request.method == 'POST':
         try:
+            # Normalize phone numbers
+            from leads.utils import normalize_phone
+            normalized_phone = normalize_phone(request.POST.get('phone'))
+            normalized_phone2 = normalize_phone(request.POST.get('phone2', '')) if request.POST.get('phone2') else ''
+            normalized_owner_number = normalize_phone(request.POST.get('owner_number', '')) if request.POST.get('owner_number') else ''
+            
             cp.cp_name = request.POST.get('cp_name')
             cp.firm_name = request.POST.get('firm_name')
-            cp.phone = request.POST.get('phone')
-            cp.phone2 = request.POST.get('phone2', '')
+            cp.phone = normalized_phone
+            cp.phone2 = normalized_phone2
             cp.locality = request.POST.get('locality', '')
             cp.team_size = int(request.POST.get('team_size')) if request.POST.get('team_size') else None
             cp.owner_name = request.POST.get('owner_name', '')
-            cp.owner_number = request.POST.get('owner_number', '')
+            cp.owner_number = normalized_owner_number
             cp.rera_id = request.POST.get('rera_id', '')
             cp.status = request.POST.get('status', 'active')
             cp.email = request.POST.get('email', '')

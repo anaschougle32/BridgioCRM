@@ -379,6 +379,10 @@ def lead_create(request):
             if not phone:
                 return JsonResponse({'success': False, 'error': 'Phone number is required.'}, status=400)
             
+            # Normalize phone number
+            from .utils import normalize_phone
+            phone = normalize_phone(phone)
+            
             # Generate OTP
             otp_code = generate_otp()
             otp_hash = hash_otp(otp_code)
@@ -497,10 +501,15 @@ def lead_create(request):
                 
                 project = Project.objects.get(id=project_id, is_active=True)
                 
+                # Normalize phone numbers
+                from .utils import normalize_phone
+                normalized_phone = normalize_phone(visit_data.get('phone'))
+                normalized_cp_phone = normalize_phone(request.POST.get('cp_phone', '')) if request.POST.get('cp_phone') else ''
+                
                 # Create lead (phone_verified=True since OTP was verified in step 2)
                 lead = Lead.objects.create(
                     name=visit_data.get('name'),
-                    phone=visit_data.get('phone'),
+                    phone=normalized_phone,
                     email=visit_data.get('email', ''),
                     age=int(visit_data.get('age')) if visit_data.get('age') else None,
                     gender=visit_data.get('gender', ''),
@@ -517,7 +526,7 @@ def lead_create(request):
                     how_did_you_hear=visit_data.get('how_did_you_hear', ''),
                     cp_firm_name=request.POST.get('cp_firm_name', ''),
                     cp_name=request.POST.get('cp_name', ''),
-                    cp_phone=request.POST.get('cp_phone', ''),
+                    cp_phone=normalized_cp_phone,
                     cp_rera_number=request.POST.get('cp_rera_number', ''),
                     is_pretagged=False,
                     phone_verified=True,  # OTP was verified in step 2
@@ -638,11 +647,29 @@ def lead_pretag(request):
             
             primary_project = Project.objects.get(id=project_ids[0], is_active=True)
             
+            # Auto-assign to closing manager assigned to this project
+            from django.utils import timezone
+            closing_manager = None
+            # Get closing managers assigned to this project
+            closing_managers = User.objects.filter(
+                role='closing_manager',
+                is_active=True,
+                assigned_projects=primary_project
+            )
+            if closing_managers.exists():
+                # Assign to first available closing manager (round-robin could be implemented later)
+                closing_manager = closing_managers.first()
+            
+            # Normalize phone numbers
+            from .utils import normalize_phone
+            normalized_phone = normalize_phone(request.POST.get('phone'))
+            normalized_cp_phone = normalize_phone(request.POST.get('cp_phone', '')) if request.POST.get('cp_phone') else ''
+            
             # Create lead with pretag flags
             lead = Lead.objects.create(
                 # Client Information
                 name=request.POST.get('name'),
-                phone=request.POST.get('phone'),
+                phone=normalized_phone,
                 email=request.POST.get('email', ''),
                 age=int(request.POST.get('age')) if request.POST.get('age') else None,
                 gender=request.POST.get('gender', ''),
@@ -664,7 +691,7 @@ def lead_pretag(request):
                 # CP Information (Mandatory for Pretag)
                 cp_firm_name=request.POST.get('cp_firm_name', ''),
                 cp_name=request.POST.get('cp_name', ''),
-                cp_phone=request.POST.get('cp_phone', ''),
+                cp_phone=normalized_cp_phone,
                 cp_rera_number=request.POST.get('cp_rera_number', ''),
                 
                 # Pretagging Flags
@@ -675,6 +702,11 @@ def lead_pretag(request):
                 # Status
                 status='new',
                 
+                # Assignment - Auto-assign to closing manager
+                assigned_to=closing_manager,
+                assigned_at=timezone.now() if closing_manager else None,
+                assigned_by=request.user if closing_manager else None,
+                
                 # Creator
                 created_by=request.user,
             )
@@ -684,6 +716,16 @@ def lead_pretag(request):
                 for project_id in project_ids[1:]:
                     try:
                         additional_project = Project.objects.get(id=project_id, is_active=True)
+                        # Auto-assign to closing manager for this project
+                        additional_closing_manager = None
+                        additional_closing_managers = User.objects.filter(
+                            role='closing_manager',
+                            is_active=True,
+                            assigned_projects=additional_project
+                        )
+                        if additional_closing_managers.exists():
+                            additional_closing_manager = additional_closing_managers.first()
+                        
                         Lead.objects.create(
                             name=lead.name,
                             phone=lead.phone,
@@ -709,6 +751,9 @@ def lead_pretag(request):
                             pretag_status='pending_verification',
                             phone_verified=False,
                             status='new',
+                            assigned_to=additional_closing_manager,
+                            assigned_at=timezone.now() if additional_closing_manager else None,
+                            assigned_by=request.user if additional_closing_manager else None,
                             created_by=request.user,
                         )
                     except Project.DoesNotExist:
@@ -825,10 +870,14 @@ def send_otp(request, pk):
         max_attempts=3,
     )
     
+    # Normalize phone number before sending
+    from .utils import normalize_phone
+    normalized_phone = normalize_phone(lead.phone)
+    
     # Send SMS via adapter (with WhatsApp fallback)
     from .sms_adapter import send_sms
     # Pass OTP code and project name separately - adapter will format the message
-    sms_response = send_sms(lead.phone, otp_code, project_name=lead.project.name)
+    sms_response = send_sms(normalized_phone, otp_code, project_name=lead.project.name)
     
     # Store gateway response
     import json
@@ -967,14 +1016,17 @@ def visits_list(request):
     visit_source = request.GET.get('visit_source', '')
     search_query = request.GET.get('search', '')
     
-    # Base queryset - only visited leads - Mandate Owner has same permissions as Super Admin
+    # Base queryset - visited leads (visit_completed) OR pretagged leads - Mandate Owner has same permissions as Super Admin
     if request.user.is_super_admin() or request.user.is_mandate_owner():
-        leads_qs = Lead.objects.filter(status='visit_completed', is_archived=False)
+        leads_qs = Lead.objects.filter(
+            Q(status='visit_completed') | Q(is_pretagged=True),
+            is_archived=False
+        )
     else:  # Site Head - strict isolation
         leads_qs = Lead.objects.filter(
-            project__site_head=request.user,
-            status='visit_completed',
-            is_archived=False
+            Q(project__site_head=request.user) &
+            (Q(status='visit_completed') | Q(is_pretagged=True)) &
+            Q(is_archived=False)
         )
     
     # Apply filters
@@ -1880,15 +1932,11 @@ def lead_upload(request):
                         phone = get_row_value('phone')
                         name = get_row_value('name')
                         
-                        # Clean phone number (handle multiple contacts, remove spaces)
+                        # Normalize phone number
+                        from .utils import normalize_phone
                         if phone:
                             phone = phone.split(',')[0].strip()  # Take first phone if multiple
-                            phone = phone.replace(' ', '').replace('-', '').replace('/', '')
-                            # Remove leading +91 or 91
-                            if phone.startswith('+91'):
-                                phone = phone[3:]
-                            elif phone.startswith('91') and len(phone) > 10:
-                                phone = phone[2:]
+                            phone = normalize_phone(phone)
                         
                         # Skip row if phone is not available (don't show as error)
                         if not phone:

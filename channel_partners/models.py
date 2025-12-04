@@ -73,6 +73,16 @@ class ChannelPartner(models.Model):
     def save(self, *args, **kwargs):
         if not self.cp_unique_id:
             self.cp_unique_id = generate_cp_id(self.cp_name)
+        
+        # Normalize phone numbers to +91 format
+        from leads.utils import normalize_phone
+        if self.phone:
+            self.phone = normalize_phone(self.phone)
+        if self.phone2:
+            self.phone2 = normalize_phone(self.phone2)
+        if self.owner_number:
+            self.owner_number = normalize_phone(self.owner_number)
+        
         super().save(*args, **kwargs)
     
     def get_formatted_phone(self):
