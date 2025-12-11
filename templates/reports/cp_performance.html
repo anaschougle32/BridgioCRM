@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+
+{% block title %}CP Performance Dashboard - Bridgio CRM{% endblock %}
+
+{% block page_title %}Channel Partner Performance Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Search and Filter Bar -->
+    <div class="bg-white rounded-lg shadow-md p-4">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[250px]">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Search CP</label>
+                <input type="text" 
+                       name="search" 
+                       placeholder="Search by CP name, firm name, phone, CP ID..." 
+                       value="{{ search }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+            </div>
+            <div class="min-w-[200px]">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+                <select name="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+                    <option value="">All Status</option>
+                    <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="min-w-[200px]">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Project</label>
+                <select name="project" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+                    <option value="">All Projects</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+                    Search
+                </button>
+                <a href="{% url 'reports:cp_performance' %}" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Stats Dashboard -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium">Total CPs</p>
+                    <p class="text-3xl font-bold mt-1">{{ total_cps }}</p>
+                </div>
+                <svg class="w-12 h-12 text-blue-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </div>
+        </div>
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm font-medium">Total Leads</p>
+                    <p class="text-3xl font-bold mt-1">
+                        {% for metric in cp_metrics %}{{ metric.total_leads|add:0 }}{% if not forloop.last %}+{% endif %}{% endfor %}
+                    </p>
+                </div>
+                <svg class="w-12 h-12 text-green-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </div>
+        </div>
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm font-medium">Total Bookings</p>
+                    <p class="text-3xl font-bold mt-1">
+                        {% for metric in cp_metrics %}{{ metric.total_bookings|add:0 }}{% if not forloop.last %}+{% endif %}{% endfor %}
+                    </p>
+                </div>
+                <svg class="w-12 h-12 text-purple-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+        </div>
+        <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-yellow-100 text-sm font-medium">Total Revenue</p>
+                    <p class="text-3xl font-bold mt-1">₹{{ total_revenue|floatformat:0|default:0 }}</p>
+                </div>
+                <svg class="w-12 h-12 text-yellow-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- CP Performance Table/Dashboard View -->
+    {% if search or selected_status or selected_project %}
+    <!-- Detailed View when searching/filtering -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {% for metric in cp_metrics %}
+        <div class="bg-white rounded-lg shadow-lg border-2 border-olive-primary/20 p-6 hover:shadow-xl transition-shadow">
+            <div class="flex justify-between items-start mb-4 pb-4 border-b-2 border-olive-primary/20">
+                <div class="flex-1">
+                    <h3 class="text-2xl font-heading font-bold text-olive-primary">{{ metric.cp_name }}</h3>
+                    <p class="text-lg text-gray-600 mt-1">{{ metric.firm_name }}</p>
+                    {% if metric.cp_id %}
+                    <p class="text-sm text-gray-500 mt-1">CP ID: <span class="font-mono font-semibold">{{ metric.cp_id }}</span></p>
+                    {% endif %}
+                    <p class="text-sm text-gray-500 mt-1">Phone: <span class="font-mono">{{ metric.phone }}</span></p>
+                </div>
+                <span class="px-4 py-2 text-sm font-semibold rounded-full {% if metric.status == 'active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ metric.status|title }}
+                </span>
+            </div>
+
+            <!-- Key Metrics Grid -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <p class="text-xs text-gray-600 mb-1">Total Leads</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ metric.total_leads }}</p>
+                    <p class="text-xs text-gray-500 mt-1">This Month: {{ metric.leads_this_month }}</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <p class="text-xs text-gray-600 mb-1">CP Visits</p>
+                    <p class="text-2xl font-bold text-green-600">{{ metric.cp_visits|default:metric.visited_leads|default:0 }}</p>
+                    <p class="text-xs text-gray-500 mt-1">This Month: {{ metric.cp_visits_this_month|default:0 }}</p>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                    <p class="text-xs text-gray-600 mb-1">CP Bookings</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ metric.cp_bookings|default:metric.total_bookings }}</p>
+                    <p class="text-xs text-gray-500 mt-1">This Month: {{ metric.cp_bookings_this_month|default:metric.bookings_this_month }}</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                    <p class="text-xs text-gray-600 mb-1">Total Revenue</p>
+                    <p class="text-2xl font-bold text-yellow-600">₹{{ metric.total_revenue|floatformat:0|default:0 }}</p>
+                    <p class="text-xs text-gray-500 mt-1">This Month: ₹{{ metric.revenue_this_month|floatformat:0|default:0 }}</p>
+                </div>
+            </div>
+
+            <!-- Conversion Rates -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                <p class="text-sm font-semibold text-gray-700 mb-3">Conversion Rates</p>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-600">Lead → Visit</span>
+                        <span class="text-sm font-semibold text-olive-primary">{{ metric.lead_to_visit_rate|floatformat:1 }}%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-600">Lead → Booking</span>
+                        <span class="text-sm font-semibold text-olive-primary">{{ metric.lead_to_booking_rate|floatformat:1 }}%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-600">Visit → Booking</span>
+                        <span class="text-sm font-semibold text-olive-primary">{{ metric.visit_to_booking_rate|floatformat:1 }}%</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-yellow-100 p-2 rounded mt-2">
+                        <span class="text-xs font-bold text-gray-800">Overall Visit to Conversion</span>
+                        <span class="text-base font-bold text-yellow-700">{{ metric.visit_to_conversion_ratio|default:metric.visit_to_booking_rate|floatformat:1 }}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Details -->
+            <div class="grid grid-cols-2 gap-3 text-xs mb-4">
+                <div class="bg-white rounded p-2 border">
+                    <p class="text-gray-600">Avg Booking Value</p>
+                    <p class="font-semibold text-olive-primary">₹{{ metric.avg_booking_value|floatformat:0|default:0 }}</p>
+                </div>
+                <div class="bg-white rounded p-2 border">
+                    <p class="text-gray-600">Total Commission</p>
+                    <p class="font-semibold text-green-600">₹{{ metric.total_commission|floatformat:0|default:0 }}</p>
+                </div>
+                <div class="bg-white rounded p-2 border">
+                    <p class="text-gray-600">Linked Projects</p>
+                    <p class="font-semibold">{{ metric.linked_projects_count }}</p>
+                </div>
+                <div class="bg-white rounded p-2 border">
+                    <p class="text-gray-600">Active CPs</p>
+                    <p class="font-semibold text-blue-600">{{ metric.cps_active_number|default:1 }}</p>
+                </div>
+            </div>
+
+            <!-- View Details Link -->
+            <div class="pt-4 border-t">
+                <a href="{% url 'channel_partners:detail' metric.cp.pk %}" 
+                   class="block text-center bg-olive-primary text-white px-4 py-2 rounded-lg hover:bg-olive-secondary transition font-medium">
+                    View Full CP Details →
+                </a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-12 bg-white rounded-lg shadow-md">
+            <p class="text-gray-500 text-lg">No channel partners found matching your search criteria.</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Compact Table View when no search/filter -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-olive-primary text-white">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-sm font-semibold">CP Name</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold">Firm Name</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold">Leads</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold">Visits</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold">Bookings</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold">Revenue</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold">Conversion</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for metric in cp_metrics %}
+                    <tr class="hover:bg-olive-lighter transition">
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-gray-900">{{ metric.cp_name }}</div>
+                            {% if metric.cp_id %}
+                            <div class="text-xs text-gray-500">ID: {{ metric.cp_id }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600">{{ metric.firm_name }}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full {% if metric.status == 'active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ metric.status|title }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="font-semibold text-gray-900">{{ metric.total_leads }}</div>
+                            <div class="text-xs text-gray-500">This Month: {{ metric.leads_this_month }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="font-semibold text-green-600">{{ metric.cp_visits|default:metric.visited_leads|default:0 }}</div>
+                            <div class="text-xs text-gray-500">This Month: {{ metric.cp_visits_this_month|default:0 }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="font-semibold text-purple-600">{{ metric.cp_bookings|default:metric.total_bookings }}</div>
+                            <div class="text-xs text-gray-500">This Month: {{ metric.cp_bookings_this_month|default:metric.bookings_this_month }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="font-semibold text-yellow-600">₹{{ metric.total_revenue|floatformat:0|default:0 }}</div>
+                            <div class="text-xs text-gray-500">This Month: ₹{{ metric.revenue_this_month|floatformat:0|default:0 }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="font-semibold text-olive-primary">{{ metric.visit_to_conversion_ratio|default:metric.visit_to_booking_rate|floatformat:1 }}%</div>
+                            <div class="text-xs text-gray-500">Visit → Booking</div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <a href="{% url 'channel_partners:detail' metric.cp.pk %}" 
+                               class="text-olive-primary hover:text-olive-secondary font-medium text-sm">
+                                View →
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                            No channel partners found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

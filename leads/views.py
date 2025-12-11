@@ -14,7 +14,7 @@ except ImportError:
     openpyxl = None
 import csv
 import io
-from .models import Lead, OtpLog, CallLog, FollowUpReminder, DailyAssignmentQuota
+from .models import Lead, OtpLog, CallLog, FollowUpReminder, DailyAssignmentQuota, GlobalConfiguration, LeadProjectAssociation
 from projects.models import Project
 from accounts.models import User
 from .utils import (
@@ -23,92 +23,103 @@ from .utils import (
 )
 
 
+def get_lead_association(lead, project=None):
+    """Helper function to get LeadProjectAssociation for a lead and project"""
+    if project:
+        return LeadProjectAssociation.objects.filter(lead=lead, project=project, is_archived=False).first()
+    # If no project specified, return primary association
+    return lead.project_associations.filter(is_archived=False).first()
+
+
 @login_required
 def lead_list(request):
-    """List all leads with filtering"""
-    leads = Lead.objects.filter(is_archived=False)
+    """List all leads with filtering - works with LeadProjectAssociation"""
+    # Get associations for proper filtering (project-specific data)
+    associations = LeadProjectAssociation.objects.filter(is_archived=False).select_related('lead', 'project', 'assigned_to')
     
     # Role-based filtering
-    # Super Admin and Mandate Owner see all leads
     if request.user.is_super_admin() or request.user.is_mandate_owner() or (request.user.is_superuser and request.user.is_staff):
         pass  # No filtering for super admin and mandate owner
     elif request.user.is_telecaller() or request.user.is_closing_manager():
         # Telecallers and Closing Managers see only their assigned leads
-        leads = leads.filter(assigned_to=request.user)
+        associations = associations.filter(assigned_to=request.user)
     elif request.user.is_site_head():
         # Site head sees leads ONLY for their assigned projects (strict isolation)
-        leads = leads.filter(project__site_head=request.user)
+        associations = associations.filter(project__site_head=request.user)
     elif request.user.is_sourcing_manager():
         # Sourcing managers see leads they created or are assigned to
-        leads = leads.filter(Q(created_by=request.user) | Q(assigned_to=request.user))
+        associations = associations.filter(Q(created_by=request.user) | Q(assigned_to=request.user))
     
     # Search
     search = request.GET.get('search', '')
     if search:
-        leads = leads.filter(
-            Q(name__icontains=search) |
-            Q(phone__icontains=search) |
-            Q(email__icontains=search)
+        associations = associations.filter(
+            Q(lead__name__icontains=search) |
+            Q(lead__phone__icontains=search) |
+            Q(lead__email__icontains=search)
         )
     
     # Filter by status
     status = request.GET.get('status', '')
     if status:
-        leads = leads.filter(status=status)
+        associations = associations.filter(status=status)
     
     # Filter by project
     project_id = request.GET.get('project', '')
     if project_id:
-        leads = leads.filter(project_id=project_id)
+        associations = associations.filter(project_id=project_id)
     
     # Filter by pretag status
     pretag_status = request.GET.get('pretag_status', '')
     if pretag_status:
-        leads = leads.filter(pretag_status=pretag_status)
+        associations = associations.filter(pretag_status=pretag_status)
     
     # Filter by configuration
     configuration_id = request.GET.get('configuration', '')
     if configuration_id:
         if configuration_id == 'open_budget':
             # Open Budget: leads with no configuration and no budget
-            leads = leads.filter(configuration__isnull=True, budget__isnull=True)
+            associations = associations.filter(lead__configurations__isnull=True, lead__budget__isnull=True)
         else:
-            leads = leads.filter(configuration_id=configuration_id)
+            associations = associations.filter(lead__configurations__id=configuration_id)
     
     # Filter by budget range
     budget_filter = request.GET.get('budget', '')
     if budget_filter:
         if budget_filter == 'no_budget':
-            leads = leads.filter(budget__isnull=True)
+            associations = associations.filter(lead__budget__isnull=True)
         elif budget_filter == 'under_50l':
-            leads = leads.filter(budget__lt=5000000)
+            associations = associations.filter(lead__budget__lt=5000000)
         elif budget_filter == '50l_to_1cr':
-            leads = leads.filter(budget__gte=5000000, budget__lt=10000000)
+            associations = associations.filter(lead__budget__gte=5000000, lead__budget__lt=10000000)
         elif budget_filter == '1cr_to_2cr':
-            leads = leads.filter(budget__gte=10000000, budget__lt=20000000)
+            associations = associations.filter(lead__budget__gte=10000000, lead__budget__lt=20000000)
         elif budget_filter == 'over_2cr':
-            leads = leads.filter(budget__gte=20000000)
+            associations = associations.filter(lead__budget__gte=20000000)
     
     # Filter by assigned_to
     assigned_to_id = request.GET.get('assigned_to', '')
     if assigned_to_id:
-        leads = leads.filter(assigned_to_id=assigned_to_id)
+        associations = associations.filter(assigned_to_id=assigned_to_id)
     
     # Filter by channel partner
     cp_id = request.GET.get('channel_partner', '')
     if cp_id:
-        leads = leads.filter(channel_partner_id=cp_id)
+        associations = associations.filter(lead__channel_partner_id=cp_id)
     
     # Filter by date range
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
     if date_from:
-        leads = leads.filter(created_at__date__gte=date_from)
+        associations = associations.filter(created_at__date__gte=date_from)
     if date_to:
-        leads = leads.filter(created_at__date__lte=date_to)
+        associations = associations.filter(created_at__date__lte=date_to)
     
-    # Order by created date
-    leads = leads.order_by('-created_at')
+    # Get unique lead IDs from associations
+    lead_ids = associations.values_list('lead_id', flat=True).distinct()
+    
+    # Get leads (filtered by archived status)
+    leads = Lead.objects.filter(id__in=lead_ids, is_archived=False).order_by('-created_at')
     
     # Get reminders and callbacks for notification badges
     from datetime import datetime, timedelta
@@ -138,10 +149,9 @@ def lead_list(request):
             reminder_date__lt=now
         ).count()
         
-        # Get today's callbacks
+        # Get today's callbacks (reminder_type field was removed)
         today_callbacks = lead.reminders.filter(
             is_completed=False,
-            reminder_type='callback',
             reminder_date__date=today
         ).count()
         
@@ -155,15 +165,8 @@ def lead_list(request):
             'tel_link': tel_link,
         }
     
-    # Get unique configurations for filter dropdown
-    configurations = []
-    if project_id:
-        from projects.models import ProjectConfiguration
-        configurations = ProjectConfiguration.objects.filter(project_id=project_id).order_by('name')
-    else:
-        # Get all configurations from active projects
-        from projects.models import ProjectConfiguration
-        configurations = ProjectConfiguration.objects.filter(project__is_active=True).distinct().order_by('name')
+    # Get global configurations for filter dropdown
+    configurations = GlobalConfiguration.objects.filter(is_active=True).order_by('order', 'name')
     
     # Get assignees for filter
     assignees = User.objects.filter(
@@ -181,10 +184,10 @@ def lead_list(request):
     month_start = today_start.replace(day=1)
     
     call_metrics = {
-        'today': CallLog.objects.filter(called_by=request.user, created_at__gte=today_start).count(),
-        'this_week': CallLog.objects.filter(called_by=request.user, created_at__gte=week_start).count(),
-        'this_month': CallLog.objects.filter(called_by=request.user, created_at__gte=month_start).count(),
-        'total': CallLog.objects.filter(called_by=request.user).count(),
+        'today': CallLog.objects.filter(user=request.user, created_at__gte=today_start).count(),
+        'this_week': CallLog.objects.filter(user=request.user, created_at__gte=week_start).count(),
+        'this_month': CallLog.objects.filter(user=request.user, created_at__gte=month_start).count(),
+        'total': CallLog.objects.filter(user=request.user).count(),
     }
     
     # Generate budget choices for dropdown (common budget ranges)
@@ -213,11 +216,29 @@ def lead_list(request):
         ('30000000', '₹3Cr'),
     ]
     
+    # Get associations for each lead to display project-specific data
+    lead_associations = {}
+    lead_primary_associations = {}  # Primary association for each lead (for status, etc.)
+    for lead in leads_page:
+        # Get all associations for this lead
+        associations = lead.project_associations.filter(is_archived=False).select_related('project', 'assigned_to')
+        lead_associations[lead.id] = associations
+        
+        # Determine primary association (first one, or filtered by project if available)
+        primary_assoc = None
+        if project_id:
+            primary_assoc = associations.filter(project_id=project_id).first()
+        if not primary_assoc:
+            primary_assoc = associations.first()
+        lead_primary_associations[lead.id] = primary_assoc
+    
     context = {
         'leads': leads_page,
+        'lead_associations': lead_associations,
+        'lead_primary_associations': lead_primary_associations,
         'projects': Project.objects.filter(is_active=True),
-        'status_choices': Lead.LEAD_STATUS_CHOICES,
-        'pretag_status_choices': Lead.PRETAG_STATUS_CHOICES,
+        'status_choices': LeadProjectAssociation.LEAD_STATUS_CHOICES,
+        'pretag_status_choices': LeadProjectAssociation.PRETAG_STATUS_CHOICES,
         'configurations': configurations,
         'assignees': assignees,
         'channel_partners': channel_partners,
@@ -506,34 +527,65 @@ def lead_create(request):
                 normalized_phone = normalize_phone(visit_data.get('phone'))
                 normalized_cp_phone = normalize_phone(request.POST.get('cp_phone', '')) if request.POST.get('cp_phone') else ''
                 
-                # Create lead (phone_verified=True since OTP was verified in step 2)
-                lead = Lead.objects.create(
-                    name=visit_data.get('name'),
+                # Check if lead exists by phone (deduplication)
+                lead, lead_created = Lead.objects.get_or_create(
                     phone=normalized_phone,
-                    email=visit_data.get('email', ''),
-                    age=int(visit_data.get('age')) if visit_data.get('age') else None,
-                    gender=visit_data.get('gender', ''),
-                    locality=visit_data.get('locality', ''),
-                    current_residence=visit_data.get('current_residence', ''),
-                    occupation=visit_data.get('occupation', ''),
-                    company_name=visit_data.get('company_name', ''),
-                    designation=visit_data.get('designation', ''),
-                    project=project,
-                    budget=float(visit_data.get('budget')) if visit_data.get('budget') else None,
-                    purpose=visit_data.get('purpose', ''),
-                    visit_type=visit_data.get('visit_type', ''),
-                    is_first_visit=visit_data.get('is_first_visit', 'true') == 'true',
-                    how_did_you_hear=visit_data.get('how_did_you_hear', ''),
-                    cp_firm_name=request.POST.get('cp_firm_name', ''),
-                    cp_name=request.POST.get('cp_name', ''),
-                    cp_phone=normalized_cp_phone,
-                    cp_rera_number=request.POST.get('cp_rera_number', ''),
-                    is_pretagged=False,
-                    phone_verified=True,  # OTP was verified in step 2
-                    status='visit_completed',  # Visit is completed when created via New Visit form
-                    visit_source=request.POST.get('visit_source', 'walkin'),  # Default to walkin, can be changed
-                    created_by=request.user,
+                    defaults={
+                        'name': visit_data.get('name'),
+                        'email': visit_data.get('email', ''),
+                        'age': int(visit_data.get('age')) if visit_data.get('age') else None,
+                        'gender': visit_data.get('gender', ''),
+                        'locality': visit_data.get('locality', ''),
+                        'current_residence': visit_data.get('current_residence', ''),
+                        'occupation': visit_data.get('occupation', ''),
+                        'company_name': visit_data.get('company_name', ''),
+                        'designation': visit_data.get('designation', ''),
+                        'budget': float(visit_data.get('budget')) if visit_data.get('budget') else None,
+                        'purpose': visit_data.get('purpose', ''),
+                        'visit_type': visit_data.get('visit_type', ''),
+                        'is_first_visit': visit_data.get('is_first_visit', 'true') == 'true',
+                        'how_did_you_hear': visit_data.get('how_did_you_hear', ''),
+                        'cp_firm_name': request.POST.get('cp_firm_name', ''),
+                        'cp_name': request.POST.get('cp_name', ''),
+                        'cp_phone': normalized_cp_phone,
+                        'cp_rera_number': request.POST.get('cp_rera_number', ''),
+                        'created_by': request.user,
+                    }
                 )
+                
+                # Update lead if it already existed (update name, email, etc. if provided)
+                if not lead_created:
+                    # Update fields if they're provided and different
+                    if visit_data.get('name') and lead.name != visit_data.get('name'):
+                        lead.name = visit_data.get('name')
+                    if visit_data.get('email') and lead.email != visit_data.get('email'):
+                        lead.email = visit_data.get('email')
+                    # Update other fields as needed
+                    lead.save()
+                
+                # Add configurations (multiple selection)
+                config_ids = request.POST.getlist('configurations')
+                if config_ids:
+                    configs = GlobalConfiguration.objects.filter(id__in=config_ids, is_active=True)
+                    lead.configurations.set(configs)
+                
+                # Create or get LeadProjectAssociation for this project
+                association, assoc_created = LeadProjectAssociation.objects.get_or_create(
+                    lead=lead,
+                    project=project,
+                    defaults={
+                        'status': 'visit_completed',  # Visit is completed when created via New Visit form
+                        'is_pretagged': False,
+                        'phone_verified': True,  # OTP was verified in step 2
+                        'created_by': request.user,
+                    }
+                )
+                
+                # Update association if it already existed
+                if not assoc_created:
+                    association.status = 'visit_completed'
+                    association.phone_verified = True
+                    association.save()
                 
                 # Create OTP log entry for audit trail
                 otp_data = request.session.get('new_visit_otp', {})
@@ -544,8 +596,8 @@ def lead_create(request):
                         expires_at=timezone.now() + timedelta(minutes=5),
                         is_verified=True,
                         verified_at=timezone.now(),
-                        sent_by=request.user,
                         attempts=1,
+                        gateway_response=otp_data.get('gateway_response', '{}'),
                         max_attempts=3,
                     )
                 
@@ -592,6 +644,7 @@ def lead_create(request):
     # GET request - show form
     context = {
         'projects': Project.objects.filter(is_active=True),
+        'global_configurations': GlobalConfiguration.objects.filter(is_active=True).order_by('order', 'name'),
     }
     return render(request, 'leads/create.html', context)
 
@@ -625,6 +678,48 @@ def search_channel_partners(request):
             'phone': cp.get_formatted_phone(),
             'rera_id': cp.rera_id or '',
             'cp_unique_id': cp.cp_unique_id or '',
+        })
+    
+    return JsonResponse({'results': results})
+
+
+@login_required
+def search_leads(request):
+    """Search leads API endpoint for autocomplete"""
+    query = request.GET.get('q', '').strip()
+    
+    if not query:
+        return JsonResponse({'results': []})
+    
+    # Search by name, phone, or email - show ALL leads (for budget dropdown and general search)
+    # This allows searching across all projects for deduplication
+    leads = Lead.objects.filter(
+        is_archived=False
+    ).filter(
+        Q(name__icontains=query) |
+        Q(phone__icontains=query) |
+        Q(email__icontains=query)
+    )[:20]
+    
+    results = []
+    for lead in leads:
+        # Get primary project or all projects
+        primary_project = lead.primary_project
+        all_projects = lead.all_projects
+        
+        # Get primary association status
+        primary_association = lead.project_associations.filter(is_archived=False).first()
+        status = primary_association.status if primary_association else 'new'
+        
+        results.append({
+            'id': lead.id,
+            'name': lead.name,
+            'phone': lead.phone,
+            'email': lead.email or '',
+            'project': primary_project.name if primary_project else (', '.join([p.name for p in all_projects[:2]]) if all_projects else ''),
+            'projects': [p.name for p in all_projects],
+            'status': status,
+            'configurations': [c.display_name for c in lead.configurations.all()],
         })
     
     return JsonResponse({'results': results})
@@ -665,99 +760,88 @@ def lead_pretag(request):
             normalized_phone = normalize_phone(request.POST.get('phone'))
             normalized_cp_phone = normalize_phone(request.POST.get('cp_phone', '')) if request.POST.get('cp_phone') else ''
             
-            # Create lead with pretag flags
-            lead = Lead.objects.create(
-                # Client Information
-                name=request.POST.get('name'),
+            # Check if lead exists by phone (deduplication)
+            lead, lead_created = Lead.objects.get_or_create(
                 phone=normalized_phone,
-                email=request.POST.get('email', ''),
-                age=int(request.POST.get('age')) if request.POST.get('age') else None,
-                gender=request.POST.get('gender', ''),
-                locality=request.POST.get('locality', ''),
-                current_residence=request.POST.get('current_residence', ''),
-                occupation=request.POST.get('occupation', ''),
-                company_name=request.POST.get('company_name', ''),
-                designation=request.POST.get('designation', ''),
-                
-                # Requirement Details
-                project=primary_project,  # Primary project
-                configuration=None,
-                budget=float(request.POST.get('budget')) if request.POST.get('budget') else None,
-                purpose=request.POST.get('purpose', ''),
-                visit_type=request.POST.get('visit_type', ''),
-                is_first_visit=request.POST.get('is_first_visit', 'true') == 'true',
-                how_did_you_hear=request.POST.get('how_did_you_hear', ''),
-                
-                # CP Information (Mandatory for Pretag)
-                cp_firm_name=request.POST.get('cp_firm_name', ''),
-                cp_name=request.POST.get('cp_name', ''),
-                cp_phone=normalized_cp_phone,
-                cp_rera_number=request.POST.get('cp_rera_number', ''),
-                
-                # Pretagging Flags
-                is_pretagged=True,
-                pretag_status='pending_verification',
-                phone_verified=False,
-                
-                # Status
-                status='new',
-                
-                # Assignment - Auto-assign to closing manager
-                assigned_to=closing_manager,
-                assigned_at=timezone.now() if closing_manager else None,
-                assigned_by=request.user if closing_manager else None,
-                
-                # Creator
-                created_by=request.user,
+                defaults={
+                    'name': request.POST.get('name'),
+                    'email': request.POST.get('email', ''),
+                    'age': int(request.POST.get('age')) if request.POST.get('age') else None,
+                    'gender': request.POST.get('gender', ''),
+                    'locality': request.POST.get('locality', ''),
+                    'current_residence': request.POST.get('current_residence', ''),
+                    'occupation': request.POST.get('occupation', ''),
+                    'company_name': request.POST.get('company_name', ''),
+                    'designation': request.POST.get('designation', ''),
+                    'budget': float(request.POST.get('budget')) if request.POST.get('budget') else None,
+                    'purpose': request.POST.get('purpose', ''),
+                    'visit_type': request.POST.get('visit_type', ''),
+                    'is_first_visit': request.POST.get('is_first_visit', 'true') == 'true',
+                    'how_did_you_hear': request.POST.get('how_did_you_hear', ''),
+                    'cp_firm_name': request.POST.get('cp_firm_name', ''),
+                    'cp_name': request.POST.get('cp_name', ''),
+                    'cp_phone': normalized_cp_phone,
+                    'cp_rera_number': request.POST.get('cp_rera_number', ''),
+                    'created_by': request.user,
+                }
             )
             
-            # If multiple projects selected, create additional leads for universal tagging
-            if len(project_ids) > 1:
-                for project_id in project_ids[1:]:
-                    try:
-                        additional_project = Project.objects.get(id=project_id, is_active=True)
-                        # Auto-assign to closing manager for this project
-                        additional_closing_manager = None
-                        additional_closing_managers = User.objects.filter(
-                            role='closing_manager',
-                            is_active=True,
-                            assigned_projects=additional_project
-                        )
-                        if additional_closing_managers.exists():
-                            additional_closing_manager = additional_closing_managers.first()
-                        
-                        Lead.objects.create(
-                            name=lead.name,
-                            phone=lead.phone,
-                            email=lead.email,
-                            age=lead.age,
-                            gender=lead.gender,
-                            locality=lead.locality,
-                            current_residence=lead.current_residence,
-                            occupation=lead.occupation,
-                            company_name=lead.company_name,
-                            designation=lead.designation,
-                            project=additional_project,
-                            budget=lead.budget,
-                            purpose=lead.purpose,
-                            visit_type=lead.visit_type,
-                            is_first_visit=lead.is_first_visit,
-                            how_did_you_hear=lead.how_did_you_hear,
-                            cp_firm_name=lead.cp_firm_name,
-                            cp_name=lead.cp_name,
-                            cp_phone=lead.cp_phone,
-                            cp_rera_number=lead.cp_rera_number,
-                            is_pretagged=True,
-                            pretag_status='pending_verification',
-                            phone_verified=False,
-                            status='new',
-                            assigned_to=additional_closing_manager,
-                            assigned_at=timezone.now() if additional_closing_manager else None,
-                            assigned_by=request.user if additional_closing_manager else None,
-                            created_by=request.user,
-                        )
-                    except Project.DoesNotExist:
-                        continue
+            # Update lead if it already existed
+            if not lead_created:
+                if request.POST.get('name') and lead.name != request.POST.get('name'):
+                    lead.name = request.POST.get('name')
+                if request.POST.get('email') and lead.email != request.POST.get('email'):
+                    lead.email = request.POST.get('email')
+                lead.save()
+            
+            # Add configurations (multiple selection)
+            config_ids = request.POST.getlist('configurations')
+            if config_ids:
+                configs = GlobalConfiguration.objects.filter(id__in=config_ids, is_active=True)
+                lead.configurations.set(configs)
+            
+            # Create associations for all selected projects
+            for project_id in project_ids:
+                try:
+                    project = Project.objects.get(id=project_id, is_active=True)
+                    
+                    # Auto-assign to closing manager for this project
+                    project_closing_manager = None
+                    project_closing_managers = User.objects.filter(
+                        role='closing_manager',
+                        is_active=True,
+                        assigned_projects=project
+                    )
+                    if project_closing_managers.exists():
+                        project_closing_manager = project_closing_managers.first()
+                    
+                    # Create or get association for this project
+                    association, assoc_created = LeadProjectAssociation.objects.get_or_create(
+                        lead=lead,
+                        project=project,
+                        defaults={
+                            'status': 'new',
+                            'is_pretagged': True,
+                            'pretag_status': 'pending_verification',
+                            'phone_verified': False,
+                            'assigned_to': project_closing_manager,
+                            'assigned_at': timezone.now() if project_closing_manager else None,
+                            'assigned_by': request.user if project_closing_manager else None,
+                            'created_by': request.user,
+                        }
+                    )
+                    
+                    # Update association if it already existed
+                    if not assoc_created:
+                        association.is_pretagged = True
+                        association.pretag_status = 'pending_verification'
+                        if project_closing_manager and not association.assigned_to:
+                            association.assigned_to = project_closing_manager
+                            association.assigned_at = timezone.now()
+                            association.assigned_by = request.user
+                        association.save()
+                except Project.DoesNotExist:
+                    continue
             
             messages.success(request, f'Pretagged lead created successfully! Lead #{lead.id} is pending OTP verification by Closing Manager.')
             return redirect('leads:detail', pk=lead.id)
@@ -769,6 +853,7 @@ def lead_pretag(request):
     
     context = {
         'projects': Project.objects.filter(is_active=True),
+        'global_configurations': GlobalConfiguration.objects.filter(is_active=True).order_by('order', 'name'),
     }
     return render(request, 'leads/pretag.html', context)
 
@@ -778,23 +863,73 @@ def lead_detail(request, pk):
     """Lead detail view"""
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check
-    if request.user.is_telecaller() or request.user.is_closing_manager():
-        if lead.assigned_to != request.user:
-            messages.error(request, 'You do not have permission to view this lead.')
-            return redirect('leads:list')
+    # Permission check - check associations
+    has_permission = False
+    
+    if request.user.is_telecaller():
+        # Telecallers see leads assigned to them in their projects
+        associations = lead.project_associations.filter(
+            assigned_to=request.user,
+            project__in=request.user.assigned_projects.all(),
+            is_archived=False
+        )
+        has_permission = associations.exists()
+    elif request.user.is_closing_manager():
+        # Closing managers can view assigned leads OR visited leads (for booking creation)
+        associations = lead.project_associations.filter(
+            Q(assigned_to=request.user) | 
+            Q(status='visit_completed') | 
+            Q(phone_verified=True),
+            project__in=request.user.assigned_projects.all(),
+            is_archived=False
+        )
+        has_permission = associations.exists()
     elif request.user.is_site_head():
-        if lead.project.site_head != request.user:
-            messages.error(request, 'You do not have permission to view this lead.')
-            return redirect('leads:list')
+        # Site head sees leads in their projects
+        associations = lead.project_associations.filter(
+            project__site_head=request.user,
+            is_archived=False
+        )
+        has_permission = associations.exists()
     elif request.user.is_mandate_owner():
-        if lead.project.mandate_owner != request.user:
-            messages.error(request, 'You do not have permission to view this lead.')
-            return redirect('leads:list')
+        # Mandate owner sees leads in their projects
+        associations = lead.project_associations.filter(
+            project__mandate_owner=request.user,
+            is_archived=False
+        )
+        has_permission = associations.exists()
     elif request.user.is_sourcing_manager():
-        if lead.created_by != request.user and lead.assigned_to != request.user:
-            messages.error(request, 'You do not have permission to view this lead.')
-            return redirect('leads:list')
+        # Sourcing managers see leads they created or are assigned to
+        associations = lead.project_associations.filter(
+            Q(created_by=request.user) | Q(assigned_to=request.user),
+            is_archived=False
+        )
+        has_permission = associations.exists()
+    elif request.user.is_super_admin() or request.user.is_mandate_owner():
+        has_permission = True
+    
+    # Mandate owners have all permissions
+    if request.user.is_mandate_owner():
+        has_permission = True
+    
+    if not has_permission:
+        messages.error(request, 'You do not have permission to view this lead.')
+        return redirect('leads:list')
+    
+    # Get all associations for this lead
+    associations = lead.project_associations.filter(is_archived=False).select_related('project', 'assigned_to', 'assigned_by')
+    
+    # Get primary association (first one, or for user's project if available)
+    primary_association = None
+    if request.user.is_site_head():
+        primary_association = associations.filter(project__site_head=request.user).first()
+    elif request.user.is_closing_manager() or request.user.is_telecaller():
+        primary_association = associations.filter(
+            project__in=request.user.assigned_projects.all()
+        ).first()
+    
+    if not primary_association:
+        primary_association = associations.first()
     
     # Get latest OTP log for this lead
     latest_otp = lead.otp_logs.filter(is_verified=False).order_by('-created_at').first()
@@ -810,6 +945,8 @@ def lead_detail(request, pk):
     
     context = {
         'lead': lead,
+        'associations': associations,
+        'primary_association': primary_association,
         'latest_otp': latest_otp,
         'now': timezone.now(),
         'call_logs': call_logs,
@@ -833,9 +970,31 @@ def send_otp(request, pk):
     if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin()):
         return JsonResponse({'success': False, 'error': 'Only Closing Managers can send OTP.'}, status=403)
     
-    # For Closing Managers, ensure they can only send OTP for assigned leads
-    if request.user.is_closing_manager() and lead.assigned_to != request.user:
-        return JsonResponse({'success': False, 'error': 'You can only send OTP for leads assigned to you.'}, status=403)
+    # For Closing Managers, allow OTP for:
+    # 1. Assigned leads (in their projects)
+    # 2. Pretagged leads
+    # 3. Visited leads (status='visit_completed' or phone_verified=True)
+    if request.user.is_closing_manager():
+        # Check associations in user's projects
+        user_projects = request.user.assigned_projects.all()
+        associations = lead.project_associations.filter(
+            project__in=user_projects,
+            is_archived=False
+        )
+        has_permission = associations.filter(
+            Q(assigned_to=request.user) |
+            Q(is_pretagged=True) |
+            Q(status='visit_completed') |
+            Q(phone_verified=True)
+        ).exists()
+        
+        if not has_permission:
+            return JsonResponse({'success': False, 'error': 'You can only send OTP for leads assigned to you, pretagged leads, or visited leads in your projects.'}, status=403)
+        
+        # Get primary project for SMS link
+        primary_project = associations.first().project if associations.exists() else lead.primary_project
+    else:
+        primary_project = lead.primary_project
     
     # Check if there's an active OTP that hasn't expired
     now = timezone.now()
@@ -846,11 +1005,18 @@ def send_otp(request, pk):
     ).order_by('-created_at').first()
     
     if active_otp:
+        # Generate WhatsApp link for existing OTP
+        from .utils import get_sms_deep_link, normalize_phone
+        normalized_phone = normalize_phone(lead.phone)
+        project_name = primary_project.name if primary_project else ''
+        sms_link = get_sms_deep_link(normalized_phone, "XXXXXX", project_name=project_name)
+        
         # Return HTML for the OTP verification form (no OTP code shown)
         context = {
             'lead': lead,
             'latest_otp': active_otp,
             'now': now,
+            'sms_link': sms_link,
         }
         html = render_to_string('leads/otp_controls.html', context, request=request)
         return HttpResponse(html)
@@ -865,9 +1031,9 @@ def send_otp(request, pk):
         lead=lead,
         otp_hash=otp_hash,
         expires_at=expires_at,
-        sent_by=request.user,
         attempts=0,
         max_attempts=3,
+        gateway_response='{}',  # Initialize with empty JSON
     )
     
     # Normalize phone number before sending
@@ -876,13 +1042,18 @@ def send_otp(request, pk):
     
     # Send SMS via adapter (with WhatsApp fallback)
     from .sms_adapter import send_sms
-    # Pass OTP code and project name separately - adapter will format the message
-    sms_response = send_sms(normalized_phone, otp_code, project_name=lead.project.name)
+    # Get project name for SMS
+    project_name = primary_project.name if primary_project else (lead.primary_project.name if lead.primary_project else '')
+    sms_response = send_sms(normalized_phone, otp_code, project_name=project_name)
     
     # Store gateway response
     import json
     otp_log.gateway_response = json.dumps(sms_response)
     otp_log.save()
+    
+    # Generate WhatsApp link for OTP
+    from .utils import get_sms_deep_link
+    sms_link = get_sms_deep_link(normalized_phone, otp_code, project_name=project_name)
     
     # Return HTML for the OTP verification form
     context = {
@@ -890,6 +1061,7 @@ def send_otp(request, pk):
         'latest_otp': otp_log,
         'now': now,
         'sms_response': sms_response,
+        'sms_link': sms_link,
     }
     html = render_to_string('leads/otp_controls.html', context, request=request)
     
@@ -925,9 +1097,23 @@ def verify_otp(request, pk):
     if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin()):
         return JsonResponse({'success': False, 'error': 'Only Closing Managers can verify OTP.'}, status=403)
     
-    # For Closing Managers, ensure they can only verify OTP for assigned leads
-    if request.user.is_closing_manager() and lead.assigned_to != request.user:
-        return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads assigned to you.'}, status=403)
+    # For Closing Managers, allow OTP verification for assigned leads OR visited leads
+    if request.user.is_closing_manager():
+        # Check associations in user's projects
+        user_projects = request.user.assigned_projects.all()
+        associations = lead.project_associations.filter(
+            project__in=user_projects,
+            is_archived=False
+        )
+        has_permission = associations.filter(
+            Q(assigned_to=request.user) |
+            Q(is_pretagged=True) |
+            Q(status='visit_completed') |
+            Q(phone_verified=True)
+        ).exists()
+        
+        if not has_permission:
+            return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads assigned to you, pretagged leads, or visited leads in your projects.'}, status=403)
     
     otp_code = request.POST.get('otp', '').strip()
     if not otp_code or len(otp_code) != 6:
@@ -961,11 +1147,29 @@ def verify_otp(request, pk):
         otp_log.verified_at = now
         otp_log.save()
         
-        # Update lead
-        lead.phone_verified = True
-        if lead.is_pretagged:
-            lead.pretag_status = 'verified'
-        lead.save()
+        # Update associations - mark phone as verified and update status
+        # Get project from request if available (for booking form), otherwise update all associations
+        project_id = request.POST.get('project_id') or request.GET.get('project_id')
+        
+        if project_id:
+            # Update specific project association
+            associations = lead.project_associations.filter(project_id=project_id, is_archived=False)
+        else:
+            # Update all associations for closing manager's projects
+            if request.user.is_closing_manager():
+                user_projects = request.user.assigned_projects.all()
+                associations = lead.project_associations.filter(project__in=user_projects, is_archived=False)
+            else:
+                associations = lead.project_associations.filter(is_archived=False)
+        
+        for association in associations:
+            association.phone_verified = True
+            if association.is_pretagged:
+                association.pretag_status = 'verified'
+            # Update status to visit_completed when OTP is verified
+            if association.status != 'booked' and association.status != 'lost':
+                association.status = 'visit_completed'
+            association.save()
         
         # Create audit log
         from accounts.models import AuditLog
@@ -977,17 +1181,34 @@ def verify_otp(request, pk):
             changes={'lead_name': lead.name, 'phone': lead.phone, 'message': 'OTP verified'},
         )
         
-        # Return updated HTML
+        # Return updated HTML - check if this is from booking form
         lead.refresh_from_db()
-        context = {
-            'lead': lead,
-            'latest_otp': None,
-            'now': now,
-        }
-        html = render_to_string('leads/otp_section.html', context, request=request)
         
-        # Return HTML directly for htmx
-        return HttpResponse(html)
+        # Check if request is from booking form (unit calculation page) by checking hx-target header or referer
+        hx_target = request.headers.get('HX-Target', '')
+        referer = request.headers.get('Referer', '')
+        
+        if hx_target == 'otp-booking-controls' or 'calculate' in referer or 'unit' in referer:
+            # Return OTP controls with success message for booking form
+            context = {
+                'lead': lead,
+                'latest_otp': None,
+                'now': now,
+            }
+            html = render_to_string('leads/otp_controls.html', context, request=request)
+            # Add success message at the top
+            success_html = '<div class="p-3 bg-green-50 rounded-lg border border-green-200 mb-3"><p class="text-green-800 font-semibold">✓ Phone verified! You can now create the booking.</p></div>'
+            html = success_html + html
+            return HttpResponse(html)
+        else:
+            # Return full OTP section for lead detail page
+            context = {
+                'lead': lead,
+                'latest_otp': None,
+                'now': now,
+            }
+            html = render_to_string('leads/otp_section.html', context, request=request)
+            return HttpResponse(html)
     else:
         otp_log.save()
         remaining_attempts = otp_log.max_attempts - otp_log.attempts
@@ -1016,31 +1237,32 @@ def visits_list(request):
     visit_source = request.GET.get('visit_source', '')
     search_query = request.GET.get('search', '')
     
-    # Base queryset - visited leads (visit_completed) OR pretagged leads - Mandate Owner has same permissions as Super Admin
+    # Base queryset - associations for visited leads (visit_completed) OR pretagged leads
     if request.user.is_super_admin() or request.user.is_mandate_owner():
-        leads_qs = Lead.objects.filter(
+        associations_qs = LeadProjectAssociation.objects.filter(
             Q(status='visit_completed') | Q(is_pretagged=True),
             is_archived=False
         )
     else:  # Site Head - strict isolation
-        leads_qs = Lead.objects.filter(
-            Q(project__site_head=request.user) &
-            (Q(status='visit_completed') | Q(is_pretagged=True)) &
-            Q(is_archived=False)
+        associations_qs = LeadProjectAssociation.objects.filter(
+            project__site_head=request.user,
+            is_archived=False
+        ).filter(
+            Q(status='visit_completed') | Q(is_pretagged=True)
         )
     
     # Apply filters
     if project_id:
-        leads_qs = leads_qs.filter(project_id=project_id)
+        associations_qs = associations_qs.filter(project_id=project_id)
     
     if visit_source:
-        leads_qs = leads_qs.filter(visit_source=visit_source)
+        associations_qs = associations_qs.filter(lead__visit_source=visit_source)
     
     if search_query:
-        leads_qs = leads_qs.filter(
-            Q(name__icontains=search_query) |
-            Q(phone__icontains=search_query) |
-            Q(email__icontains=search_query)
+        associations_qs = associations_qs.filter(
+            Q(lead__name__icontains=search_query) |
+            Q(lead__phone__icontains=search_query) |
+            Q(lead__email__icontains=search_query)
         )
     
     # Get projects for filter dropdown
@@ -1050,17 +1272,36 @@ def visits_list(request):
         projects = Project.objects.filter(site_head=request.user, is_active=True).order_by('name')
     
     # Calculate metrics
-    total_visits = leads_qs.count()
-    visits_by_source = leads_qs.values('visit_source').annotate(count=Count('id'))
-    visits_by_project = leads_qs.values('project__name').annotate(count=Count('id')).order_by('-count')[:10]
+    total_visits = associations_qs.count()
+    visits_by_source = associations_qs.values('lead__visit_source').annotate(count=Count('id'))
+    visits_by_project = associations_qs.values('project__name').annotate(count=Count('id')).order_by('-count')[:10]
     
-    # Pagination
-    paginator = Paginator(leads_qs.order_by('-created_at'), 25)
+    # Get unique lead IDs
+    lead_ids = associations_qs.values_list('lead_id', flat=True).distinct()
+    
+    # For Site Heads: Get assignee and handler info
+    # Prefetch related data for better performance
+    associations_qs = associations_qs.select_related('lead', 'assigned_to', 'created_by', 'project', 'lead__channel_partner')
+    
+    # Pagination - paginate associations, then get leads
+    paginator = Paginator(associations_qs.order_by('-created_at'), 25)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
+    # Get leads from associations
+    association_lead_ids = [assoc.lead_id for assoc in page_obj]
+    leads_qs = Lead.objects.filter(id__in=association_lead_ids, is_archived=False)
+    
+    # Create a mapping of lead to associations for display
+    lead_associations_map = {}
+    for assoc in page_obj:
+        if assoc.lead_id not in lead_associations_map:
+            lead_associations_map[assoc.lead_id] = []
+        lead_associations_map[assoc.lead_id].append(assoc)
+    
     context = {
-        'leads': page_obj,
+        'associations': page_obj,  # Pass associations instead of leads
+        'lead_associations_map': lead_associations_map,
         'projects': projects,
         'selected_project': project_id,
         'selected_visit_source': visit_source,
@@ -1068,50 +1309,504 @@ def visits_list(request):
         'total_visits': total_visits,
         'visits_by_source': visits_by_source,
         'visits_by_project': visits_by_project,
+        'is_site_head': request.user.is_site_head(),
     }
     return render(request, 'leads/visits_list.html', context)
 
 
 @login_required
 def upcoming_visits(request):
-    """Upcoming Visits view for Closing Managers - shows pretagged leads"""
-    if not request.user.is_closing_manager():
-        messages.error(request, 'Only Closing Managers can view upcoming visits.')
+    """Upcoming Visits view for Closing Managers, Mandate Owners, Site Heads, and Super Admins - shows pretagged leads and scheduled visits"""
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head() or request.user.is_closing_manager()):
+        messages.error(request, 'You do not have permission to view upcoming visits.')
         return redirect('dashboard')
     
-    # Get pretagged leads that are pending verification
-    leads = Lead.objects.filter(
-        is_pretagged=True,
-        pretag_status='pending_verification',
-        assigned_to=request.user
-    ).order_by('created_at')
+    # Get projects based on user role
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
+        assigned_projects = Project.objects.filter(is_active=True)
+    elif request.user.is_site_head():
+        assigned_projects = Project.objects.filter(site_head=request.user, is_active=True)
+    else:  # Closing Manager
+        assigned_projects = request.user.assigned_projects.filter(is_active=True)
+    
+    # Get associations for pretagged leads and scheduled visits
+    if request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head():
+        # Mandate owners and site heads see all upcoming visits in their projects
+        associations = LeadProjectAssociation.objects.filter(
+            project__in=assigned_projects,
+            is_archived=False
+        ).filter(
+            Q(is_pretagged=True, pretag_status='pending_verification') |
+            Q(status='visit_scheduled')
+        ).select_related('lead', 'project', 'assigned_to')
+    else:  # Closing Manager
+        associations = LeadProjectAssociation.objects.filter(
+            project__in=assigned_projects,
+            assigned_to=request.user,
+            is_archived=False
+        ).filter(
+            Q(is_pretagged=True, pretag_status='pending_verification') |
+            Q(status='visit_scheduled')
+        ).select_related('lead', 'project')
     
     # Search
     search = request.GET.get('search', '')
     if search:
-        leads = leads.filter(
-            Q(name__icontains=search) |
-            Q(phone__icontains=search) |
+        associations = associations.filter(
+            Q(lead__name__icontains=search) |
+            Q(lead__phone__icontains=search) |
             Q(project__name__icontains=search)
         )
     
     # Filter by project
     project_id = request.GET.get('project', '')
     if project_id:
-        leads = leads.filter(project_id=project_id)
+        associations = associations.filter(project_id=project_id)
+    
+    # Get unique lead IDs
+    lead_ids = associations.values_list('lead_id', flat=True).distinct()
+    leads = Lead.objects.filter(id__in=lead_ids, is_archived=False).order_by('-created_at')
     
     # Pagination
     paginator = Paginator(leads, 25)
     page = request.GET.get('page', 1)
     leads_page = paginator.get_page(page)
     
+    # Get associations for each lead
+    lead_associations_dict = {}
+    for lead in leads_page:
+        if request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head():
+            lead_associations_dict[lead.id] = lead.project_associations.filter(
+                project__in=assigned_projects,
+                is_archived=False
+            ).filter(
+                Q(is_pretagged=True, pretag_status='pending_verification') |
+                Q(status='visit_scheduled')
+            ).select_related('project', 'assigned_to')
+        else:  # Closing Manager
+            lead_associations_dict[lead.id] = lead.project_associations.filter(
+                project__in=assigned_projects,
+                assigned_to=request.user,
+                is_archived=False
+            ).filter(
+                Q(is_pretagged=True, pretag_status='pending_verification') |
+                Q(status='visit_scheduled')
+            ).select_related('project', 'assigned_to')
+    
     context = {
         'leads': leads_page,
-        'projects': Project.objects.filter(is_active=True),
+        'lead_associations': lead_associations_dict,
+        'projects': assigned_projects,
         'search': search,
         'selected_project': project_id,
+        'is_mandate_owner': request.user.is_mandate_owner(),
+        'is_site_head': request.user.is_site_head(),
     }
     return render(request, 'leads/upcoming_visits.html', context)
+
+
+@login_required
+def pretagged_leads(request):
+    """Pretagged Leads view for Sourcing Managers - shows all pretagged leads with visit status"""
+    if not request.user.is_sourcing_manager():
+        messages.error(request, 'Only Sourcing Managers can view pretagged leads.')
+        return redirect('dashboard')
+    
+    # Get associations for pretagged leads created by this sourcing manager
+    associations = LeadProjectAssociation.objects.filter(
+        is_pretagged=True,
+        created_by=request.user,
+        is_archived=False
+    ).select_related('lead', 'project', 'assigned_to')
+    
+    # Search
+    search = request.GET.get('search', '')
+    if search:
+        associations = associations.filter(
+            Q(lead__name__icontains=search) |
+            Q(lead__phone__icontains=search) |
+            Q(project__name__icontains=search) |
+            Q(lead__cp_name__icontains=search) |
+            Q(lead__cp_firm_name__icontains=search)
+        )
+    
+    # Filter by project
+    project_id = request.GET.get('project', '')
+    if project_id:
+        associations = associations.filter(project_id=project_id)
+    
+    # Filter by visit status
+    visit_status = request.GET.get('visit_status', '')
+    if visit_status == 'pending':
+        associations = associations.filter(pretag_status='pending_verification', phone_verified=False)
+    elif visit_status == 'completed':
+        associations = associations.filter(Q(pretag_status='verified') | Q(status='visit_completed'))
+    
+    # Get unique lead IDs
+    lead_ids = associations.values_list('lead_id', flat=True).distinct()
+    leads = Lead.objects.filter(id__in=lead_ids, is_archived=False).order_by('-created_at')
+    
+    # Get projects for filter - projects where user has created pretagged associations
+    projects_with_pretagged = Project.objects.filter(
+        is_active=True,
+        lead_associations__created_by=request.user,
+        lead_associations__is_pretagged=True
+    ).distinct()
+    
+    # Also include projects assigned to this user
+    user_assigned_projects = request.user.assigned_projects.filter(is_active=True)
+    
+    # Combine using union - order_by must be applied after union, not in subqueries
+    projects = projects_with_pretagged.union(user_assigned_projects)
+    projects = projects.order_by('name')
+    
+    # Pagination
+    paginator = Paginator(leads, 25)
+    page = request.GET.get('page', 1)
+    leads_page = paginator.get_page(page)
+    
+    # Get associations for each lead to display project-specific data
+    lead_associations_dict = {}
+    for lead in leads_page:
+        lead_associations_dict[lead.id] = lead.project_associations.filter(
+            is_pretagged=True,
+            created_by=request.user,
+            is_archived=False
+        ).select_related('project', 'assigned_to')
+    
+    # Stats - count associations
+    total_pretagged = LeadProjectAssociation.objects.filter(
+        is_pretagged=True,
+        created_by=request.user,
+        is_archived=False
+    ).count()
+    pending_visits = LeadProjectAssociation.objects.filter(
+        is_pretagged=True,
+        created_by=request.user,
+        pretag_status='pending_verification',
+        phone_verified=False,
+        is_archived=False
+    ).count()
+    completed_visits = LeadProjectAssociation.objects.filter(
+        is_pretagged=True,
+        created_by=request.user,
+        is_archived=False
+    ).filter(Q(pretag_status='verified') | Q(status='visit_completed')).count()
+    
+    context = {
+        'leads': leads_page,
+        'lead_associations': lead_associations_dict,
+        'projects': projects,
+        'search': search,
+        'selected_project': project_id,
+        'selected_visit_status': visit_status,
+        'total_pretagged': total_pretagged,
+        'pending_visits': pending_visits,
+        'completed_visits': completed_visits,
+    }
+    return render(request, 'leads/pretagged_leads.html', context)
+
+
+@login_required
+def schedule_visit(request):
+    """Schedule visit for Telecallers and Closing Managers - similar to pretagging but without CP"""
+    if not (request.user.is_telecaller() or request.user.is_closing_manager()):
+        messages.error(request, 'Only Telecallers and Closing Managers can schedule visits.')
+        return redirect('dashboard')
+    
+    # Get projects assigned to this user (telecaller or closing manager)
+    projects = request.user.assigned_projects.filter(is_active=True).order_by('name')
+    
+    if request.method == 'POST':
+        try:
+            # Get primary project (first selected)
+            project_ids = request.POST.getlist('projects')
+            if not project_ids:
+                messages.error(request, 'At least one project is required.')
+                return redirect('leads:schedule_visit')
+            
+            primary_project = Project.objects.get(id=project_ids[0], is_active=True)
+            
+            # Auto-assign to closing manager assigned to this project
+            from django.utils import timezone
+            closing_manager = None
+            # Get closing managers assigned to this project
+            closing_managers = User.objects.filter(
+                role='closing_manager',
+                is_active=True,
+                assigned_projects=primary_project
+            )
+            if closing_managers.exists():
+                # Assign to first available closing manager (round-robin could be implemented later)
+                closing_manager = closing_managers.first()
+            
+            # Normalize phone numbers - combine country code and phone if separate
+            from .utils import normalize_phone
+            phone_input = request.POST.get('phone')
+            country_code = request.POST.get('country_code', '+91')
+            if phone_input and not phone_input.startswith('+'):
+                # If phone doesn't have country code, combine with country code
+                phone_input = country_code + phone_input
+            normalized_phone = normalize_phone(phone_input)
+            
+            # Check if lead exists by phone (deduplication)
+            lead, lead_created = Lead.objects.get_or_create(
+                phone=normalized_phone,
+                defaults={
+                    'name': request.POST.get('name'),
+                    'email': request.POST.get('email', ''),
+                    'age': int(request.POST.get('age')) if request.POST.get('age') else None,
+                    'gender': request.POST.get('gender', ''),
+                    'locality': request.POST.get('locality', ''),
+                    'current_residence': request.POST.get('current_residence', ''),
+                    'occupation': request.POST.get('occupation', ''),
+                    'company_name': request.POST.get('company_name', ''),
+                    'designation': request.POST.get('designation', ''),
+                    'budget': float(request.POST.get('budget')) if request.POST.get('budget') else None,
+                    'purpose': request.POST.get('purpose', ''),
+                    'visit_type': request.POST.get('visit_type', ''),
+                    'is_first_visit': request.POST.get('is_first_visit', 'true') == 'true',
+                    'how_did_you_hear': request.POST.get('how_did_you_hear', ''),
+                    'created_by': request.user,
+                }
+            )
+            
+            # Update lead if it already existed
+            if not lead_created:
+                if request.POST.get('name') and lead.name != request.POST.get('name'):
+                    lead.name = request.POST.get('name')
+                lead.save()
+            
+            # Add configurations (multiple selection)
+            config_ids = request.POST.getlist('configurations')
+            if config_ids:
+                configs = GlobalConfiguration.objects.filter(id__in=config_ids, is_active=True)
+                lead.configurations.set(configs)
+            
+            # Create associations for all selected projects
+            for project_id in project_ids:
+                try:
+                    project = Project.objects.get(id=project_id, is_active=True)
+                    
+                    # Auto-assign to closing manager for this project
+                    project_closing_manager = None
+                    project_closing_managers = User.objects.filter(
+                        role='closing_manager',
+                        is_active=True,
+                        assigned_projects=project
+                    )
+                    if project_closing_managers.exists():
+                        project_closing_manager = project_closing_managers.first()
+                    
+                    # Create or get association for this project
+                    association, assoc_created = LeadProjectAssociation.objects.get_or_create(
+                        lead=lead,
+                        project=project,
+                        defaults={
+                            'status': 'visit_scheduled',
+                            'is_pretagged': False,
+                            'phone_verified': False,
+                            'assigned_to': project_closing_manager,
+                            'assigned_at': timezone.now() if project_closing_manager else None,
+                            'assigned_by': request.user if project_closing_manager else None,
+                            'created_by': request.user,
+                        }
+                    )
+                    
+                    # Update association if it already existed
+                    if not assoc_created:
+                        if association.status != 'booked' and association.status != 'lost':
+                            association.status = 'visit_scheduled'
+                        if project_closing_manager and not association.assigned_to:
+                            association.assigned_to = project_closing_manager
+                            association.assigned_at = timezone.now()
+                            association.assigned_by = request.user
+                        association.save()
+                except Project.DoesNotExist:
+                    continue
+            
+            messages.success(request, f'Visit scheduled successfully! Lead assigned to {closing_manager.username if closing_manager else "Unassigned"}.')
+            return redirect('leads:scheduled_visits')
+            
+        except Exception as e:
+            messages.error(request, f'Error scheduling visit: {str(e)}')
+    
+    context = {
+        'projects': projects,
+        'global_configurations': GlobalConfiguration.objects.filter(is_active=True).order_by('order', 'name'),
+    }
+    return render(request, 'leads/schedule_visit.html', context)
+
+
+@login_required
+def scheduled_visits(request):
+    """Scheduled Visits view for Telecallers and Closing Managers - shows all scheduled visits with status"""
+    if not (request.user.is_telecaller() or request.user.is_closing_manager()):
+        messages.error(request, 'Only Telecallers and Closing Managers can view scheduled visits.')
+        return redirect('dashboard')
+    
+    # Get associations for scheduled visits created by this user
+    associations = LeadProjectAssociation.objects.filter(
+        status='visit_scheduled',
+        created_by=request.user,
+        is_archived=False
+    ).select_related('lead', 'project')
+    
+    # Search
+    search = request.GET.get('search', '')
+    if search:
+        associations = associations.filter(
+            Q(lead__name__icontains=search) |
+            Q(lead__phone__icontains=search) |
+            Q(project__name__icontains=search)
+        )
+    
+    # Filter by project
+    project_id = request.GET.get('project', '')
+    if project_id:
+        associations = associations.filter(project_id=project_id)
+    
+    # Filter by status
+    visit_status = request.GET.get('visit_status', '')
+    if visit_status == 'pending':
+        associations = associations.filter(phone_verified=False, status='visit_scheduled')
+    elif visit_status == 'verified':
+        associations = associations.filter(phone_verified=True)
+    elif visit_status == 'completed':
+        associations = associations.filter(status='visit_completed')
+    
+    # Get projects for filter
+    projects = request.user.assigned_projects.filter(is_active=True).order_by('name')
+    
+    # Get unique lead IDs
+    lead_ids = associations.values_list('lead_id', flat=True).distinct()
+    leads = Lead.objects.filter(id__in=lead_ids, is_archived=False).order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(leads, 25)
+    page = request.GET.get('page', 1)
+    leads_page = paginator.get_page(page)
+    
+    # Get associations for each lead
+    lead_associations_dict = {}
+    for lead in leads_page:
+        lead_associations_dict[lead.id] = lead.project_associations.filter(
+            status='visit_scheduled',
+            created_by=request.user,
+            is_archived=False
+        ).select_related('project', 'assigned_to')
+    
+    # Stats - count associations
+    total_scheduled = LeadProjectAssociation.objects.filter(
+        status='visit_scheduled',
+        created_by=request.user,
+        is_archived=False
+    ).count()
+    pending_otp = LeadProjectAssociation.objects.filter(
+        status='visit_scheduled',
+        created_by=request.user,
+        phone_verified=False,
+        is_archived=False
+    ).count()
+    verified = LeadProjectAssociation.objects.filter(
+        status='visit_scheduled',
+        created_by=request.user,
+        phone_verified=True,
+        is_archived=False
+    ).count()
+    completed = LeadProjectAssociation.objects.filter(
+        status='visit_completed',
+        created_by=request.user,
+        is_archived=False
+    ).count()
+    
+    context = {
+        'leads': leads_page,
+        'lead_associations': lead_associations_dict,
+        'projects': projects,
+        'search': search,
+        'selected_project': project_id,
+        'selected_visit_status': visit_status,
+        'total_scheduled': total_scheduled,
+        'pending_otp': pending_otp,
+        'verified': verified,
+        'completed': completed,
+    }
+    return render(request, 'leads/scheduled_visits.html', context)
+
+
+@login_required
+def closing_manager_visits(request):
+    """Visits performed by Closing Manager - only their own visits"""
+    if not request.user.is_closing_manager():
+        messages.error(request, 'Only Closing Managers can view their visits.')
+        return redirect('dashboard')
+    
+    # Get associations for visits performed by this closing manager ONLY
+    # This ensures they only see their own visits, not other closers' visits
+    associations = LeadProjectAssociation.objects.filter(
+        assigned_to=request.user,  # Only associations assigned to this closing manager
+        is_archived=False
+    ).filter(
+        Q(status='visit_completed') | Q(phone_verified=True) | Q(status='visit_scheduled')
+    ).select_related('lead', 'project')
+    
+    # Search
+    search = request.GET.get('search', '')
+    if search:
+        associations = associations.filter(
+            Q(lead__name__icontains=search) |
+            Q(lead__phone__icontains=search) |
+            Q(project__name__icontains=search)
+        )
+    
+    # Filter by project
+    project_id = request.GET.get('project', '')
+    if project_id:
+        associations = associations.filter(project_id=project_id)
+    
+    # Get projects for filter
+    projects = request.user.assigned_projects.filter(is_active=True).order_by('name')
+    
+    # Get unique lead IDs
+    lead_ids = associations.values_list('lead_id', flat=True).distinct()
+    leads = Lead.objects.filter(id__in=lead_ids, is_archived=False).order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(leads, 25)
+    page = request.GET.get('page', 1)
+    leads_page = paginator.get_page(page)
+    
+    # Get associations for each lead
+    lead_associations_dict = {}
+    for lead in leads_page:
+        lead_associations_dict[lead.id] = lead.project_associations.filter(
+            assigned_to=request.user,
+            is_archived=False
+        ).filter(
+            Q(status='visit_completed') | Q(phone_verified=True) | Q(status='visit_scheduled')
+        ).select_related('project', 'assigned_to')
+    
+    # Stats - count associations
+    total_visits = associations.count()
+    # Count visits with bookings (check if lead has booking)
+    visits_with_bookings = 0
+    for assoc in associations:
+        if hasattr(assoc.lead, 'booking') and assoc.lead.booking:
+            visits_with_bookings += 1
+    visits_without_bookings = total_visits - visits_with_bookings
+    
+    context = {
+        'leads': leads_page,
+        'lead_associations': lead_associations_dict,
+        'projects': projects,
+        'search': search,
+        'selected_project': project_id,
+        'total_visits': total_visits,
+        'visits_with_bookings': visits_with_bookings,
+        'visits_without_bookings': visits_without_bookings,
+    }
+    return render(request, 'leads/closing_manager_visits.html', context)
 
 
 @login_required
@@ -1122,10 +1817,18 @@ def log_call(request, pk):
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check
+    # Permission check - check associations
+    has_permission = False
     if request.user.is_telecaller() or request.user.is_closing_manager():
-        if lead.assigned_to != request.user:
-            return JsonResponse({'success': False, 'error': 'You do not have permission to log calls for this lead.'}, status=403)
+        # Check if user is assigned to this lead in any project
+        associations = lead.project_associations.filter(
+            assigned_to=request.user,
+            is_archived=False
+        )
+        has_permission = associations.exists()
+    
+    if not has_permission:
+        return JsonResponse({'success': False, 'error': 'You do not have permission to log calls for this lead.'}, status=403)
     
     outcome = request.POST.get('outcome')
     notes = request.POST.get('notes', '')
@@ -1137,15 +1840,21 @@ def log_call(request, pk):
     # Create call log
     call_log = CallLog.objects.create(
         lead=lead,
-        called_by=request.user,
+        user=request.user,
         outcome=outcome,
         notes=notes,
     )
     
-    # Auto-update status: if lead is "new", change to "contacted" when called
-    if lead.status == 'new':
-        lead.status = 'contacted'
-        lead.save()
+    # Auto-update status: if association is "new", change to "contacted" when called
+    # Update all associations assigned to this user
+    user_associations = lead.project_associations.filter(
+        assigned_to=request.user,
+        is_archived=False
+    )
+    for association in user_associations:
+        if association.status == 'new':
+            association.status = 'contacted'
+            association.save()
     
     # Create audit log for call
     from accounts.models import AuditLog
@@ -1174,11 +1883,24 @@ def log_call(request, pk):
             except ValueError:
                 pass
     elif next_action == 'schedule_visit':
-        lead.status = 'visit_scheduled'
-        lead.save()
+        # Update associations assigned to this user
+        user_associations = lead.project_associations.filter(
+            assigned_to=request.user,
+            is_archived=False
+        )
+        for association in user_associations:
+            if association.status != 'booked' and association.status != 'lost':
+                association.status = 'visit_scheduled'
+                association.save()
     elif next_action == 'not_interested':
-        lead.status = 'lost'
-        lead.save()
+        # Update associations assigned to this user
+        user_associations = lead.project_associations.filter(
+            assigned_to=request.user,
+            is_archived=False
+        )
+        for association in user_associations:
+            association.status = 'lost'
+            association.save()
     
     # Return HTML to close modal and show success
     return HttpResponse('<div class="p-3 bg-green-50 text-green-800 rounded-lg mb-4">Call logged successfully!</div><script>setTimeout(() => { const modal = document.getElementById("log-call-modal"); if (modal) modal.classList.add("hidden"); location.reload(); }, 1500);</script>')
@@ -1193,7 +1915,6 @@ def create_reminder(request, pk):
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
     reminder_date_str = request.POST.get('reminder_date', '')
-    reminder_type = request.POST.get('reminder_type', 'callback')
     notes = request.POST.get('notes', '')
     
     if not reminder_date_str:
@@ -1206,7 +1927,6 @@ def create_reminder(request, pk):
         reminder = FollowUpReminder.objects.create(
             lead=lead,
             reminder_date=reminder_date,
-            reminder_type=reminder_type,
             notes=notes,
             created_by=request.user,
         )
@@ -1300,16 +2020,25 @@ def update_notes(request, pk):
 
 @login_required
 def update_budget(request, pk):
-    """Update lead budget via dropdown"""
+    """Update lead budget via dropdown - budget is global, not project-specific"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check
+    # Permission check - check associations
+    has_permission = False
     if request.user.is_telecaller() or request.user.is_closing_manager():
-        if lead.assigned_to != request.user:
-            return JsonResponse({'success': False, 'error': 'You do not have permission to update this lead.'}, status=403)
+        associations = lead.project_associations.filter(
+            assigned_to=request.user,
+            is_archived=False
+        )
+        has_permission = associations.exists()
+    else:
+        has_permission = True  # Other roles can update
+    
+    if not has_permission:
+        return JsonResponse({'success': False, 'error': 'You do not have permission to update this lead.'}, status=403)
     
     budget_value = request.POST.get('budget', '').strip()
     
@@ -1354,25 +2083,24 @@ def update_configuration(request, pk):
         if lead.assigned_to != request.user:
             return JsonResponse({'success': False, 'error': 'You do not have permission to update this lead.'}, status=403)
     
-    configuration_id = request.POST.get('configuration', '').strip()
+    # Get configuration IDs (multiple selection)
+    configuration_ids = request.POST.getlist('configuration_ids[]') or request.POST.getlist('configuration_ids') or [request.POST.get('configuration', '')]
+    configuration_ids = [cid for cid in configuration_ids if cid]  # Remove empty strings
     
-    if not configuration_id:
-        # Clear configuration
-        lead.configuration = None
-        lead.save()
-    elif configuration_id == 'open_budget':
-        # Set as Open Budget: clear configuration and budget
-        lead.configuration = None
-        lead.budget = None
+    if not configuration_ids or (len(configuration_ids) == 1 and configuration_ids[0] == 'open_budget'):
+        # Clear configurations
+        lead.configurations.clear()
+        if len(configuration_ids) == 1 and configuration_ids[0] == 'open_budget':
+            # Also clear budget for open budget
+            lead.budget = None
         lead.save()
     else:
         try:
-            from projects.models import ProjectConfiguration
-            configuration = ProjectConfiguration.objects.get(pk=configuration_id, project=lead.project)
-            lead.configuration = configuration
+            configs = GlobalConfiguration.objects.filter(id__in=configuration_ids, is_active=True)
+            lead.configurations.set(configs)
             lead.save()
-        except ProjectConfiguration.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Invalid configuration.'}, status=400)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'Invalid configuration: {str(e)}'}, status=400)
     
     # Create audit log
     from accounts.models import AuditLog
@@ -1516,9 +2244,9 @@ def lead_assign(request):
                         AuditLog.objects.create(
                             user=request.user,
                             action='lead_assigned',
-                            model_name='Lead',
-                            object_id=str(lead.id),
-                            changes={'lead_name': lead.name, 'assigned_to': employee.username},
+                            model_name='LeadProjectAssociation',
+                            object_id=str(association.id),
+                            changes={'lead_name': association.lead.name, 'project': project.name, 'assigned_to': employee.username},
                         )
             
             messages.success(request, f'Successfully assigned {assigned_count} lead(s) to employees.')
@@ -1946,10 +2674,28 @@ def lead_upload(request):
                         if not name:
                             name = f"Lead-{phone[-4:]}"  # Use last 4 digits of phone as name
                         
-                        # Check for duplicate phone - skip if exists (don't create duplicate)
-                        if Lead.objects.filter(phone=phone, project=project, is_archived=False).exists():
-                            # Skip this row silently - don't create duplicate
-                            continue
+                        # Get or create lead by phone (deduplication)
+                        lead, lead_created = Lead.objects.get_or_create(
+                            phone=phone,
+                            defaults={
+                                'name': name,
+                                'email': get_row_value('email') or '',
+                                'age': int(get_row_value('age')) if get_row_value('age') and get_row_value('age').isdigit() else None,
+                                'gender': get_row_value('gender') or '',
+                                'locality': get_row_value('locality') or '',
+                                'current_residence': get_row_value('current_residence') or '',
+                                'occupation': get_row_value('occupation') or '',
+                                'company_name': get_row_value('company_name') or '',
+                                'designation': get_row_value('designation') or '',
+                                'created_by': request.user,
+                            }
+                        )
+                        
+                        # Update lead if it already existed
+                        if not lead_created:
+                            if name and lead.name != name:
+                                lead.name = name
+                            lead.save()
                         
                         # Get simplified fields (only what's needed for leads upload)
                         configuration_str = get_row_value('configuration')
@@ -1957,25 +2703,28 @@ def lead_upload(request):
                         feedback = get_row_value('feedback')
                         cp_id = get_row_value('cp_id')
                         
-                        # Parse configuration - use flexible matching utility
-                        configuration = None
+                        # Parse configurations - match to global configurations
+                        configs_to_add = []
                         if configuration_str:
                             try:
-                                from leads.utils import match_configuration
-                                import logging
-                                logger = logging.getLogger(__name__)
+                                # Try to match to global configurations
+                                normalized_config = configuration_str.replace(' ', '').replace('-', '').upper()
+                                global_config = GlobalConfiguration.objects.filter(
+                                    name=normalized_config,
+                                    is_active=True
+                                ).first()
                                 
-                                # Try to match configuration
-                                configuration = match_configuration(configuration_str, project)
+                                if not global_config:
+                                    # Try partial match
+                                    for gc in GlobalConfiguration.objects.filter(is_active=True):
+                                        if gc.name.upper() in normalized_config or normalized_config in gc.name.upper():
+                                            global_config = gc
+                                            break
                                 
-                                # If no match found, log for debugging
-                                if not configuration:
-                                    logger.warning(f"Configuration '{configuration_str}' not matched for project '{project.name}'. Available configs: {[c.name for c in project.configurations.all()]}")
+                                if global_config:
+                                    configs_to_add.append(global_config)
                             except Exception as e:
-                                # Log error but don't fail the upload
-                                import logging
-                                logger = logging.getLogger(__name__)
-                                logger.error(f"Error matching configuration '{configuration_str}': {str(e)}")
+                                pass
                         
                         # Parse budget - use flexible parsing utility
                         budget = None
@@ -2025,7 +2774,7 @@ def lead_upload(request):
                                 status_str = 'contacted'
                         
                         # Validate status against choices
-                        valid_statuses = [choice[0] for choice in Lead.LEAD_STATUS_CHOICES]
+                        valid_statuses = [choice[0] for choice in LeadProjectAssociation.LEAD_STATUS_CHOICES]
                         if status_str:
                             status_str = status_str.lower().strip()
                             status_matched = None
@@ -2034,7 +2783,7 @@ def lead_upload(request):
                                     status_matched = valid_status
                                     break
                             if not status_matched:
-                                for valid_status, display_name in Lead.LEAD_STATUS_CHOICES:
+                                for valid_status, display_name in LeadProjectAssociation.LEAD_STATUS_CHOICES:
                                     display_lower = display_name.lower()
                                     if status_str == display_lower or status_str in display_lower or display_lower in status_str:
                                         status_matched = valid_status
@@ -2057,21 +2806,44 @@ def lead_upload(request):
                             else:
                                 notes = f"Budget: {budget_str}"
                         
-                        # Create lead with simplified fields
-                        Lead.objects.create(
-                            name=name,
-                            phone=phone,
+                        # Add configurations to lead
+                        if configs_to_add:
+                            lead.configurations.set(configs_to_add)
+                        
+                        # Update budget if provided
+                        if budget:
+                            lead.budget = budget
+                            lead.save()
+                        
+                        # Update channel partner if provided
+                        if channel_partner:
+                            lead.channel_partner = channel_partner
+                            lead.save()
+                        
+                        # Create or get association for this project
+                        association, assoc_created = LeadProjectAssociation.objects.get_or_create(
+                            lead=lead,
                             project=project,
-                            configuration=configuration,
-                            budget=budget,
-                            notes=notes,
-                            channel_partner=channel_partner,
-                            is_pretagged=is_pretagged,
-                            pretag_status='pending_verification' if is_pretagged else '',
-                            phone_verified=False,
-                            status=status,
-                            created_by=request.user,
+                            defaults={
+                                'status': status,
+                                'is_pretagged': is_pretagged,
+                                'pretag_status': 'pending_verification' if is_pretagged else '',
+                                'phone_verified': False,
+                                'notes': notes,
+                                'created_by': request.user,
+                            }
                         )
+                        
+                        # Update association if it already existed
+                        if not assoc_created:
+                            association.status = status
+                            if is_pretagged:
+                                association.is_pretagged = True
+                                association.pretag_status = 'pending_verification'
+                            if notes:
+                                association.notes = notes
+                            association.save()
+                        
                         leads_created += 1
                     except Exception as e:
                         error_msg = f"Row {row_num}: {str(e)}"
@@ -2179,10 +2951,33 @@ def lead_upload(request):
                         if not name:
                             name = f"Lead-{phone[-4:]}"  # Use last 4 digits of phone as name
                         
-                        # Check for duplicate phone - skip if exists (don't create duplicate)
-                        if Lead.objects.filter(phone=phone, project=project, is_archived=False).exists():
-                            # Skip this row silently - don't create duplicate
-                            continue
+                        # Normalize phone number
+                        from .utils import normalize_phone
+                        if phone:
+                            phone = normalize_phone(phone)
+                        
+                        # Get or create lead by phone (deduplication)
+                        lead, lead_created = Lead.objects.get_or_create(
+                            phone=phone,
+                            defaults={
+                                'name': name,
+                                'email': get_row_value('email') or '',
+                                'age': int(get_row_value('age')) if get_row_value('age') and get_row_value('age').isdigit() else None,
+                                'gender': get_row_value('gender') or '',
+                                'locality': get_row_value('locality') or '',
+                                'current_residence': get_row_value('current_residence') or '',
+                                'occupation': get_row_value('occupation') or '',
+                                'company_name': get_row_value('company_name') or '',
+                                'designation': get_row_value('designation') or '',
+                                'created_by': request.user,
+                            }
+                        )
+                        
+                        # Update lead if it already existed
+                        if not lead_created:
+                            if name and lead.name != name:
+                                lead.name = name
+                            lead.save()
                         
                         # Get simplified fields (only what's needed for leads upload)
                         configuration_str = get_row_value('configuration')
@@ -2190,25 +2985,28 @@ def lead_upload(request):
                         feedback = get_row_value('feedback')
                         cp_id = get_row_value('cp_id')
                         
-                        # Parse configuration - use flexible matching utility
-                        configuration = None
+                        # Parse configurations - match to global configurations
+                        configs_to_add = []
                         if configuration_str:
                             try:
-                                from leads.utils import match_configuration
-                                import logging
-                                logger = logging.getLogger(__name__)
+                                # Try to match to global configurations
+                                normalized_config = configuration_str.replace(' ', '').replace('-', '').upper()
+                                global_config = GlobalConfiguration.objects.filter(
+                                    name=normalized_config,
+                                    is_active=True
+                                ).first()
                                 
-                                # Try to match configuration
-                                configuration = match_configuration(configuration_str, project)
+                                if not global_config:
+                                    # Try partial match
+                                    for gc in GlobalConfiguration.objects.filter(is_active=True):
+                                        if gc.name.upper() in normalized_config or normalized_config in gc.name.upper():
+                                            global_config = gc
+                                            break
                                 
-                                # If no match found, log for debugging
-                                if not configuration:
-                                    logger.warning(f"Configuration '{configuration_str}' not matched for project '{project.name}'. Available configs: {[c.name for c in project.configurations.all()]}")
+                                if global_config:
+                                    configs_to_add.append(global_config)
                             except Exception as e:
-                                # Log error but don't fail the upload
-                                import logging
-                                logger = logging.getLogger(__name__)
-                                logger.error(f"Error matching configuration '{configuration_str}': {str(e)}")
+                                pass
                         
                         # Parse budget - use flexible parsing utility
                         budget = None
@@ -2258,7 +3056,7 @@ def lead_upload(request):
                                 status_str = 'contacted'
                         
                         # Validate status against choices
-                        valid_statuses = [choice[0] for choice in Lead.LEAD_STATUS_CHOICES]
+                        valid_statuses = [choice[0] for choice in LeadProjectAssociation.LEAD_STATUS_CHOICES]
                         if status_str:
                             status_str = status_str.lower().strip()
                             status_matched = None
@@ -2267,7 +3065,7 @@ def lead_upload(request):
                                     status_matched = valid_status
                                     break
                             if not status_matched:
-                                for valid_status, display_name in Lead.LEAD_STATUS_CHOICES:
+                                for valid_status, display_name in LeadProjectAssociation.LEAD_STATUS_CHOICES:
                                     display_lower = display_name.lower()
                                     if status_str == display_lower or status_str in display_lower or display_lower in status_str:
                                         status_matched = valid_status
@@ -2290,21 +3088,44 @@ def lead_upload(request):
                             else:
                                 notes = f"Budget: {budget_str}"
                         
-                        # Create lead with simplified fields
-                        Lead.objects.create(
-                            name=name,
-                            phone=phone,
+                        # Add configurations to lead
+                        if configs_to_add:
+                            lead.configurations.set(configs_to_add)
+                        
+                        # Update budget if provided
+                        if budget:
+                            lead.budget = budget
+                            lead.save()
+                        
+                        # Update channel partner if provided
+                        if channel_partner:
+                            lead.channel_partner = channel_partner
+                            lead.save()
+                        
+                        # Create or get association for this project
+                        association, assoc_created = LeadProjectAssociation.objects.get_or_create(
+                            lead=lead,
                             project=project,
-                            configuration=configuration,
-                            budget=budget,
-                            notes=notes,
-                            channel_partner=channel_partner,
-                            is_pretagged=is_pretagged,
-                            pretag_status='pending_verification' if is_pretagged else '',
-                            phone_verified=False,
-                            status=status,
-                            created_by=request.user,
+                            defaults={
+                                'status': status,
+                                'is_pretagged': is_pretagged,
+                                'pretag_status': 'pending_verification' if is_pretagged else '',
+                                'phone_verified': False,
+                                'notes': notes,
+                                'created_by': request.user,
+                            }
                         )
+                        
+                        # Update association if it already existed
+                        if not assoc_created:
+                            association.status = status
+                            if is_pretagged:
+                                association.is_pretagged = True
+                                association.pretag_status = 'pending_verification'
+                            if notes:
+                                association.notes = notes
+                            association.save()
+                        
                         leads_created += 1
                     except Exception as e:
                         error_msg = f"Row {row_num}: {str(e)}"

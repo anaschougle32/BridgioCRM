@@ -52,7 +52,7 @@
                 </div>
                 <div>
                     <span class="text-gray-500 text-xs">Paid:</span>
-                    <p class="font-medium mt-1 text-green-600">₹{{ booking.total_paid|floatformat:0|default:0 }}</p>
+                    <p class="font-medium mt-1 text-green-600">₹{{ booking.total_paid_amount|floatformat:0|default:booking.total_paid|floatformat:0|default:0 }}</p>
                 </div>
                 <div>
                     <span class="text-gray-500 text-xs">Balance:</span>
@@ -93,7 +93,7 @@
                             {% if booking.tower_wing %}{{ booking.tower_wing }} - {% endif %}{{ booking.unit_number }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">₹{{ booking.final_negotiated_price|floatformat:0 }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">₹{{ booking.total_paid|floatformat:0|default:0 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">₹{{ booking.total_paid_amount|floatformat:0|default:booking.total_paid|floatformat:0|default:0 }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <span class="{% if booking.remaining_balance > 0 %}text-red-600{% else %}text-green-600{% endif %}">
                                 ₹{{ booking.remaining_balance|floatformat:0 }}

@@ -1,0 +1,72 @@
+========================================
+ANSWER TO DJANGO'S QUESTION
+========================================
+
+When Django asks:
+"Was calllog.call_duration renamed to calllog.duration_minutes (a IntegerField)? [y/N]"
+
+Answer: N (No)
+
+Reason:
+- The database already has `duration_minutes` column
+- There is NO `call_duration` column to rename
+- We already fixed this with fix_all_migrations.py
+
+========================================
+WHAT THE MISSING FIELDS OUTPUT SHOWS
+========================================
+
+1. CallLog Table:
+   - Script checked wrong table name (leads_calllog vs call_logs)
+   - The actual table `call_logs` exists and is correct
+   - ✅ No action needed
+
+2. Lead Table Issues:
+   - ⚠️  Legacy columns still exist in database:
+     * is_pretagged
+     * assigned_by_id
+     * phone_verified
+     * assigned_at
+     * status
+     * pretag_status
+     * configuration_id
+     * assigned_to_id
+   
+   - These should have been removed by migration 0009
+   - They're not in the model anymore, so Django ignores them
+   - ⚠️  They're just taking up space but won't cause errors
+
+3. Configurations (ManyToMany):
+   - ✅ This is NORMAL - ManyToMany fields don't create columns
+   - They create a separate join table (leads_lead_configurations)
+
+========================================
+COMMANDS TO RUN
+========================================
+
+1. Answer "N" to Django's question:
+   python manage.py makemigrations leads
+   # When asked: "Was calllog.call_duration renamed...?" → Answer: N
+
+2. Apply the migration:
+   python manage.py migrate leads
+
+3. Check everything:
+   python manage.py check
+   python manage.py migrate
+
+4. Start server:
+   python manage.py runserver
+
+========================================
+IF YOU WANT TO CLEAN UP LEGACY COLUMNS
+========================================
+
+The legacy columns in the Lead table won't cause errors, but if you want to remove them:
+
+1. They can be manually removed from SQLite later
+2. Or we can create a data migration to rebuild the table without them
+3. For now, they're safe to leave (Django ignores them)
+
+========================================
+

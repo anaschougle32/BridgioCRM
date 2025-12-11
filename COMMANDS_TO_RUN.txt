@@ -1,0 +1,28 @@
+========================================
+COMMANDS TO APPLY LEADS MIGRATIONS
+========================================
+
+Run these commands IN ORDER:
+
+1. Fix database schema manually:
+   python fix_all_migrations.py
+
+2. Fake migration 0009 to skip index errors (if needed):
+   python manage.py migrate leads 0009 --fake
+
+3. Apply all migrations:
+   python manage.py migrate
+
+4. Check for errors:
+   python manage.py check
+
+5. Start server:
+   python manage.py runserver
+
+========================================
+QUICK ONE-LINER (if everything is ready):
+========================================
+python fix_all_migrations.py && python manage.py migrate && python manage.py check
+
+========================================
+

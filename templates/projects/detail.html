@@ -163,7 +163,11 @@
         <div class="bg-white rounded-custom shadow-md p-6">
             <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Quick Actions</h2>
             <div class="space-y-3">
-                {% if user.is_closing_manager or user.is_sourcing_manager %}
+                {% if user.is_closing_manager %}
+                <a href="{% url 'leads:upcoming_visits' %}?project={{ project.id }}" 
+                   class="block w-full bg-yellow-600 text-white px-4 py-3 rounded-custom hover:bg-yellow-700 transition text-center">
+                    Upcoming Visits
+                </a>
                 <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
                    class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
                     View Visited Leads
@@ -175,6 +179,61 @@
                 <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
                    class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
                     View Bookings
+                </a>
+                <a href="{% url 'projects:unit_selection' project.pk %}" 
+                   class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                    View Units & Calculate
+                </a>
+                {% elif user.is_sourcing_manager %}
+                <a href="{% url 'leads:pretagged_leads' %}?project={{ project.id }}" 
+                   class="block w-full bg-yellow-600 text-white px-4 py-3 rounded-custom hover:bg-yellow-700 transition text-center">
+                    Pretagged Leads
+                </a>
+                <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
+                   class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
+                    View Visited Leads
+                </a>
+                <a href="{% url 'leads:list' %}?project={{ project.id }}&created_by={{ user.id }}" 
+                   class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                    My Created Leads
+                </a>
+                <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+                   class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                    View Bookings
+                </a>
+                <a href="{% url 'projects:unit_selection' project.pk %}" 
+                   class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                    View Units
+                </a>
+                {% elif user.is_site_head %}
+                <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
+                   class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
+                    View All Visits
+                </a>
+                <a href="{% url 'leads:list' %}?project={{ project.id }}" 
+                   class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                    View All Leads
+                </a>
+                <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+                   class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                    View Bookings
+                </a>
+                <a href="{% url 'projects:unit_selection' project.pk %}" 
+                   class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                    View Units & Calculate
+                </a>
+                {% elif user.is_telecaller %}
+                <a href="{% url 'leads:list' %}?project={{ project.id }}&assigned_to={{ user.id }}" 
+                   class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                    View Assigned Leads
+                </a>
+                <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+                   class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                    View Bookings
+                </a>
+                <a href="{% url 'projects:unit_selection' project.pk %}" 
+                   class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                    View Units & Calculate
                 </a>
                 {% else %}
                 <a href="{% url 'leads:list' %}?project={{ project.id }}" 
@@ -352,7 +411,11 @@
     <div class="lg:hidden bg-white rounded-custom shadow-md p-6">
         <h2 class="text-xl font-heading font-bold mb-4">Quick Actions</h2>
         <div class="space-y-3">
-            {% if user.is_closing_manager or user.is_sourcing_manager %}
+            {% if user.is_closing_manager %}
+            <a href="{% url 'leads:upcoming_visits' %}?project={{ project.id }}" 
+               class="block w-full bg-yellow-600 text-white px-4 py-3 rounded-custom hover:bg-yellow-700 transition text-center">
+                Upcoming Visits
+            </a>
             <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
                class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
                 View Visited Leads
@@ -364,6 +427,61 @@
             <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
                class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
                 View Bookings
+            </a>
+            <a href="{% url 'projects:unit_selection' project.pk %}" 
+               class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                View Units & Calculate
+            </a>
+            {% elif user.is_sourcing_manager %}
+            <a href="{% url 'leads:pretagged_leads' %}?project={{ project.id }}" 
+               class="block w-full bg-yellow-600 text-white px-4 py-3 rounded-custom hover:bg-yellow-700 transition text-center">
+                Pretagged Leads
+            </a>
+            <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
+               class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
+                View Visited Leads
+            </a>
+            <a href="{% url 'leads:list' %}?project={{ project.id }}&created_by={{ user.id }}" 
+               class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                My Created Leads
+            </a>
+            <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+               class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                View Bookings
+            </a>
+            <a href="{% url 'projects:unit_selection' project.pk %}" 
+               class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                View Units
+            </a>
+            {% elif user.is_site_head %}
+            <a href="{% url 'leads:visits_list' %}?project={{ project.id }}" 
+               class="block w-full bg-blue-600 text-white px-4 py-3 rounded-custom hover:bg-blue-700 transition text-center">
+                View All Visits
+            </a>
+            <a href="{% url 'leads:list' %}?project={{ project.id }}" 
+               class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                View All Leads
+            </a>
+            <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+               class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                View Bookings
+            </a>
+            <a href="{% url 'projects:unit_selection' project.pk %}" 
+               class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                View Units & Calculate
+            </a>
+            {% elif user.is_telecaller %}
+            <a href="{% url 'leads:list' %}?project={{ project.id }}&assigned_to={{ user.id }}" 
+               class="block w-full bg-olive-primary text-white px-4 py-3 rounded-custom hover:bg-olive-secondary transition text-center">
+                View Assigned Leads
+            </a>
+            <a href="{% url 'bookings:list' %}?project={{ project.id }}" 
+               class="block w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-custom hover:bg-gray-300 transition text-center">
+                View Bookings
+            </a>
+            <a href="{% url 'projects:unit_selection' project.pk %}" 
+               class="block w-full bg-purple-600 text-white px-4 py-3 rounded-custom hover:bg-purple-700 transition text-center">
+                View Units & Calculate
             </a>
             {% else %}
             <a href="{% url 'leads:list' %}?project={{ project.id }}" 

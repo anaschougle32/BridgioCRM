@@ -2,11 +2,11 @@
 <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200" id="otp-section">
     <h3 class="font-heading font-bold mb-3 text-olive-primary">OTP Verification</h3>
     
-    {% if lead.is_pretagged %}
+    {% if primary_association and primary_association.is_pretagged %}
     <div class="space-y-2 mb-4">
         <p><strong>Pretag Status:</strong> 
-            <span class="px-2 py-1 rounded text-sm {% if lead.pretag_status == 'verified' %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
-                {{ lead.get_pretag_status_display|default:"N/A" }}
+            <span class="px-2 py-1 rounded text-sm {% if primary_association.pretag_status == 'verified' %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                {{ primary_association.get_pretag_status_display|default:"N/A" }}
             </span>
         </p>
     </div>
@@ -14,7 +14,7 @@
     
     <div class="space-y-2 mb-4">
         <p><strong>Phone Verified:</strong> 
-            {% if lead.phone_verified %}
+            {% if primary_association and primary_association.phone_verified %}
                 <span class="text-green-600 font-semibold">✓ Verified</span>
             {% else %}
                 <span class="text-red-600 font-semibold">✗ Not Verified</span>
@@ -23,7 +23,7 @@
     </div>
     
     <!-- OTP Controls - Available for all user types on all leads -->
-    {% if not lead.phone_verified %}
+    {% if not primary_association or not primary_association.phone_verified %}
         {% include 'leads/otp_controls.html' %}
     {% else %}
         <div class="p-3 bg-green-50 rounded-lg border border-green-200">

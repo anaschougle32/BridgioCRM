@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Sum, Avg
+from django.db.models import Count, Q, Sum, Avg, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
-from leads.models import Lead
+from leads.models import Lead, LeadProjectAssociation
 from bookings.models import Booking, Payment
 from projects.models import Project
 from accounts.models import User
@@ -51,21 +52,34 @@ def dashboard(request):
             
             # CP Leaderboard - handle empty queryset
             try:
-                cp_leaderboard = list(ChannelPartner.objects.annotate(
-                    booking_count=Count('bookings'),
-                    total_revenue=Sum('bookings__payments__amount')
-                ).filter(booking_count__gt=0).order_by('-total_revenue')[:10])
-            except Exception:
+                cp_leaderboard = []
+                for cp in ChannelPartner.objects.filter(is_active=True):
+                    booking_count = cp.bookings.filter(is_archived=False).count()
+                    if booking_count > 0:
+                        total_revenue = Payment.objects.filter(booking__channel_partner=cp, booking__is_archived=False).aggregate(total=Sum('amount'))['total'] or 0
+                        cp_leaderboard.append({
+                            'cp_name': cp.cp_name,
+                            'firm_name': cp.firm_name,
+                            'booking_count': booking_count,
+                            'total_revenue': total_revenue
+                        })
+                cp_leaderboard.sort(key=lambda x: x['total_revenue'], reverse=True)
+                cp_leaderboard = cp_leaderboard[:10]
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
                 cp_leaderboard = []
             
             # Project stats - handle empty queryset
             try:
-                project_stats = list(Project.objects.annotate(
-                    lead_count=Count('leads', filter=Q(leads__is_archived=False)),
+                project_stats = list(Project.objects.filter(is_active=True).annotate(
+                    lead_count=Count('lead_associations', filter=Q(lead_associations__is_archived=False)),
                     booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-                    revenue=Sum('bookings__payments__amount')
+                    revenue=Coalesce(Sum('bookings__payments__amount'), Value(0))
                 ).order_by('-revenue')[:10])
-            except Exception:
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
                 project_stats = []
             
             # User stats
@@ -87,15 +101,22 @@ def dashboard(request):
             except Exception:
                 total_mandate_owners = 0
             
+            # Pending OTP - use LeadProjectAssociation
+            try:
+                pending_otp = LeadProjectAssociation.objects.filter(
+                    is_pretagged=True,
+                    pretag_status='pending_verification',
+                    is_archived=False
+                ).count()
+            except Exception:
+                pending_otp = 0
+            
             context = {
                 'is_super_admin': True,
                 'total_leads': all_leads.count(),
                 'new_visits_today': all_leads.filter(created_at__date=today).count(),
                 'total_bookings': bookings_count,
-                'pending_otp': all_leads.filter(
-                    is_pretagged=True,
-                    pretag_status='pending_verification'
-                ).count(),
+                'pending_otp': pending_otp,
                 'total_revenue': total_revenue,
                 'avg_booking_value': avg_booking_value,
                 'total_projects': total_projects,
@@ -134,21 +155,34 @@ def dashboard(request):
             
             # CP Leaderboard - handle empty queryset
             try:
-                cp_leaderboard = list(ChannelPartner.objects.annotate(
-                    booking_count=Count('bookings'),
-                    total_revenue=Sum('bookings__payments__amount')
-                ).filter(booking_count__gt=0).order_by('-total_revenue')[:10])
-            except Exception:
+                cp_leaderboard = []
+                for cp in ChannelPartner.objects.filter(is_active=True):
+                    booking_count = cp.bookings.filter(is_archived=False).count()
+                    if booking_count > 0:
+                        total_revenue = Payment.objects.filter(booking__channel_partner=cp, booking__is_archived=False).aggregate(total=Sum('amount'))['total'] or 0
+                        cp_leaderboard.append({
+                            'cp_name': cp.cp_name,
+                            'firm_name': cp.firm_name,
+                            'booking_count': booking_count,
+                            'total_revenue': total_revenue
+                        })
+                cp_leaderboard.sort(key=lambda x: x['total_revenue'], reverse=True)
+                cp_leaderboard = cp_leaderboard[:10]
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
                 cp_leaderboard = []
             
             # Project stats - handle empty queryset
             try:
-                project_stats = list(Project.objects.annotate(
-                    lead_count=Count('leads', filter=Q(leads__is_archived=False)),
+                project_stats = list(Project.objects.filter(is_active=True).annotate(
+                    lead_count=Count('lead_associations', filter=Q(lead_associations__is_archived=False)),
                     booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-                    revenue=Sum('bookings__payments__amount')
+                    revenue=Coalesce(Sum('bookings__payments__amount'), Value(0))
                 ).order_by('-revenue')[:10])
-            except Exception:
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
                 project_stats = []
             
             # User stats
@@ -170,15 +204,22 @@ def dashboard(request):
             except Exception:
                 total_mandate_owners = 0
             
+            # Pending OTP - use LeadProjectAssociation
+            try:
+                pending_otp = LeadProjectAssociation.objects.filter(
+                    is_pretagged=True,
+                    pretag_status='pending_verification',
+                    is_archived=False
+                ).count()
+            except Exception:
+                pending_otp = 0
+            
             context = {
                 'is_mandate_owner': True,
                 'total_leads': all_leads.count(),
                 'new_visits_today': all_leads.filter(created_at__date=today).count(),
                 'total_bookings': bookings_count,
-                'pending_otp': all_leads.filter(
-                    is_pretagged=True,
-                    pretag_status='pending_verification'
-                ).count(),
+                'pending_otp': pending_otp,
                 'total_revenue': total_revenue,
                 'avg_booking_value': avg_booking_value,
                 'total_projects': total_projects,
@@ -191,30 +232,41 @@ def dashboard(request):
         
         # Site Head Dashboard
         elif user_role == 'site_head':
-            leads_qs = Lead.objects.filter(project__site_head=user, is_archived=False)
+            # Use LeadProjectAssociation for project-specific data
+            site_head_projects = Project.objects.filter(site_head=user, is_active=True)
+            associations = LeadProjectAssociation.objects.filter(
+                project__site_head=user,
+                is_archived=False
+            )
+            
+            # Get unique leads from associations
+            lead_ids = associations.values_list('lead_id', flat=True).distinct()
+            leads_qs = Lead.objects.filter(id__in=lead_ids, is_archived=False)
+            
             bookings_qs = Booking.objects.filter(project__site_head=user, is_archived=False)
             projects = Project.objects.filter(site_head=user, is_active=True)
             
-            # Unassigned leads
-            unassigned_leads = leads_qs.filter(assigned_to__isnull=True).count()
+            # Unassigned leads (associations without assigned_to)
+            unassigned_leads = associations.filter(assigned_to__isnull=True).count()
             
             # Employee stats - Only show employees assigned to this site head's projects
-            # Get all employees assigned to projects where this site head is in charge
-            site_head_projects = Project.objects.filter(site_head=user, is_active=True)
             employees = User.objects.filter(
                 Q(role='closing_manager') | Q(role='telecaller') | Q(role='sourcing_manager'),
                 assigned_projects__in=site_head_projects
             ).distinct()
+            
+            # Pending OTP - use LeadProjectAssociation
+            pending_otp = associations.filter(
+                is_pretagged=True,
+                pretag_status='pending_verification'
+            ).count()
             
             context = {
                 'is_site_head': True,
                 'total_leads': leads_qs.count(),
                 'new_visits_today': leads_qs.filter(created_at__date=today).count(),
                 'total_bookings': bookings_qs.count(),
-                'pending_otp': leads_qs.filter(
-                    is_pretagged=True,
-                    pretag_status='pending_verification'
-                ).count(),
+                'pending_otp': pending_otp,
                 'unassigned_leads': unassigned_leads,
                 'projects': projects,
                 'employees': employees,
@@ -223,15 +275,30 @@ def dashboard(request):
         
         # Closing Manager Dashboard
         elif user_role == 'closing_manager':
-            leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
+            # Use LeadProjectAssociation for assigned leads
+            associations = LeadProjectAssociation.objects.filter(
+                assigned_to=user,
+                is_archived=False
+            )
+            
+            # Get unique leads from associations
+            lead_ids = associations.values_list('lead_id', flat=True).distinct()
+            leads_qs = Lead.objects.filter(id__in=lead_ids, is_archived=False)
+            
             bookings_qs = Booking.objects.filter(created_by=user, is_archived=False)
             
             # Today's callbacks
             from leads.models import FollowUpReminder
             todays_callbacks = FollowUpReminder.objects.filter(
-                lead__assigned_to=user,
+                lead__in=lead_ids,
                 reminder_date__date=today,
                 is_completed=False
+            ).count()
+            
+            # Pending OTP - use LeadProjectAssociation
+            pending_otp = associations.filter(
+                is_pretagged=True,
+                pretag_status='pending_verification'
             ).count()
             
             context = {
@@ -239,52 +306,68 @@ def dashboard(request):
                 'total_leads': leads_qs.count(),
                 'new_visits_today': leads_qs.filter(created_at__date=today).count(),
                 'total_bookings': bookings_qs.count(),
-                'pending_otp': leads_qs.filter(
-                    is_pretagged=True,
-                    pretag_status='pending_verification'
-                ).count(),
+                'pending_otp': pending_otp,
                 'todays_callbacks': todays_callbacks,
             }
             return render(request, 'dashboard_closing_manager.html', context)
         
         # Sourcing Manager Dashboard
         elif user_role == 'sourcing_manager':
-            leads_qs = Lead.objects.filter(created_by=user, is_archived=False)
+            # Use LeadProjectAssociation for leads created by this user
+            associations = LeadProjectAssociation.objects.filter(
+                created_by=user,
+                is_archived=False
+            )
+            
+            # Get unique leads from associations
+            lead_ids = associations.values_list('lead_id', flat=True).distinct()
+            leads_qs = Lead.objects.filter(id__in=lead_ids, is_archived=False)
+            
+            # Pending OTP - use LeadProjectAssociation
+            pending_otp = associations.filter(
+                is_pretagged=True,
+                pretag_status='pending_verification'
+            ).count()
             
             context = {
                 'is_sourcing_manager': True,
                 'total_leads': leads_qs.count(),
                 'new_visits_today': leads_qs.filter(created_at__date=today).count(),
-                'pending_otp': leads_qs.filter(
-                    is_pretagged=True,
-                    pretag_status='pending_verification'
-                ).count(),
+                'pending_otp': pending_otp,
             }
             return render(request, 'dashboard_sourcing_manager.html', context)
         
         # Telecaller Dashboard
         elif user_role == 'telecaller':
-            leads_qs = Lead.objects.filter(assigned_to=user, is_archived=False)
+            # Use LeadProjectAssociation for assigned leads
+            associations = LeadProjectAssociation.objects.filter(
+                assigned_to=user,
+                is_archived=False
+            )
+            
+            # Get unique leads from associations
+            lead_ids = associations.values_list('lead_id', flat=True).distinct()
+            leads_qs = Lead.objects.filter(id__in=lead_ids, is_archived=False)
             
             # Today's callbacks
             from leads.models import FollowUpReminder
             todays_callbacks = FollowUpReminder.objects.filter(
-                lead__assigned_to=user,
+                lead__in=lead_ids,
                 reminder_date__date=today,
                 is_completed=False
             ).count()
             
             # Active reminders
             active_reminders = FollowUpReminder.objects.filter(
-                lead__assigned_to=user,
+                lead__in=lead_ids,
                 is_completed=False,
                 reminder_date__gte=timezone.now()
             ).count()
             
-            # Untouched leads (>24 hours)
+            # Untouched leads (>24 hours) - use associations
             from datetime import timedelta
             yesterday = timezone.now() - timedelta(hours=24)
-            untouched_leads = leads_qs.filter(
+            untouched_leads = associations.filter(
                 status='new',
                 created_at__lt=yesterday
             ).count()
@@ -311,14 +394,21 @@ def dashboard(request):
             except Exception:
                 bookings_qs = Booking.objects.none()
             
+            # Pending OTP - use LeadProjectAssociation
+            try:
+                pending_otp = LeadProjectAssociation.objects.filter(
+                    is_pretagged=True,
+                    pretag_status='pending_verification',
+                    is_archived=False
+                ).count()
+            except Exception:
+                pending_otp = 0
+            
             context = {
                 'total_leads': leads_qs.count() if leads_qs else 0,
                 'new_visits_today': leads_qs.filter(created_at__date=today).count() if leads_qs else 0,
                 'total_bookings': bookings_qs.count() if bookings_qs else 0,
-                'pending_otp': leads_qs.filter(
-                    is_pretagged=True,
-                    pretag_status='pending_verification'
-                ).count() if leads_qs else 0,
+                'pending_otp': pending_otp,
             }
             return render(request, 'dashboard.html', context)
     except Exception as e:

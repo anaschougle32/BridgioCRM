@@ -1,0 +1,60 @@
+========================================
+EXACT COMMANDS TO FIX THE MIGRATION ISSUE
+========================================
+
+Run these commands IN THIS EXACT ORDER:
+
+1. Run the comprehensive fix script:
+   python fix_migration_issue.py
+
+2. If the script says "Django detected changes", run:
+   python manage.py makemigrations leads
+
+3. Review the created migration file (leads/migrations/0011_*.py):
+   - If it tries to rename "call_duration", DELETE that operation
+   - Keep only the operations that make sense
+
+4. Apply the migration:
+   python manage.py migrate leads
+
+5. Apply all migrations:
+   python manage.py migrate
+
+6. Check for errors:
+   python manage.py check
+
+7. Start the server:
+   python manage.py runserver
+
+========================================
+ALTERNATIVE (If above doesn't work):
+========================================
+
+1. Fake all migrations to current state:
+   python manage.py migrate leads --fake-initial
+
+2. Then create new migrations:
+   python manage.py makemigrations leads
+
+3. Apply them:
+   python manage.py migrate leads
+
+4. Check:
+   python manage.py check
+
+========================================
+QUICK FIX (If you just want to run the server):
+========================================
+
+If migrations are the only issue and you want to test:
+
+1. Fake the migrations:
+   python manage.py migrate leads --fake
+
+2. Start server:
+   python manage.py runserver
+
+⚠️  WARNING: This is a temporary fix. Properly fix migrations later.
+
+========================================
+

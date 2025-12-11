@@ -63,14 +63,16 @@
             
             {% if user.is_closing_manager or user.is_super_admin %}
                 {% if not lead.booking %}
-                    {% if lead.status != 'lost' and lead.status != 'booked' %}
-                        {% if not lead.is_pretagged or lead.phone_verified %}
-                            <a href="{% url 'bookings:create' lead.id %}" 
-                               class="inline-flex items-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base">
-                                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                <span class="hidden sm:inline">Create Booking</span>
-                                <span class="sm:hidden">Booking</span>
-                            </a>
+                    {% if primary_association %}
+                        {% if primary_association.status != 'lost' and primary_association.status != 'booked' %}
+                            {% if not primary_association.is_pretagged or primary_association.phone_verified %}
+                                <a href="{% url 'bookings:create' lead.id %}?project={{ primary_association.project_id }}" 
+                                   class="inline-flex items-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base">
+                                    <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    <span class="hidden sm:inline">Create Booking</span>
+                                    <span class="sm:hidden">Booking</span>
+                                </a>
+                            {% endif %}
                         {% endif %}
                     {% endif %}
                 {% else %}
@@ -94,14 +96,47 @@
                         <h3 class="font-heading font-bold mb-3 text-olive-primary">Client Information</h3>
                         <p><strong>Phone:</strong> <span class="font-mono">{{ phone_display }}</span></p>
                         <p><strong>Email:</strong> {{ lead.email|default:"-" }}</p>
-                        <p><strong>Project:</strong> {{ lead.project.name }}</p>
-                        <p><strong>Status:</strong> {{ lead.get_status_display }}</p>
+                        <p><strong>Projects:</strong> 
+                            {% if associations %}
+                                {% for assoc in associations %}
+                                    <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs mr-1">{{ assoc.project.name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-gray-400">No projects assigned</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Status:</strong> 
+                            {% if primary_association %}
+                                {{ primary_association.get_status_display }}
+                            {% else %}
+                                New
+                            {% endif %}
+                        </p>
+                        <p><strong>Configurations:</strong> 
+                            {% if lead.configurations.all %}
+                                {% for config in lead.configurations.all %}
+                                    <span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded text-xs mr-1">{{ config.display_name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-gray-400">None selected</span>
+                            {% endif %}
+                        </p>
                     </div>
                     <div>
                         <h3 class="font-heading font-bold mb-3 text-olive-primary">Assignment</h3>
-                        <p><strong>Assigned To:</strong> {{ lead.assigned_to.username|default:"Unassigned" }}</p>
+                        <p><strong>Assigned To:</strong> 
+                            {% if primary_association and primary_association.assigned_to %}
+                                {{ primary_association.assigned_to.username }}
+                            {% else %}
+                                <span class="text-gray-400">Unassigned</span>
+                            {% endif %}
+                        </p>
                         <p><strong>Created By:</strong> {{ lead.created_by.username|default:"-" }}</p>
                         <p><strong>Created At:</strong> {{ lead.created_at|date:"d M Y, h:i A" }}</p>
+                        {% if primary_association and primary_association.is_pretagged %}
+                        <p><strong>Pretag Status:</strong> {{ primary_association.get_pretag_status_display|default:"-" }}</p>
+                        <p><strong>Phone Verified:</strong> {% if primary_association.phone_verified %}✓ Yes{% else %}✗ No{% endif %}</p>
+                        {% endif %}
                     </div>
                 </div>
                 

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load lead_filters %}
 
 {% block title %}Upcoming Visits - Bridgio CRM{% endblock %}
 
@@ -38,7 +39,7 @@
     
     <!-- Leads List -->
     <div class="bg-card-bg rounded-lg shadow-premium border border-border-light overflow-hidden">
-        {% if leads %}
+        {% if leads_page %}
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead class="bg-olive-lighter">
@@ -47,12 +48,16 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Phone</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Project</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">CP Details</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Assigned To</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Created</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-card-bg divide-y divide-gray-200">
-                    {% for lead in leads %}
+                    {% for lead in leads_page %}
+                    {% with associations=lead_associations|get_item:lead.id %}
+                    {% for assoc in associations %}
                     <tr class="hover:bg-olive-lighter transition">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-medium text-gray-900">{{ lead.name }}</div>
@@ -62,15 +67,39 @@
                             <div class="text-sm text-gray-900">{{ lead.phone }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-900">{{ lead.project.name }}</div>
-                            <div class="text-xs text-gray-500">{{ lead.project.location }}</div>
+                            <div class="text-sm text-gray-900">{{ assoc.project.name }}</div>
+                            <div class="text-xs text-gray-500">{{ assoc.project.location }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
+                            {% if lead.channel_partner %}
+                            <div class="text-sm text-gray-900">{{ lead.channel_partner.firm_name|default:"-" }}</div>
+                            <div class="text-xs text-gray-500">{{ lead.channel_partner.cp_name|default:"-" }}</div>
+                            {% elif lead.cp_name %}
                             <div class="text-sm text-gray-900">{{ lead.cp_firm_name|default:"-" }}</div>
                             <div class="text-xs text-gray-500">{{ lead.cp_name|default:"-" }}</div>
+                            {% else %}
+                            <div class="text-sm text-gray-500">-</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ assoc.assigned_to.get_full_name|default:assoc.assigned_to.username|default:"Unassigned" }}</div>
+                            {% if assoc.assigned_to %}
+                            <div class="text-xs text-gray-500">{{ assoc.assigned_to.get_role_display }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if assoc.is_pretagged %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                {{ assoc.get_pretag_status_display }}
+                            </span>
+                            {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                {{ assoc.get_status_display }}
+                            </span>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ lead.created_at|date:"d M Y, h:i A" }}
+                            {{ assoc.created_at|date:"d M Y, h:i A" }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <a href="{% url 'leads:detail' lead.id %}" 
@@ -79,27 +108,41 @@
                             </a>
                         </td>
                     </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                            No associations found for this lead.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                            No upcoming visits found.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         
         <!-- Pagination -->
-        {% if leads.has_other_pages %}
+        {% if leads_page.has_other_pages %}
         <div class="px-6 py-4 border-t border-gray-200">
             <div class="flex items-center justify-between">
                 <div class="text-sm text-gray-700">
-                    Showing {{ leads.start_index }} to {{ leads.end_index }} of {{ leads.paginator.count }} results
+                    Showing {{ leads_page.start_index }} to {{ leads_page.end_index }} of {{ leads_page.paginator.count }} results
                 </div>
                 <div class="flex gap-2">
-                    {% if leads.has_previous %}
-                    <a href="?page={{ leads.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}" 
+                    {% if leads_page.has_previous %}
+                    <a href="?page={{ leads_page.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}" 
                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
                         Previous
                     </a>
                     {% endif %}
-                    {% if leads.has_next %}
-                    <a href="?page={{ leads.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}" 
+                    {% if leads_page.has_next %}
+                    <a href="?page={{ leads_page.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}" 
                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
                         Next
                     </a>

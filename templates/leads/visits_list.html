@@ -75,39 +75,53 @@
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-text-primary uppercase">Phone</th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-text-primary uppercase">Project</th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-text-primary uppercase">Visit Source</th>
+                        {% if is_site_head %}
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-text-primary uppercase">Assigned To</th>
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-text-primary uppercase">Handled By</th>
+                        {% endif %}
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-text-primary uppercase">Visit Date</th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-text-primary uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-card-bg divide-y divide-border-light">
-                    {% for lead in leads %}
+                    {% for assoc in associations %}
                     <tr class="hover:bg-olive-lighter transition">
-                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{{ lead.name }}</td>
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{{ assoc.lead.name }}</td>
                         <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                            <a href="tel:{{ lead.phone }}" class="text-olive-primary hover:text-olive-secondary flex items-center gap-1">
+                            <a href="tel:{{ assoc.lead.phone }}" class="text-olive-primary hover:text-olive-secondary flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>Call
                             </a>
                         </td>
-                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-text-secondary">{{ lead.project.name }}</td>
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-text-secondary">{{ assoc.project.name }}</td>
                         <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                {% if lead.visit_source == 'call' %}bg-blue-100 text-blue-800
-                                {% elif lead.visit_source == 'cp' %}bg-purple-100 text-purple-800
+                                {% if assoc.lead.visit_source == 'call' %}bg-blue-100 text-blue-800
+                                {% elif assoc.lead.visit_source == 'cp' %}bg-purple-100 text-purple-800
                                 {% else %}bg-green-100 text-green-800{% endif %}">
-                                {{ lead.get_visit_source_display|default:"Walk-in" }}
+                                {{ assoc.lead.get_visit_source_display|default:"Walk-in" }}
                             </span>
                         </td>
+                        {% if is_site_head %}
                         <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                            {{ lead.created_at|date:"M d, Y" }}
+                            <div class="font-medium">{% if assoc.assigned_to %}{{ assoc.assigned_to.username }}{% else %}Unassigned{% endif %}</div>
+                            <div class="text-xs text-gray-500">{% if assoc.assigned_to %}{{ assoc.assigned_to.get_role_display|default:"" }}{% endif %}</div>
+                        </td>
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                            <div class="font-medium">{% if assoc.created_by %}{{ assoc.created_by.username }}{% else %}-{% endif %}</div>
+                            <div class="text-xs text-gray-500">{% if assoc.created_by %}{{ assoc.created_by.get_role_display|default:"" }}{% endif %}</div>
+                        </td>
+                        {% endif %}
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                            {{ assoc.created_at|date:"M d, Y" }}
                         </td>
                         <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
-                            <a href="{% url 'leads:detail' lead.id %}" 
+                            <a href="{% url 'leads:detail' assoc.lead.id %}" 
                                class="text-olive-primary hover:text-olive-secondary font-medium">View</a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-text-secondary">
+                        <td colspan="{% if is_site_head %}8{% else %}6{% endif %}" class="px-6 py-8 text-center text-text-secondary">
                             No visits found.
                         </td>
                     </tr>
@@ -117,21 +131,21 @@
         </div>
         
         <!-- Pagination -->
-        {% if leads.has_other_pages %}
+        {% if associations.has_other_pages %}
         <div class="bg-olive-lighter px-4 sm:px-6 py-3 border-t border-border-light">
             <div class="flex items-center justify-between">
                 <div class="text-sm text-text-secondary">
-                    Showing {{ leads.start_index }} to {{ leads.end_index }} of {{ leads.paginator.count }} visits
+                    Showing {{ associations.start_index }} to {{ associations.end_index }} of {{ associations.paginator.count }} visits
                 </div>
                 <div class="flex space-x-2">
-                    {% if leads.has_previous %}
-                    <a href="?page={{ leads.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}{% if selected_visit_source %}&visit_source={{ selected_visit_source }}{% endif %}" 
+                    {% if associations.has_previous %}
+                    <a href="?page={{ associations.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}{% if selected_visit_source %}&visit_source={{ selected_visit_source }}{% endif %}" 
                        class="px-3 py-1 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm">
                         Previous
                     </a>
                     {% endif %}
-                    {% if leads.has_next %}
-                    <a href="?page={{ leads.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}{% if selected_visit_source %}&visit_source={{ selected_visit_source }}{% endif %}" 
+                    {% if associations.has_next %}
+                    <a href="?page={{ associations.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}{% if selected_visit_source %}&visit_source={{ selected_visit_source }}{% endif %}" 
                        class="px-3 py-1 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm">
                         Next
                     </a>

@@ -1,10 +1,10 @@
 from django.urls import path
 from .views import (
     lead_list, lead_create, lead_pretag, lead_detail, send_otp, verify_otp, 
-    upcoming_visits, visits_list, log_call, create_reminder, complete_reminder, whatsapp, 
+    upcoming_visits, visits_list, pretagged_leads, schedule_visit, scheduled_visits, closing_manager_visits, log_call, create_reminder, complete_reminder, whatsapp, 
     lead_assign, lead_upload, lead_assign_admin, update_status, update_notes,
     upload_analyze, upload_preview, lead_upload_errors_csv, lead_download,
-    update_budget, update_configuration, track_call_click, search_channel_partners
+    update_budget, update_configuration, track_call_click, search_channel_partners, search_leads
 )
 
 app_name = 'leads'
@@ -13,6 +13,8 @@ urlpatterns = [
     path('', lead_list, name='list'),
     path('create/', lead_create, name='create'),
     path('pretag/', lead_pretag, name='pretag'),
+    path('schedule-visit/', schedule_visit, name='schedule_visit'),
+    path('scheduled-visits/', scheduled_visits, name='scheduled_visits'),
     path('upload/', lead_upload, name='upload'),
     path('upload/analyze/', upload_analyze, name='upload_analyze'),
     path('upload/preview/', upload_preview, name='upload_preview'),
@@ -22,6 +24,9 @@ urlpatterns = [
     path('assign-admin/', lead_assign_admin, name='assign_admin'),
     path('upcoming-visits/', upcoming_visits, name='upcoming_visits'),
     path('visits/', visits_list, name='visits_list'),
+    path('my-visits/', closing_manager_visits, name='closing_manager_visits'),
+    path('pretagged-leads/', pretagged_leads, name='pretagged_leads'),
+    path('scheduled-visits/', scheduled_visits, name='scheduled_visits'),
     path('<int:pk>/', lead_detail, name='detail'),
     path('<int:pk>/send-otp/', send_otp, name='send_otp'),
     path('<int:pk>/verify-otp/', verify_otp, name='verify_otp'),
@@ -35,6 +40,7 @@ urlpatterns = [
     path('<int:pk>/update-notes/', update_notes, name='update_notes'),
     path('<int:pk>/whatsapp/', whatsapp, name='whatsapp'),
     path('search-cp/', search_channel_partners, name='search_cp'),
+    path('search-leads/', search_leads, name='search_leads'),
 ]
 
 

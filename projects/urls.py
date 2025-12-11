@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import project_list, project_create, project_detail, project_edit, migrate_leads, unit_selection, assign_employees, unit_calculation
+from .views import project_list, project_create, project_detail, project_edit, migrate_leads, unit_selection, assign_employees, unit_calculation, search_visited_leads
 
 app_name = 'projects'
 
@@ -12,5 +12,6 @@ urlpatterns = [
     path('<int:pk>/units/', unit_selection, name='unit_selection'),
     path('<int:pk>/units/<int:unit_id>/calculate/', unit_calculation, name='unit_calculation'),
     path('<int:pk>/assign-employees/', assign_employees, name='assign_employees'),
+    path('<int:pk>/search-visited-leads/', search_visited_leads, name='search_visited_leads'),
 ]
 

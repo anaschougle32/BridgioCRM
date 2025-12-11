@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 
-{% block title %}Super Admin Dashboard - Bridgio CRM{% endblock %}
+{% block title %}{% if is_mandate_owner %}Mandate Owner Dashboard{% else %}Super Admin Dashboard{% endif %} - Bridgio CRM{% endblock %}
 
-{% block page_title %}Super Admin Dashboard{% endblock %}
+{% block page_title %}{% if is_mandate_owner %}Mandate Owner Dashboard{% else %}Super Admin Dashboard{% endif %}{% endblock %}
 {% block content %}
 <div class="space-y-4 sm:space-y-6">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-        <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Super Admin Dashboard</h1>
+        <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">{% if is_mandate_owner %}Mandate Owner Dashboard{% else %}Super Admin Dashboard{% endif %}</h1>
         <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
             <a href="{% url 'accounts:user_list' %}" 
                class="bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm sm:text-base">

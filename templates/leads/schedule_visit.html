@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+
+{% block title %}Schedule Visit - Bridgio CRM{% endblock %}
+
+{% block page_title %}Schedule Visit{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-heading font-semibold text-text-primary mb-2">Schedule Visit</h1>
+        <p class="text-text-secondary">Schedule a visit for a lead. The lead will be assigned to a Closing Manager for handling the visit.</p>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+            
+            <!-- Lead Search Section -->
+            <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 class="text-lg font-semibold text-text-primary mb-3">Search Existing Lead (Optional)</h3>
+                <div class="relative">
+                    <input type="text" id="lead-search" placeholder="Search by name, phone, or email..." autocomplete="off"
+                           class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    <div id="lead-search-results" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+                <p class="text-xs text-gray-600 mt-2">Start typing to search for an existing lead. If found, select it to auto-fill the form. Otherwise, fill the form to create a new lead.</p>
+            </div>
+            
+            <!-- Client Information -->
+            <div>
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Client Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Name *</label>
+                        <input type="text" name="name" id="lead-name" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Phone *</label>
+                        <div class="flex gap-2">
+                            <select name="country_code" id="country_code" required
+                                    class="w-24 px-3 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <option value="+91" selected>+91</option>
+                                <option value="+1">+1</option>
+                                <option value="+44">+44</option>
+                                <option value="+971">+971</option>
+                            </select>
+                            <input type="tel" name="phone" id="lead-phone" required placeholder="10-digit phone number"
+                                   pattern="[0-9]{10}" maxlength="10"
+                                   class="flex-1 px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Enter 10-digit phone number without country code</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Email</label>
+                        <input type="email" name="email"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Age</label>
+                        <input type="number" name="age" min="18" max="100"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Gender</label>
+                        <select name="gender"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Locality</label>
+                        <input type="text" name="locality"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Current Residence</label>
+                        <select name="current_residence"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select</option>
+                            <option value="own">Own</option>
+                            <option value="rent">Rent</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Occupation</label>
+                        <select name="occupation"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Occupation</option>
+                            <option value="self_emp">Self Employed</option>
+                            <option value="service">Service</option>
+                            <option value="homemaker">Homemaker</option>
+                            <option value="business">Business</option>
+                            <option value="retired">Retired</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Company Name</label>
+                        <input type="text" name="company_name"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Designation</label>
+                        <input type="text" name="designation"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Requirement Details -->
+            <div>
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Requirement Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">
+                            Select Projects * 
+                            <span class="text-xs text-gray-500 font-normal">(Select multiple to create leads for all selected projects)</span>
+                        </label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200 max-h-64 overflow-y-auto">
+                            {% for project in projects %}
+                            <label class="flex items-center space-x-2 p-2 hover:bg-white rounded cursor-pointer border border-gray-200">
+                                <input type="checkbox" name="projects" value="{{ project.id }}" 
+                                       class="rounded border-gray-300 text-olive-primary focus:ring-olive-primary">
+                                <span class="flex-1 text-sm">
+                                    <span class="font-medium">{{ project.name }}</span>
+                                    <span class="text-xs text-gray-500 block">{{ project.location }}</span>
+                                </span>
+                            </label>
+                            {% empty %}
+                            <div class="col-span-full text-center py-4 text-gray-500">
+                                No projects assigned to you. Please contact your Site Head.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Configurations (Multiple Selection)</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-48 overflow-y-auto">
+                            {% for config in global_configurations %}
+                            <label class="flex items-center space-x-2 p-2 hover:bg-white rounded cursor-pointer border border-gray-200">
+                                <input type="checkbox" name="configurations" value="{{ config.id }}" 
+                                       class="rounded border-gray-300 text-olive-primary focus:ring-olive-primary">
+                                <span class="text-sm font-medium">{{ config.display_name }}</span>
+                            </label>
+                            {% empty %}
+                            <div class="col-span-full text-center py-2 text-gray-500 text-sm">
+                                No configurations available
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <p class="text-xs text-gray-600 mt-1">Select one or more preferred configurations</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Budget</label>
+                        <select name="budget" id="budget"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Budget</option>
+                            <option value="3000000">30 Lakhs</option>
+                            <option value="3500000">35 Lakhs</option>
+                            <option value="4000000">40 Lakhs</option>
+                            <option value="4500000">45 Lakhs</option>
+                            <option value="5000000">50 Lakhs</option>
+                            <option value="5500000">55 Lakhs</option>
+                            <option value="6000000">60 Lakhs</option>
+                            <option value="6500000">65 Lakhs</option>
+                            <option value="7000000">70 Lakhs</option>
+                            <option value="7500000">75 Lakhs</option>
+                            <option value="8000000">80 Lakhs</option>
+                            <option value="8500000">85 Lakhs</option>
+                            <option value="9000000">90 Lakhs</option>
+                            <option value="9500000">95 Lakhs</option>
+                            <option value="10000000">1 Crore</option>
+                            <option value="10500000">1.05 Crores</option>
+                            <option value="11000000">1.1 Crores</option>
+                            <option value="11500000">1.15 Crores</option>
+                            <option value="12000000">1.2 Crores</option>
+                            <option value="12500000">1.25 Crores</option>
+                            <option value="13000000">1.3 Crores</option>
+                            <option value="13500000">1.35 Crores</option>
+                            <option value="14000000">1.4 Crores</option>
+                            <option value="14500000">1.45 Crores</option>
+                            <option value="15000000">1.5 Crores</option>
+                            <option value="15500000">1.55 Crores</option>
+                            <option value="16000000">1.6 Crores</option>
+                            <option value="16500000">1.65 Crores</option>
+                            <option value="17000000">1.7 Crores</option>
+                            <option value="17500000">1.75 Crores</option>
+                            <option value="18000000">1.8 Crores</option>
+                            <option value="18500000">1.85 Crores</option>
+                            <option value="19000000">1.9 Crores</option>
+                            <option value="19500000">1.95 Crores</option>
+                            <option value="20000000">2 Crores</option>
+                            <option value="20500000">2.05 Crores</option>
+                            <option value="21000000">2.1 Crores</option>
+                            <option value="21500000">2.15 Crores</option>
+                            <option value="22000000">2.2 Crores</option>
+                            <option value="22500000">2.25 Crores</option>
+                            <option value="23000000">2.3 Crores</option>
+                            <option value="23500000">2.35 Crores</option>
+                            <option value="24000000">2.4 Crores</option>
+                            <option value="24500000">2.45 Crores</option>
+                            <option value="25000000">2.5 Crores</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Purpose</label>
+                        <select name="purpose"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Purpose</option>
+                            <option value="investment">Investment</option>
+                            <option value="first_home">First Home</option>
+                            <option value="second_home">Second Home</option>
+                            <option value="retirement_home">Retirement Home</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Visit Type</label>
+                        <select name="visit_type"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select</option>
+                            <option value="family">Family</option>
+                            <option value="alone">Alone</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">First Visit or Revisit</label>
+                        <select name="is_first_visit"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="true">First Visit</option>
+                            <option value="false">Revisit</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">How did you hear about us?</label>
+                        <input type="text" name="how_did_you_hear"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submit -->
+            <div class="flex justify-end space-x-4 pt-4 border-t border-border-light">
+                <a href="{% url 'leads:list' %}" 
+                   class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
+                    Schedule Visit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    const leadSearch = document.getElementById('lead-search');
+    const leadSearchResults = document.getElementById('lead-search-results');
+    const leadName = document.getElementById('lead-name');
+    const leadPhone = document.getElementById('lead-phone');
+    const countryCode = document.getElementById('country_code');
+    
+    let searchTimeout;
+    
+    // Search leads as user types
+    leadSearch.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            leadSearchResults.classList.add('hidden');
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`{% url 'leads:search_leads' %}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    displaySearchResults(data.results);
+                })
+                .catch(error => {
+                    console.error('Error searching leads:', error);
+                });
+        }, 300); // Debounce 300ms
+    });
+    
+    // Display search results
+    function displaySearchResults(results) {
+        if (results.length === 0) {
+            leadSearchResults.innerHTML = '<div class="p-4 text-gray-500 text-center">No leads found</div>';
+            leadSearchResults.classList.remove('hidden');
+            return;
+        }
+        
+        leadSearchResults.innerHTML = results.map(lead => `
+            <div class="lead-result-item p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
+                 data-lead-id="${lead.id}"
+                 data-name="${lead.name.replace(/"/g, '&quot;')}" 
+                 data-phone="${lead.phone.replace(/"/g, '&quot;')}" 
+                 data-email="${(lead.email || '').replace(/"/g, '&quot;')}">
+                <div class="font-medium text-gray-900">${lead.name}</div>
+                <div class="text-sm text-gray-600">${lead.phone}</div>
+                ${lead.email ? `<div class="text-xs text-gray-500">${lead.email}</div>` : ''}
+                <div class="text-xs text-gray-500">${lead.project || ''}</div>
+            </div>
+        `).join('');
+        
+        leadSearchResults.classList.remove('hidden');
+        
+        // Add click handlers
+        leadSearchResults.querySelectorAll('.lead-result-item').forEach(item => {
+            item.addEventListener('click', function() {
+                leadName.value = this.dataset.name;
+                // Extract phone number (remove +91 if present)
+                let phone = this.dataset.phone;
+                if (phone.startsWith('+91')) {
+                    phone = phone.substring(3);
+                    countryCode.value = '+91';
+                }
+                leadPhone.value = phone;
+                
+                // Clear search
+                leadSearch.value = '';
+                leadSearchResults.classList.add('hidden');
+                
+                // Show success feedback
+                const originalBg = leadName.style.backgroundColor;
+                leadName.style.backgroundColor = '#d4edda';
+                leadPhone.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    leadName.style.backgroundColor = originalBg;
+                    leadPhone.style.backgroundColor = originalBg;
+                }, 1000);
+            });
+        });
+    }
+    
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!leadSearch.contains(e.target) && !leadSearchResults.contains(e.target)) {
+            leadSearchResults.classList.add('hidden');
+        }
+    });
+})();
+</script>
+{% endblock %}
+

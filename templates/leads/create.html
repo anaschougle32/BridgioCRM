@@ -52,6 +52,20 @@
             <!-- Step 1: Client Information -->
             <div id="step-1" class="step-content">
                 <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Client Information</h2>
+                
+                <!-- Lead Search Section -->
+                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 class="text-lg font-semibold text-text-primary mb-3">Search Existing Lead (Optional)</h3>
+                    <div class="relative">
+                        <input type="text" id="lead-search" placeholder="Search by name, phone, or email..." autocomplete="off"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        <div id="lead-search-results" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <!-- Results will be populated here -->
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-600 mt-2">Start typing to search for an existing lead. If found, select it to auto-fill the form. Otherwise, fill the form to create a new lead.</p>
+                </div>
+                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">Name *</label>
@@ -60,8 +74,19 @@
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">Phone *</label>
-                        <input type="tel" name="phone" id="phone" required
-                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        <div class="flex gap-2">
+                            <select name="country_code" id="country_code" required
+                                    class="w-24 px-3 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <option value="+91" selected>+91</option>
+                                <option value="+1">+1</option>
+                                <option value="+44">+44</option>
+                                <option value="+971">+971</option>
+                            </select>
+                            <input type="tel" name="phone" id="phone" required placeholder="10-digit phone number"
+                                   pattern="[0-9]{10}" maxlength="10"
+                                   class="flex-1 px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Enter 10-digit phone number without country code</p>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">Email</label>
@@ -192,6 +217,23 @@
                             <option value="{{ project.id }}">{{ project.name }}</option>
                             {% endfor %}
                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Configurations (Multiple Selection)</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-48 overflow-y-auto">
+                            {% for config in global_configurations %}
+                            <label class="flex items-center space-x-2 p-2 hover:bg-white rounded cursor-pointer border border-gray-200">
+                                <input type="checkbox" name="configurations" value="{{ config.id }}" 
+                                       class="rounded border-gray-300 text-olive-primary focus:ring-olive-primary">
+                                <span class="text-sm font-medium">{{ config.display_name }}</span>
+                            </label>
+                            {% empty %}
+                            <div class="col-span-full text-center py-2 text-gray-500 text-sm">
+                                No configurations available
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <p class="text-xs text-gray-600 mt-1">Select one or more preferred configurations</p>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">Budget</label>
@@ -402,19 +444,23 @@
     }
     
     function sendOTP() {
+        const countryCode = document.getElementById('country_code').value;
         const phone = document.getElementById('phone').value;
-        if (!phone) {
-            alert('Phone number is required.');
+        if (!phone || phone.length !== 10) {
+            alert('Please enter a valid 10-digit phone number.');
             return;
         }
         
+        // Combine country code and phone
+        const fullPhone = countryCode + phone;
+        
         // Display phone number
-        document.getElementById('otp-phone-display').textContent = phone;
+        document.getElementById('otp-phone-display').textContent = fullPhone;
         
         const form = document.getElementById('new-visit-form');
         const formData = new FormData();
         formData.set('action', 'send_otp');
-        formData.set('phone', phone);
+        formData.set('phone', fullPhone);
         formData.set('csrfmiddlewaretoken', form.querySelector('[name=csrfmiddlewaretoken]').value);
         
         // Disable button while sending
@@ -592,5 +638,99 @@
     
     // Initialize (4 steps: Client Info -> OTP Verification -> Requirements -> CP Details)
     updateStepIndicators(1);
+    
+    // Lead Search Functionality
+    (function() {
+        const leadSearch = document.getElementById('lead-search');
+        const leadSearchResults = document.getElementById('lead-search-results');
+        const leadName = document.getElementById('name');
+        const leadPhone = document.getElementById('phone');
+        const countryCode = document.getElementById('country_code');
+        
+        if (!leadSearch) return; // Exit if element doesn't exist
+        
+        let searchTimeout;
+        
+        // Search leads as user types
+        leadSearch.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            
+            clearTimeout(searchTimeout);
+            
+            if (query.length < 2) {
+                leadSearchResults.classList.add('hidden');
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                fetch(`{% url 'leads:search_leads' %}?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        displaySearchResults(data.results);
+                    })
+                    .catch(error => {
+                        console.error('Error searching leads:', error);
+                    });
+            }, 300); // Debounce 300ms
+        });
+        
+        // Display search results
+        function displaySearchResults(results) {
+            if (results.length === 0) {
+                leadSearchResults.innerHTML = '<div class="p-4 text-gray-500 text-center">No leads found</div>';
+                leadSearchResults.classList.remove('hidden');
+                return;
+            }
+            
+            leadSearchResults.innerHTML = results.map(lead => `
+                <div class="lead-result-item p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
+                     data-lead-id="${lead.id}"
+                     data-name="${lead.name.replace(/"/g, '&quot;')}" 
+                     data-phone="${lead.phone.replace(/"/g, '&quot;')}" 
+                     data-email="${(lead.email || '').replace(/"/g, '&quot;')}">
+                    <div class="font-medium text-gray-900">${lead.name}</div>
+                    <div class="text-sm text-gray-600">${lead.phone}</div>
+                    ${lead.email ? `<div class="text-xs text-gray-500">${lead.email}</div>` : ''}
+                    <div class="text-xs text-gray-500">${lead.project || ''}</div>
+                </div>
+            `).join('');
+            
+            leadSearchResults.classList.remove('hidden');
+            
+            // Add click handlers
+            leadSearchResults.querySelectorAll('.lead-result-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    leadName.value = this.dataset.name;
+                    // Extract phone number (remove +91 if present)
+                    let phone = this.dataset.phone;
+                    if (phone.startsWith('+91')) {
+                        phone = phone.substring(3);
+                        countryCode.value = '+91';
+                    }
+                    leadPhone.value = phone;
+                    
+                    // Clear search
+                    leadSearch.value = '';
+                    leadSearchResults.classList.add('hidden');
+                    
+                    // Show success feedback
+                    const originalBg = leadName.style.backgroundColor;
+                    leadName.style.backgroundColor = '#d4edda';
+                    leadPhone.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        leadName.style.backgroundColor = originalBg;
+                        leadPhone.style.backgroundColor = originalBg;
+                    }, 1000);
+                });
+            });
+        }
+        
+        // Hide results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!leadSearch.contains(e.target) && !leadSearchResults.contains(e.target)) {
+                leadSearchResults.classList.add('hidden');
+            }
+        });
+    })();
 </script>
 {% endblock %}

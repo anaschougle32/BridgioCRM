@@ -21,8 +21,8 @@
                 </div>
                 {% endif %}
                 <form hx-post="{% url 'leads:verify_otp' lead.id %}" 
-                      hx-target="#otp-section" 
-                      hx-swap="outerHTML"
+                      hx-target="#otp-controls" 
+                      hx-swap="innerHTML"
                       hx-indicator="#otp-loading"
                       class="flex gap-2">
                     {% csrf_token %}
@@ -42,24 +42,39 @@
             </div>
         {% else %}
             <p class="text-sm text-red-600 mb-3">Previous OTP has expired. Please generate a new one.</p>
-            <button hx-post="{% url 'leads:send_otp' lead.id %}" 
-                    hx-target="#otp-controls" 
-                    hx-swap="innerHTML"
-                    hx-indicator="#otp-sending"
-                    class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
-                Generate OTP
-            </button>
+            <form hx-post="{% url 'leads:send_otp' lead.id %}" 
+                  hx-target="#otp-controls" 
+                  hx-swap="innerHTML"
+                  hx-indicator="#otp-sending"
+                  class="inline-block">
+                {% csrf_token %}
+                <button type="submit"
+                        class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+                    Generate OTP
+                </button>
+            </form>
             <div id="otp-sending" class="htmx-indicator mt-2 text-sm text-gray-600">Generating...</div>
         {% endif %}
     {% else %}
-        <button hx-post="{% url 'leads:send_otp' lead.id %}" 
-                hx-target="#otp-controls" 
-                hx-swap="innerHTML"
-                hx-indicator="#otp-sending"
-                class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
-            Generate OTP
-        </button>
+        <form hx-post="{% url 'leads:send_otp' lead.id %}" 
+              hx-target="#otp-controls" 
+              hx-swap="innerHTML"
+              hx-indicator="#otp-sending"
+              class="inline-block">
+            {% csrf_token %}
+            <button type="submit"
+                    class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+                Generate OTP
+            </button>
+        </form>
         <div id="otp-sending" class="htmx-indicator mt-2 text-sm text-gray-600">Generating...</div>
     {% endif %}
 </div>
+
+<script>
+// Ensure HTMX processes this element
+if (window.htmx) {
+    htmx.process(document.getElementById('otp-controls'));
+}
+</script>
 

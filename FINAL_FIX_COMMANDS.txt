@@ -1,0 +1,45 @@
+========================================
+FINAL FIX - Run These Commands
+========================================
+
+I've deleted the problematic migrations 0012 and 0013 and created
+a clean migration 0012 that ONLY adds indexes (no field changes).
+
+========================================
+STEP 1: Apply the fixed migration
+========================================
+python manage.py migrate leads 0012
+
+========================================
+STEP 2: Apply all migrations
+========================================
+python manage.py migrate
+
+========================================
+STEP 3: Check if Django still wants to create migrations
+========================================
+python manage.py makemigrations --dry-run
+
+If it says "No changes detected" → ✅ DONE!
+If it still wants to create migrations → Continue to Step 4
+
+========================================
+STEP 4: If Django still creates migrations
+========================================
+python manage.py makemigrations leads
+# Answer "N" when asked about call_duration
+
+Then check the migration file - if it tries to remove/add call_duration,
+edit it to remove those operations and keep only indexes.
+
+Then:
+python manage.py migrate leads
+python manage.py migrate
+
+========================================
+STEP 5: Final check and start server
+========================================
+python manage.py check
+python manage.py runserver
+
+========================================

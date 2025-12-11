@@ -163,6 +163,21 @@
                 </div>
             </div>
             
+            <!-- OTP Verification Section (Required before booking) -->
+            <div id="otp-booking-section" class="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200 hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">OTP Verification Required</h3>
+                <p class="text-sm text-gray-600 mb-4">Please verify OTP before creating booking. Click "Generate OTP" to send OTP to the selected lead.</p>
+                <div id="otp-booking-controls">
+                    <button onclick="loadOTPControlsForBooking()" 
+                            class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+                        Generate OTP
+                    </button>
+                </div>
+                <div id="otp-verified-indicator" class="hidden mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <p class="text-green-800 font-semibold">✓ OTP Verified - You can now create the booking</p>
+                </div>
+            </div>
+            
             <form id="booking-form" method="post" action="" class="space-y-4 hidden" enctype="multipart/form-data">
                 {% csrf_token %}
                 <input type="hidden" name="tower_wing" value="Tower {{ unit_config.tower_number }}">
@@ -171,6 +186,7 @@
                 <input type="hidden" name="carpet_area" value="{{ pricing_info.carpet_area }}">
                 <input type="hidden" name="self_funding_percent" id="self-funding-percent-hidden" value="0">
                 <input type="hidden" name="loan_percent" id="loan-percent-hidden" value="0">
+                <input type="hidden" id="selected-lead-id" name="lead_id" value="">
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -184,14 +200,52 @@
                                class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Negotiated Price *</label>
-                        <input type="number" id="final-negotiated-price" name="final_negotiated_price" step="0.01" min="0" required
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Total Negotiated Price *</label>
+                        <input type="hidden" id="final-negotiated-price" name="final_negotiated_price" value="0">
+                        <input type="text" id="total-price-display" readonly
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 font-semibold text-lg">
+                        <p class="text-xs text-gray-500 mt-1">This is the final negotiated total price</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Down Payment Made *</label>
+                        <input type="number" id="downpayment" name="downpayment" step="0.01" min="0" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
+                               oninput="calculateRemainingAmount()">
+                        <p class="text-xs text-gray-500 mt-1">Enter the down payment amount already paid by the client</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Down Payment Mode</label>
+                        <select name="downpayment_mode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                            <option value="cash">Cash</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="neft">NEFT</option>
+                            <option value="rtgs">RTGS</option>
+                            <option value="upi">UPI</option>
+                            <option value="card">Card</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Down Payment Date</label>
+                        <input type="date" name="downpayment_date" 
                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Down Payment Reference</label>
+                        <input type="text" name="downpayment_reference" 
+                               placeholder="Cheque/Transaction number"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Remaining Amount</label>
+                        <input type="text" id="remaining-amount" readonly
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 font-semibold">
+                        <p class="text-xs text-gray-500 mt-1">Total Price - Down Payment</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Token Amount (First Installment) *</label>
                         <input type="number" id="token-amount" name="token_amount" step="0.01" min="0" required
                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                        <p class="text-xs text-gray-500 mt-1">This will be recorded as the first payment entry</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Self Funding %</label>
@@ -231,9 +285,10 @@
                             class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                         Reset
                     </button>
-                    <button type="submit" 
-                            class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">
-                        Create Booking
+                    <button type="submit" id="create-booking-btn"
+                            class="px-6 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                        Create Booking (OTP Required)
                     </button>
                 </div>
             </form>
@@ -290,8 +345,26 @@ function calculateNegotiatedPrice() {
     
     // Update final negotiated price in booking form
     document.getElementById('final-negotiated-price').value = negotiatedTotal.toFixed(2);
+    // Update display
+    document.getElementById('total-price-display').value = formatPrice(negotiatedTotal);
     // Recalculate funding if percentages are set
     calculateFunding();
+    // Recalculate remaining amount
+    calculateRemainingAmount();
+}
+
+function calculateRemainingAmount() {
+    const totalPrice = parseFloat(document.getElementById('final-negotiated-price').value) || 0;
+    const downpayment = parseFloat(document.getElementById('downpayment').value) || 0;
+    const remaining = totalPrice - downpayment;
+    
+    document.getElementById('remaining-amount').value = formatPrice(remaining);
+    
+    // Auto-update token amount if it's empty or if downpayment is greater
+    const tokenAmount = parseFloat(document.getElementById('token-amount').value) || 0;
+    if (tokenAmount === 0 || tokenAmount < downpayment) {
+        document.getElementById('token-amount').value = downpayment.toFixed(2);
+    }
 }
 
 let leadsData = [
@@ -302,13 +375,15 @@ let leadsData = [
         phone: "{{ lead.phone|escapejs }}",
         email: "{{ lead.email|escapejs }}",
         budget: {{ lead.budget|default:0 }},
-        configuration: "{% if lead.configuration %}{{ lead.configuration.name|escapejs }}{% endif %}",
+        configuration: "{% if lead.configurations.all %}{% for config in lead.configurations.all %}{{ config.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}",
+        cp_name: "{{ lead.cp_name|escapejs|default:'' }}",
+        cp_firm_name: "{{ lead.cp_firm_name|escapejs|default:'' }}",
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ];
 
 function searchLeads() {
-    const query = document.getElementById('lead-search').value.toLowerCase();
+    const query = document.getElementById('lead-search').value.trim();
     const resultsDiv = document.getElementById('lead-results');
     
     if (query.length < 2) {
@@ -316,45 +391,177 @@ function searchLeads() {
         return;
     }
     
-    const filtered = leadsData.filter(lead => 
-        lead.name.toLowerCase().includes(query) || 
-        lead.phone.includes(query)
-    );
-    
-    if (filtered.length === 0) {
-        resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500">No leads found</div>';
-        resultsDiv.classList.remove('hidden');
-        return;
-    }
-    
-    resultsDiv.innerHTML = filtered.map(lead => `
-        <div class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
-             onclick="selectLead(${lead.id})">
-            <div class="font-medium">${lead.name}</div>
-            <div class="text-sm text-gray-600">${lead.phone}</div>
-            ${lead.configuration ? `<div class="text-xs text-gray-500">${lead.configuration}</div>` : ''}
-        </div>
-    `).join('');
-    resultsDiv.classList.remove('hidden');
+    // Use API endpoint to search all visited leads
+    fetch(`/projects/{{ project.id }}/search-visited-leads/?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.results && data.results.length > 0) {
+                resultsDiv.innerHTML = data.results.map(lead => `
+                    <div class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
+                         onclick="selectLead(${lead.id}, '${lead.name.replace(/'/g, "\\'")}', '${lead.phone}', ${lead.budget || 0}, '${(lead.cp_name || '').replace(/'/g, "\\'")}', '${(lead.cp_firm_name || '').replace(/'/g, "\\'")}')">
+                        <div class="font-medium">${lead.name}</div>
+                        <div class="text-sm text-gray-600">${lead.phone}</div>
+                        ${lead.configurations && lead.configurations.length > 0 ? `<div class="text-xs text-gray-500">${lead.configurations.join(', ')}</div>` : ''}
+                        ${lead.cp_name || lead.cp_firm_name ? `<div class="text-xs text-olive-primary font-medium mt-1">CP: ${lead.cp_name || ''}${lead.cp_firm_name ? ` (${lead.cp_firm_name})` : ''}</div>` : ''}
+                        <div class="text-xs text-gray-500 mt-1">Status: ${lead.status}</div>
+                    </div>
+                `).join('');
+                resultsDiv.classList.remove('hidden');
+            } else {
+                resultsDiv.innerHTML = '<div class="p-4 text-center text-gray-500">No visited leads found</div>';
+                resultsDiv.classList.remove('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Error searching leads:', error);
+            resultsDiv.innerHTML = '<div class="p-4 text-center text-red-500">Error searching leads. Please try again.</div>';
+            resultsDiv.classList.remove('hidden');
+        });
 }
 
-function selectLead(leadId) {
-    const lead = leadsData.find(l => l.id === leadId);
-    if (!lead) return;
-    
-    document.getElementById('lead-name').value = lead.name;
-    document.getElementById('lead-phone').value = lead.phone;
-    document.getElementById('lead-search').value = lead.name;
+function selectLead(leadId, name, phone, budget, cpName, cpFirmName) {
+    document.getElementById('lead-name').value = name;
+    document.getElementById('lead-phone').value = phone;
+    document.getElementById('selected-lead-id').value = leadId;
+    document.getElementById('lead-search').value = name;
     document.getElementById('lead-results').classList.add('hidden');
     document.getElementById('booking-form').action = `/bookings/create/${leadId}/`;
     document.getElementById('booking-form').classList.remove('hidden');
     
+    // Show OTP section globally
+    document.getElementById('otp-booking-section').classList.remove('hidden');
+    loadOTPControls(leadId);
+    
     // Auto-fill token amount if budget exists
-    if (lead.budget && lead.budget > 0) {
+    if (budget && budget > 0) {
         const negotiatedTotal = parseFloat(document.getElementById('final-negotiated-price').value) || baseTotal;
-        document.getElementById('token-amount').value = Math.min(lead.budget, negotiatedTotal * 0.1).toFixed(2);
+        document.getElementById('token-amount').value = Math.min(budget, negotiatedTotal * 0.1).toFixed(2);
     }
 }
+
+let currentLeadIdForOTP = null;
+
+function loadOTPControls(leadId) {
+    currentLeadIdForOTP = leadId;
+    loadOTPControlsForBooking();
+}
+
+function loadOTPControlsForBooking() {
+    if (!currentLeadIdForOTP) {
+        const selectedLeadId = document.getElementById('selected-lead-id').value;
+        if (!selectedLeadId) {
+            alert('Please select a lead first');
+            return;
+        }
+        currentLeadIdForOTP = selectedLeadId;
+    }
+    
+    const otpControls = document.getElementById('otp-booking-controls');
+    otpControls.innerHTML = '<div class="text-sm text-gray-600">Loading...</div>';
+    
+    // Use fetch to load OTP controls
+    fetch(`/leads/${currentLeadIdForOTP}/send-otp/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    })
+    .then(html => {
+        otpControls.innerHTML = html;
+        // Update verify OTP form to target the correct element for booking form
+        const verifyForm = otpControls.querySelector('form[hx-post]');
+        if (verifyForm) {
+            verifyForm.setAttribute('hx-target', '#otp-booking-controls');
+            verifyForm.setAttribute('hx-swap', 'innerHTML');
+        }
+        // Re-initialize HTMX if available
+        if (window.htmx) {
+            htmx.process(otpControls);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading OTP controls:', error);
+        otpControls.innerHTML = '<div class="text-sm text-red-600">Error loading OTP. Please try again.</div>';
+    });
+}
+
+// Listen for OTP verification success
+document.addEventListener('htmx:afterSwap', function(event) {
+    const target = event.detail.target;
+    if (target && (target.id === 'otp-booking-controls' || target.closest('#otp-booking-controls'))) {
+        // Check if OTP was verified by looking for success message
+        setTimeout(() => {
+            const responseText = event.detail.xhr ? event.detail.xhr.responseText : '';
+            const targetElement = typeof target === 'string' ? document.getElementById(target) : target;
+            const successMsg = targetElement ? targetElement.querySelector('.text-green-800, .bg-green-50, .text-green-600, .text-green-700') : null;
+            
+            // Check response text or success message
+            if (responseText && (responseText.includes('Phone verified') || responseText.includes('verified') || responseText.includes('✓'))) {
+                const verifiedIndicator = document.getElementById('otp-verified-indicator');
+                const createBtn = document.getElementById('create-booking-btn');
+                if (verifiedIndicator) {
+                    verifiedIndicator.classList.remove('hidden');
+                }
+                if (createBtn) {
+                    createBtn.disabled = false;
+                    createBtn.textContent = 'Create Booking';
+                }
+            } else if (successMsg && (successMsg.textContent.includes('verified') || successMsg.textContent.includes('Phone verified') || successMsg.textContent.includes('✓'))) {
+                const verifiedIndicator = document.getElementById('otp-verified-indicator');
+                const createBtn = document.getElementById('create-booking-btn');
+                if (verifiedIndicator) {
+                    verifiedIndicator.classList.remove('hidden');
+                }
+                if (createBtn) {
+                    createBtn.disabled = false;
+                    createBtn.textContent = 'Create Booking';
+                }
+            }
+        }, 300);
+    }
+});
+
+// Also listen for OTP verification response
+document.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.path && event.detail.path.includes('verify-otp')) {
+        setTimeout(() => {
+            const otpControls = document.getElementById('otp-booking-controls');
+            if (otpControls) {
+                const responseText = event.detail.xhr ? event.detail.xhr.responseText : '';
+                const successMsg = otpControls.querySelector('.text-green-800, .bg-green-50, .text-green-600, .text-green-700');
+                
+                if (responseText && (responseText.includes('Phone verified') || responseText.includes('verified') || responseText.includes('✓'))) {
+                    const verifiedIndicator = document.getElementById('otp-verified-indicator');
+                    const createBtn = document.getElementById('create-booking-btn');
+                    if (verifiedIndicator) {
+                        verifiedIndicator.classList.remove('hidden');
+                    }
+                    if (createBtn) {
+                        createBtn.disabled = false;
+                        createBtn.textContent = 'Create Booking';
+                    }
+                } else if (successMsg && (successMsg.textContent.includes('verified') || successMsg.textContent.includes('Phone verified') || successMsg.textContent.includes('✓'))) {
+                    const verifiedIndicator = document.getElementById('otp-verified-indicator');
+                    const createBtn = document.getElementById('create-booking-btn');
+                    if (verifiedIndicator) {
+                        verifiedIndicator.classList.remove('hidden');
+                    }
+                    if (createBtn) {
+                        createBtn.disabled = false;
+                        createBtn.textContent = 'Create Booking';
+                    }
+                }
+            }
+        }, 300);
+    }
+});
 
 function calculateFunding() {
     const negotiatedTotal = parseFloat(document.getElementById('final-negotiated-price').value) || baseTotal;
@@ -374,10 +581,16 @@ function calculateFunding() {
 
 function resetBookingForm() {
     document.getElementById('booking-form').classList.add('hidden');
+    document.getElementById('otp-booking-section').classList.add('hidden');
+    document.getElementById('otp-verified-indicator').classList.add('hidden');
+    document.getElementById('create-booking-btn').disabled = true;
     document.getElementById('lead-search').value = '';
     document.getElementById('lead-name').value = '';
     document.getElementById('lead-phone').value = '';
+    document.getElementById('selected-lead-id').value = '';
     document.getElementById('final-negotiated-price').value = '';
+    document.getElementById('downpayment').value = '';
+    document.getElementById('remaining-amount').value = '';
     document.getElementById('token-amount').value = '';
     document.getElementById('self-funding-percent').value = '0';
     document.getElementById('loan-percent').value = '0';

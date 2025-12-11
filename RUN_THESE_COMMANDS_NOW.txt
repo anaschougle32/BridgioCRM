@@ -1,0 +1,44 @@
+========================================
+FINAL FIX - Run These Commands NOW
+========================================
+
+I've fixed migration 0012 to properly update Django's migration state.
+The issue was that migration 0008 renamed the field in the database but
+didn't update Django's state. Migration 0012 now fixes this.
+
+========================================
+STEP 1: Apply the fixed migration
+========================================
+python manage.py migrate leads 0012
+
+========================================
+STEP 2: Apply all migrations
+========================================
+python manage.py migrate
+
+========================================
+STEP 3: Check if Django is happy now
+========================================
+python manage.py makemigrations --dry-run
+
+If it says "No changes detected" → ✅ SUCCESS! Go to Step 4
+If it still wants to create migrations → Let me know and I'll fix it
+
+========================================
+STEP 4: Final check and start server
+========================================
+python manage.py check
+python manage.py runserver
+
+========================================
+WHAT WAS FIXED:
+========================================
+1. Deleted problematic migrations 0012 and 0013
+2. Created new migration 0012 that:
+   - Updates Django's state (tells it call_duration → duration_minutes)
+   - Doesn't touch the database (it already has duration_minutes)
+   - Adds the missing indexes
+3. This should stop Django from creating new migrations
+
+========================================
+

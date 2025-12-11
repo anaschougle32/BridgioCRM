@@ -28,10 +28,10 @@ def project_list(request):
         messages.error(request, 'You do not have permission to view projects.')
         return redirect('dashboard')
     
-    # Annotate with stats
+    # Annotate with stats - use lead_associations instead of leads
     projects = projects.annotate(
-        lead_count=Count('leads', filter=~Q(leads__is_archived=True)),
-        booking_count=Count('bookings', filter=~Q(bookings__is_archived=True)),
+        lead_count=Count('lead_associations', filter=~Q(lead_associations__is_archived=True), distinct=True),
+        booking_count=Count('bookings', filter=~Q(bookings__is_archived=True), distinct=True),
         revenue=Sum('bookings__payments__amount')
     ).order_by('-created_at')
     
@@ -243,46 +243,58 @@ def project_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
     
     # Permission check - Mandate Owner has same permissions as Super Admin
+    # Site Heads can view projects they manage
     # Closing and Sourcing managers can view projects they're assigned to
     if request.user.is_super_admin() or request.user.is_mandate_owner():
         pass  # Super admin and Mandate Owner can see all
-    elif request.user.is_site_head() and project.site_head != request.user:
-        messages.error(request, 'You do not have permission to view this project.')
-        return redirect('projects:list')
+    elif request.user.is_site_head():
+        # Site Head can view projects they manage
+        if project.site_head != request.user:
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
     elif request.user.is_closing_manager() or request.user.is_sourcing_manager():
         # Check if user is assigned to this project
         if project not in request.user.assigned_projects.all():
             messages.error(request, 'You do not have permission to view this project.')
             return redirect('projects:list')
-    elif not (request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head()):
+    elif request.user.is_telecaller():
+        # Telecallers can view projects they're assigned to
+        if project not in request.user.assigned_projects.all():
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
+    else:
         messages.error(request, 'You do not have permission to view projects.')
         return redirect('dashboard')
     
-    # Get stats
-    leads = Lead.objects.filter(project=project, is_archived=False)
+    # Get stats from associations
+    from leads.models import LeadProjectAssociation
+    associations = LeadProjectAssociation.objects.filter(project=project, is_archived=False)
     bookings = Booking.objects.filter(project=project, is_archived=False)
     
     from django.utils import timezone
     today = timezone.now().date()
     
-    # Count visits properly - all leads with visit_completed status or pretagged leads
-    total_visits = leads.filter(
+    # Count visits properly - all associations with visit_completed status or pretagged leads
+    total_visits = associations.filter(
         Q(status='visit_completed') | Q(is_pretagged=True)
     ).count()
     
-    # Count CP visits (leads with channel partner)
-    cp_visits = leads.filter(
+    # Count CP visits (associations with channel partner)
+    cp_visits = associations.filter(
         Q(status='visit_completed') | Q(is_pretagged=True),
-        channel_partner__isnull=False
+        lead__channel_partner__isnull=False
     ).count()
     
+    # Get unique leads count
+    unique_leads = associations.values_list('lead_id', flat=True).distinct().count()
+    
     stats = {
-        'total_leads': leads.count(),
-        'new_visits_today': leads.filter(created_at__date=today).count(),
+        'total_leads': unique_leads,
+        'new_visits_today': associations.filter(created_at__date=today).count(),
         'total_visits': total_visits,
         'cp_visits': cp_visits,
         'total_bookings': bookings.count(),
-        'pending_otp': leads.filter(is_pretagged=True, pretag_status='pending_verification').count(),
+        'pending_otp': associations.filter(is_pretagged=True, pretag_status='pending_verification').count(),
         'revenue': Payment.objects.filter(booking__project=project).aggregate(total=Sum('amount'))['total'] or 0,
     }
     
@@ -412,7 +424,6 @@ def project_edit(request, pk):
         
         # Handle configurations - update or create
         from projects.models import ProjectConfiguration, ConfigurationAreaType, ConfigurationFloorMapping
-        from decimal import Decimal
         
         # Get all existing config names to track what to keep
         submitted_config_names = set()
@@ -584,17 +595,27 @@ def unit_selection(request, pk):
     project = get_object_or_404(Project, pk=pk)
     
     # Permission check - Mandate Owner has same permissions as Super Admin
+    # Site Heads can view units for projects they manage
     # Closing and Sourcing managers can view units for projects they're assigned to
+    # Telecallers can view units for projects they're assigned to
     if request.user.is_super_admin() or request.user.is_mandate_owner():
         pass  # Super admin and Mandate Owner can see all
-    elif request.user.is_site_head() and project.site_head != request.user:
-        messages.error(request, 'You do not have permission to view this project.')
-        return redirect('projects:list')
+    elif request.user.is_site_head():
+        if project.site_head != request.user:
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
     elif request.user.is_closing_manager() or request.user.is_sourcing_manager():
         # Check if user is assigned to this project
         if project not in request.user.assigned_projects.all():
             messages.error(request, 'You do not have permission to view this project.')
             return redirect('projects:list')
+    elif request.user.is_telecaller():
+        if project not in request.user.assigned_projects.all():
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
+    else:
+        messages.error(request, 'You do not have permission to view this project.')
+        return redirect('projects:list')
     
     # Get all unit configurations with related data
     unit_configs = UnitConfiguration.objects.filter(project=project).select_related(
@@ -614,13 +635,25 @@ def unit_selection(request, pk):
         # UnitConfiguration has: tower_number, floor_number, unit_number
         try:
             # Try to parse unit_number from booking (could be "101", "201", etc.)
-            booking_unit_num = int(booking.unit_number) if booking.unit_number.isdigit() else None
+            booking_unit_num = int(booking.unit_number) if booking.unit_number and booking.unit_number.isdigit() else None
             booking_floor = booking.floor
             
+            # Extract tower number from tower_wing (could be "Tower 1", "1", "Tower1", etc.)
+            booking_tower = None
+            if booking.tower_wing:
+                # Try to extract number from tower_wing string
+                import re
+                tower_match = re.search(r'\d+', str(booking.tower_wing))
+                if tower_match:
+                    booking_tower = int(tower_match.group())
+            
             if booking_unit_num and booking_floor:
-                # Unit number format: floor * 100 + unit_index
-                # So we can extract tower info if needed, but for now match by floor and unit
-                key = f"{booking_floor}_{booking_unit_num}"
+                # Include tower in the key to avoid matching units from different towers
+                if booking_tower:
+                    key = f"{booking_tower}_{booking_floor}_{booking_unit_num}"
+                else:
+                    # Fallback: if no tower info, use floor and unit (less accurate but better than nothing)
+                    key = f"{booking_floor}_{booking_unit_num}"
                 booked_units[key] = booking
         except (ValueError, AttributeError):
             # If we can't parse, skip this booking
@@ -672,15 +705,17 @@ def unit_selection(request, pk):
             }
         
         # Check if unit is booked
-        # Match by floor and unit number (since Booking doesn't store tower explicitly in a separate field)
-        booking_key = f"{unit_config.floor_number}_{unit_config.unit_number}"
-        is_booked = booking_key in booked_units
+        # Match by tower, floor, and unit number to avoid matching units from different towers
+        booking_key = f"{unit_config.tower_number}_{unit_config.floor_number}_{unit_config.unit_number}"
+        # Also check fallback key (without tower) for older bookings that might not have tower info
+        fallback_key = f"{unit_config.floor_number}_{unit_config.unit_number}"
+        is_booked = booking_key in booked_units or fallback_key in booked_units
         
         units_by_tower[tower_key][floor_key].append({
             'unit_config': unit_config,
             'pricing_info': pricing_info,
             'is_booked': is_booked,
-            'booking': booked_units.get(booking_key),
+            'booking': booked_units.get(booking_key) or booked_units.get(fallback_key),
         })
     
     context = {
@@ -709,65 +744,85 @@ def migrate_leads(request, pk):
         target_project = get_object_or_404(Project, pk=target_project_id)
         
         # Get selected lead IDs or duplicate all if none selected
+        from leads.models import LeadProjectAssociation
         selected_lead_ids = request.POST.getlist('lead_ids')
+        
+        # Get associations for the source project
         if selected_lead_ids:
             # Duplicate only selected leads
-            leads_to_migrate = Lead.objects.filter(
-                project=project, 
-                id__in=selected_lead_ids,
+            associations_to_migrate = LeadProjectAssociation.objects.filter(
+                project=project,
+                lead_id__in=selected_lead_ids,
                 is_archived=False
             )
         else:
             # Duplicate all leads if none selected
-            leads_to_migrate = Lead.objects.filter(project=project, is_archived=False)
+            associations_to_migrate = LeadProjectAssociation.objects.filter(
+                project=project,
+                is_archived=False
+            )
         
-        count = leads_to_migrate.count()
+        count = associations_to_migrate.count()
         if count > 0:
             # Duplicate leads instead of transferring them
             duplicated_count = 0
-            for lead in leads_to_migrate:
-                # Create a duplicate lead with same data but new project
-                new_lead = Lead.objects.create(
+            for association in associations_to_migrate:
+                lead = association.lead
+                
+                # Get or create the lead (deduplicate by phone)
+                lead_defaults = {
                     # Client Information
-                    name=lead.name,
-                    phone=lead.phone,
-                    email=lead.email,
-                    age=lead.age,
-                    gender=lead.gender,
-                    locality=lead.locality,
-                    current_residence=lead.current_residence,
-                    occupation=lead.occupation,
-                    company_name=lead.company_name,
-                    designation=lead.designation,
+                    'name': lead.name,
+                    'email': lead.email,
+                    'age': lead.age,
+                    'gender': lead.gender,
+                    'locality': lead.locality,
+                    'current_residence': lead.current_residence,
+                    'occupation': lead.occupation,
+                    'company_name': lead.company_name,
+                    'designation': lead.designation,
                     # Requirement Details
-                    project=target_project,  # New project
-                    configuration=None,  # Reset configuration as it might be project-specific
-                    budget=lead.budget,
-                    purpose=lead.purpose,
-                    visit_type=lead.visit_type,
-                    is_first_visit=lead.is_first_visit,
-                    how_did_you_hear=lead.how_did_you_hear,
-                    visit_source=lead.visit_source,
+                    'budget': lead.budget,
+                    'purpose': lead.purpose,
+                    'visit_type': lead.visit_type,
+                    'is_first_visit': lead.is_first_visit,
+                    'how_did_you_hear': lead.how_did_you_hear,
+                    'visit_source': lead.visit_source,
                     # CP Information
-                    channel_partner=lead.channel_partner,
-                    cp_firm_name=lead.cp_firm_name,
-                    cp_name=lead.cp_name,
-                    cp_phone=lead.cp_phone,
-                    cp_rera_number=lead.cp_rera_number,
-                    # Pretagging Flags
-                    is_pretagged=lead.is_pretagged,
-                    pretag_status=lead.pretag_status,
-                    phone_verified=lead.phone_verified,
-                    # Lead Status
-                    status='new',  # Reset to new for the duplicate
-                    # Assignment - reset assignment
-                    assigned_to=None,
-                    assigned_at=None,
-                    assigned_by=None,
+                    'channel_partner': lead.channel_partner,
+                    'cp_firm_name': lead.cp_firm_name,
+                    'cp_name': lead.cp_name,
+                    'cp_phone': lead.cp_phone,
+                    'cp_rera_number': lead.cp_rera_number,
                     # Notes
-                    notes=f"[Duplicated from {project.name}] {lead.notes}" if lead.notes else f"[Duplicated from {project.name}]",
+                    'notes': f"[Duplicated from {project.name}] {lead.notes}" if lead.notes else f"[Duplicated from {project.name}]",
                     # System Metadata
-                    created_by=request.user,
+                    'created_by': request.user,
+                }
+                new_lead, lead_created = Lead.objects.get_or_create(
+                    phone=lead.phone,
+                    defaults=lead_defaults
+                )
+                
+                # Copy configurations if they exist
+                if lead.configurations.exists():
+                    new_lead.configurations.set(lead.configurations.all())
+                
+                # Create new association for target project
+                LeadProjectAssociation.objects.get_or_create(
+                    lead=new_lead,
+                    project=target_project,
+                    defaults={
+                        'status': 'new',  # Reset to new for the duplicate
+                        'is_pretagged': False,  # Reset pretagging
+                        'pretag_status': '',
+                        'phone_verified': False,
+                        'assigned_to': None,
+                        'assigned_at': None,
+                        'assigned_by': None,
+                        'notes': f"[Duplicated from {project.name}] {association.notes}" if association.notes else f"[Duplicated from {project.name}]",
+                        'created_by': request.user,
+                    }
                 )
                 duplicated_count += 1
             
@@ -788,8 +843,13 @@ def migrate_leads(request, pk):
             mandate_owner=project.mandate_owner
         ).exclude(pk=project.pk).order_by('name')
     
-    # Get leads for the source project
-    leads = Lead.objects.filter(project=project, is_archived=False).order_by('-created_at')
+    # Get leads for the source project - use LeadProjectAssociation
+    from leads.models import LeadProjectAssociation
+    association_ids = LeadProjectAssociation.objects.filter(
+        project=project,
+        is_archived=False
+    ).values_list('lead_id', flat=True).distinct()
+    leads = Lead.objects.filter(id__in=association_ids, is_archived=False).order_by('-created_at')
     
     context = {
         'source_project': project,  # Use source_project for template consistency
@@ -873,10 +933,15 @@ def unit_calculation(request, pk, unit_id):
     # Permission check
     if request.user.is_super_admin() or request.user.is_mandate_owner():
         pass
-    elif request.user.is_site_head() and project.site_head != request.user:
-        messages.error(request, 'You do not have permission to view this project.')
-        return redirect('projects:list')
+    elif request.user.is_site_head():
+        if project.site_head != request.user:
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
     elif request.user.is_closing_manager() or request.user.is_sourcing_manager():
+        if project not in request.user.assigned_projects.all():
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
+    elif request.user.is_telecaller():
         if project not in request.user.assigned_projects.all():
             messages.error(request, 'You do not have permission to view this project.')
             return redirect('projects:list')
@@ -915,13 +980,22 @@ def unit_calculation(request, pk, unit_id):
         }
     
     # Get visited leads for this project (for booking conversion)
-    # Include both visit_completed leads and pretagged leads that are verified
-    visited_leads = Lead.objects.filter(
+    # Get associations for visited leads in this project
+    from leads.models import LeadProjectAssociation
+    visited_associations = LeadProjectAssociation.objects.filter(
         project=project,
         is_archived=False
     ).filter(
         Q(status__in=['visit_completed', 'discussion', 'hot', 'ready_to_book']) |
-        Q(is_pretagged=True, pretag_status='verified')
+        Q(is_pretagged=True, pretag_status='verified') |
+        Q(phone_verified=True)  # Include any phone verified leads
+    ).exclude(lead__booking__isnull=False).select_related('lead').order_by('-updated_at')
+    
+    # Get unique leads (exclude those already booked)
+    visited_lead_ids = visited_associations.values_list('lead_id', flat=True).distinct()
+    visited_leads = Lead.objects.filter(
+        id__in=visited_lead_ids,
+        is_archived=False
     ).exclude(booking__isnull=False).order_by('-updated_at')
     
     # Get channel partners linked to this project
@@ -939,3 +1013,59 @@ def unit_calculation(request, pk, unit_id):
         'channel_partners': channel_partners,
     }
     return render(request, 'projects/unit_calculation.html', context)
+
+
+@login_required
+def search_visited_leads(request, pk):
+    """API endpoint to search visited leads for booking conversion"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Permission check
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            request.user.is_site_head() or request.user.is_closing_manager()):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    query = request.GET.get('q', '').strip()
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+    
+    # Get all visited leads for this project (not just assigned to user)
+    from leads.models import LeadProjectAssociation
+    visited_associations = LeadProjectAssociation.objects.filter(
+        project=project,
+        is_archived=False
+    ).filter(
+        Q(status__in=['visit_completed', 'discussion', 'hot', 'ready_to_book']) |
+        Q(is_pretagged=True, pretag_status='verified') |
+        Q(phone_verified=True)
+    ).exclude(lead__booking__isnull=False).select_related('lead', 'lead__channel_partner')
+    
+    # Search by name, phone, email
+    if query:
+        visited_associations = visited_associations.filter(
+            Q(lead__name__icontains=query) |
+            Q(lead__phone__icontains=query) |
+            Q(lead__email__icontains=query)
+        )
+    
+    # Get unique leads
+    lead_ids = visited_associations.values_list('lead_id', flat=True).distinct()
+    leads = Lead.objects.filter(id__in=lead_ids, is_archived=False)[:20]
+    
+    results = []
+    for lead in leads:
+        # Get primary association for this project
+        assoc = visited_associations.filter(lead=lead).first()
+        results.append({
+            'id': lead.id,
+            'name': lead.name,
+            'phone': lead.phone,
+            'email': lead.email or '',
+            'budget': float(lead.budget) if lead.budget else 0,
+            'configurations': [c.display_name for c in lead.configurations.all()],
+            'cp_name': lead.channel_partner.cp_name if lead.channel_partner else (lead.cp_name or ''),
+            'cp_firm_name': lead.channel_partner.firm_name if lead.channel_partner else (lead.cp_firm_name or ''),
+            'status': assoc.get_status_display() if assoc else 'Unknown',
+        })
+    
+    return JsonResponse({'results': results})

@@ -1,0 +1,29 @@
+========================================
+FIXED MIGRATION 0012
+========================================
+
+The migration was trying to:
+1. Remove call_duration (doesn't exist)
+2. Add duration_minutes (already exists)
+3. Add indexes (these are needed)
+
+I've fixed it to ONLY add the indexes.
+
+========================================
+NOW RUN THESE COMMANDS:
+========================================
+
+1. Apply the fixed migration:
+   python manage.py migrate leads 0012
+
+2. Apply all migrations:
+   python manage.py migrate
+
+3. Check for errors:
+   python manage.py check
+
+4. Start server:
+   python manage.py runserver
+
+========================================
+

@@ -44,6 +44,35 @@ class Booking(models.Model):
     )
     cp_commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     
+    # Credit Tracking (for performance metrics)
+    credited_to_closing_manager = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='credited_bookings_closing',
+        limit_choices_to={'role': 'closing_manager'},
+        help_text="Closing manager who gets credit for this booking"
+    )
+    credited_to_sourcing_manager = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='credited_bookings_sourcing',
+        limit_choices_to={'role': 'sourcing_manager'},
+        help_text="Sourcing manager who gets credit for this booking (if CP lead)"
+    )
+    credited_to_telecaller = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='credited_bookings_telecaller',
+        limit_choices_to={'role': 'telecaller'},
+        help_text="Telecaller who gets credit for this booking (if telecaller-generated lead)"
+    )
+    
     # System
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count
 from django.core.paginator import Paginator
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
 from .models import Booking, Payment
 from leads.models import Lead
 from projects.models import Project
@@ -41,9 +42,9 @@ def booking_list(request):
     if project_id:
         bookings = bookings.filter(project_id=project_id)
     
-    # Annotate with payment totals
+    # Annotate with payment totals (use different name to avoid conflict with property)
     bookings = bookings.annotate(
-        total_paid=Sum('payments__amount')
+        total_paid_amount=Sum('payments__amount')
     ).order_by('-created_at')
     
     # Pagination
@@ -96,14 +97,50 @@ def booking_create(request, lead_id):
     """Create booking from lead (Closing Manager only)"""
     lead = get_object_or_404(Lead, pk=lead_id, is_archived=False)
     
-    # Permission check - Closing Managers, Super Admin, and Mandate Owners can create bookings
-    if not (request.user.is_closing_manager() or request.user.is_super_admin() or request.user.is_mandate_owner()):
-        messages.error(request, 'Only Closing Managers can create bookings.')
+    # Permission check - Closing Managers, Site Heads, Telecallers, Super Admin, and Mandate Owners can create bookings
+    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_telecaller() or request.user.is_super_admin() or request.user.is_mandate_owner()):
+        messages.error(request, 'You do not have permission to create bookings.')
         return redirect('leads:detail', pk=lead_id)
     
-    # Check if lead is assigned to user (for Closing Managers)
-    if request.user.is_closing_manager() and lead.assigned_to != request.user:
+    # Get project from request (required for association-based booking)
+    project_id = request.GET.get('project_id') or request.POST.get('project_id')
+    if not project_id:
+        # Try to get primary project
+        primary_project = lead.primary_project
+        if not primary_project:
+            messages.error(request, 'Project is required to create booking.')
+            return redirect('leads:detail', pk=lead_id)
+        project_id = primary_project.id
+    
+    project = get_object_or_404(Project, pk=project_id, is_active=True)
+    
+    # Get association for this project
+    from leads.models import LeadProjectAssociation
+    association = LeadProjectAssociation.objects.filter(
+        lead=lead,
+        project=project,
+        is_archived=False
+    ).first()
+    
+    if not association:
+        messages.error(request, 'Lead is not associated with this project.')
+        return redirect('leads:detail', pk=lead_id)
+    
+    # Check if lead is assigned to user (for Telecallers only)
+    # Closing Managers can create bookings for any visited leads
+    if request.user.is_telecaller() and association.assigned_to != request.user:
         messages.error(request, 'You can only create bookings for leads assigned to you.')
+        return redirect('leads:detail', pk=lead_id)
+    
+    # For Closing Managers: allow if lead is visited (status='visit_completed' or phone_verified=True)
+    if request.user.is_closing_manager():
+        if association.status != 'visit_completed' and not association.phone_verified:
+            messages.error(request, 'You can only create bookings for visited leads. Please verify the visit first.')
+            return redirect('leads:detail', pk=lead_id)
+    
+    # For Site Heads: check if lead belongs to their project
+    if request.user.is_site_head() and project.site_head != request.user:
+        messages.error(request, 'You can only create bookings for leads in your projects.')
         return redirect('leads:detail', pk=lead_id)
     
     # Check if booking already exists
@@ -112,9 +149,14 @@ def booking_create(request, lead_id):
         return redirect('bookings:detail', pk=lead.booking.id)
     
     # Check if lead is verified (for pretagged leads)
-    if lead.is_pretagged and not lead.phone_verified:
+    if association.is_pretagged and not association.phone_verified:
         messages.error(request, 'Cannot create booking for unverified pretagged lead. Please verify OTP first.')
         return redirect('leads:detail', pk=lead_id)
+    
+    # Redirect to unit selection page first (unless coming from unit calculation page)
+    if request.method != 'POST' and not request.GET.get('from_unit'):
+        # Redirect to project unit selection page
+        return redirect('projects:unit_selection', pk=project.id)
     
     if request.method == 'POST':
         from django.db import transaction
@@ -144,15 +186,22 @@ def booking_create(request, lead_id):
                             channel_partner.save()
                 
                 # Get CP commission percent from project
-                cp_commission_percent = lead.project.default_commission_percent if channel_partner else 0.00
+                cp_commission_percent = project.default_commission_percent if channel_partner else 0.00
                 
                 # Get self funding and loan percentages (if provided)
                 self_funding_percent = request.POST.get('self_funding_percent', '0')
                 loan_percent = request.POST.get('loan_percent', '0')
                 final_negotiated_price = float(request.POST.get('final_negotiated_price', 0))
+                downpayment = float(request.POST.get('downpayment', 0))
+                token_amount = float(request.POST.get('token_amount', 0))
+                
+                # Calculate remaining amount after downpayment
+                remaining_amount = final_negotiated_price - downpayment
                 
                 # Create notes with funding information
                 funding_notes = ''
+                if downpayment > 0:
+                    funding_notes += f'Down Payment Made: ₹{downpayment:,.2f}. Remaining Amount: ₹{remaining_amount:,.2f}. '
                 if self_funding_percent and float(self_funding_percent) > 0:
                     self_funding_amount = final_negotiated_price * (float(self_funding_percent) / 100)
                     funding_notes += f'Self Funding: {self_funding_percent}% (₹{self_funding_amount:,.2f}). '
@@ -160,18 +209,85 @@ def booking_create(request, lead_id):
                     loan_amount = final_negotiated_price * (float(loan_percent) / 100)
                     funding_notes += f'Loan: {loan_percent}% (₹{loan_amount:,.2f}). '
                 
+                # Determine credit assignment based on visit source and CP relationship
+                credited_to_closing = None
+                credited_to_sourcing = None
+                credited_to_telecaller = None
+                
+                # Get the association to check visit source and who created it
+                from leads.models import LeadProjectAssociation
+                lead_association = LeadProjectAssociation.objects.filter(
+                    lead=lead,
+                    project=project,
+                    is_archived=False
+                ).first()
+                
+                # Check if lead has CP (channel_partner or cp_phone)
+                has_cp = bool(channel_partner or lead.channel_partner or lead.cp_phone)
+                
+                # Check visit source
+                visit_source = lead.visit_source or (lead_association and getattr(lead_association, 'visit_source', None)) or 'walkin'
+                
+                # Check who created the visit/lead
+                visit_creator = lead_association.created_by if lead_association else lead.created_by
+                is_telecaller_created = visit_creator and visit_creator.is_telecaller() if visit_creator else False
+                is_sourcing_created = visit_creator and visit_creator.is_sourcing_manager() if visit_creator else False
+                
+                # Credit Logic:
+                # 1. Direct visit (no CP, no sourcing, no telecaller) → Only closing manager
+                if not has_cp and not is_telecaller_created and not is_sourcing_created:
+                    credited_to_closing = request.user if request.user.is_closing_manager() else None
+                
+                # 2. CP visit → Sourcing manager gets visit count, if booking done both closing and sourcing get credit
+                elif has_cp:
+                    credited_to_closing = request.user if request.user.is_closing_manager() else None
+                    # Find sourcing manager assigned to this project
+                    sourcing_managers = User.objects.filter(
+                        role='sourcing_manager',
+                        assigned_projects=project,
+                        is_active=True
+                    ).first()
+                    if sourcing_managers:
+                        credited_to_sourcing = sourcing_managers
+                    # If visit was created by sourcing manager, credit them
+                    elif is_sourcing_created and visit_creator:
+                        credited_to_sourcing = visit_creator
+                
+                # 3. Telecaller calling CP leads → Telecaller, sourcing, and closing all get credit
+                elif is_telecaller_created and has_cp:
+                    credited_to_closing = request.user if request.user.is_closing_manager() else None
+                    if visit_creator:
+                        credited_to_telecaller = visit_creator
+                    # Find sourcing manager assigned to this project
+                    sourcing_managers = User.objects.filter(
+                        role='sourcing_manager',
+                        assigned_projects=project,
+                        is_active=True
+                    ).first()
+                    if sourcing_managers:
+                        credited_to_sourcing = sourcing_managers
+                
+                # 4. Telecaller calling non-CP leads → Only telecaller and closing get credit
+                elif is_telecaller_created and not has_cp:
+                    credited_to_closing = request.user if request.user.is_closing_manager() else None
+                    if visit_creator:
+                        credited_to_telecaller = visit_creator
+                
                 # Create booking
                 booking = Booking.objects.create(
                     lead=lead,
-                    project=lead.project,
+                    project=project,
                     tower_wing=request.POST.get('tower_wing', ''),
                     unit_number=request.POST.get('unit_number', ''),
                     carpet_area=float(request.POST.get('carpet_area')) if request.POST.get('carpet_area') else None,
                     floor=int(request.POST.get('floor')) if request.POST.get('floor') else None,
                     final_negotiated_price=final_negotiated_price,
-                    token_amount=float(request.POST.get('token_amount', 0)),
+                    token_amount=token_amount,
                     channel_partner=channel_partner,
                     cp_commission_percent=cp_commission_percent,
+                    credited_to_closing_manager=credited_to_closing,
+                    credited_to_sourcing_manager=credited_to_sourcing,
+                    credited_to_telecaller=credited_to_telecaller,
                     created_by=request.user,
                 )
                 
@@ -183,10 +299,20 @@ def booking_create(request, lead_id):
                         lead.notes = funding_notes
                     lead.save()
                 
-                # Create initial payment if token amount > 0
-                from django.utils import timezone
-                token_amount = float(request.POST.get('token_amount', 0))
-                if token_amount > 0:
+                # Create downpayment entry if downpayment > 0
+                if downpayment > 0:
+                    Payment.objects.create(
+                        booking=booking,
+                        amount=downpayment,
+                        payment_mode=request.POST.get('downpayment_mode', 'cash'),
+                        payment_date=request.POST.get('downpayment_date') or timezone.now().date(),
+                        reference_number=request.POST.get('downpayment_reference', ''),
+                        notes=f'Down payment made at booking - ₹{downpayment:,.2f}',
+                        created_by=request.user,
+                    )
+                
+                # Create initial payment if token amount > 0 (and not already recorded as downpayment)
+                if token_amount > 0 and token_amount != downpayment:
                     Payment.objects.create(
                         booking=booking,
                         amount=token_amount,
@@ -197,9 +323,9 @@ def booking_create(request, lead_id):
                         created_by=request.user,
                     )
                 
-                # Update lead status
-                lead.status = 'booked'
-                lead.save()
+                # Update association status
+                association.status = 'booked'
+                association.save()
                 
                 # Create audit log
                 from accounts.models import AuditLog
@@ -212,19 +338,42 @@ def booking_create(request, lead_id):
                 )
             
             messages.success(request, f'Booking created successfully! Booking #{booking.id}')
+            # Add confetti flag to session for display on detail page
+            request.session['show_confetti'] = True
+            request.session.modified = True
             return redirect('bookings:detail', pk=booking.id)
             
         except Exception as e:
             messages.error(request, f'Error creating booking: {str(e)}')
     
+    # Get project and association (if not already set)
+    if 'project' not in locals():
+        project_id = request.GET.get('project_id')
+        if project_id:
+            project = get_object_or_404(Project, pk=project_id, is_active=True)
+        else:
+            project = lead.primary_project
+            if not project:
+                messages.error(request, 'Project is required to create booking.')
+                return redirect('leads:detail', pk=lead_id)
+    
+    if 'association' not in locals():
+        from leads.models import LeadProjectAssociation
+        association = LeadProjectAssociation.objects.filter(
+            lead=lead,
+            project=project,
+            is_archived=False
+        ).first()
+    
     # Get available channel partners for dropdown
     channel_partners = ChannelPartner.objects.filter(is_active=True)
-    if lead.project.mandate_owner:
-        channel_partners = channel_partners.filter(linked_projects__mandate_owner=lead.project.mandate_owner).distinct()
+    if project.mandate_owner:
+        channel_partners = channel_partners.filter(linked_projects__mandate_owner=project.mandate_owner).distinct()
     
     context = {
         'lead': lead,
-        'project': lead.project,
+        'project': project,
+        'association': association,
         'channel_partners': channel_partners,
         'default_cp': None,
     }
@@ -283,3 +432,12 @@ def payment_create(request, booking_id):
         'booking': booking,
     }
     return render(request, 'bookings/payment_create.html', context)
+
+
+@login_required
+def clear_confetti(request, pk):
+    """Clear confetti flag from session"""
+    if 'show_confetti' in request.session:
+        del request.session['show_confetti']
+        request.session.modified = True
+    return HttpResponse(status=204)

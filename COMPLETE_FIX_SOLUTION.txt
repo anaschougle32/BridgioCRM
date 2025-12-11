@@ -1,0 +1,61 @@
+========================================
+COMPLETE FIX FOR MIGRATION ISSUES
+========================================
+
+THE PROBLEM:
+-----------
+Django's migration state thinks CallLog has 'call_duration' field,
+but the actual model and database have 'duration_minutes'. This causes
+Django to keep creating migrations trying to "rename" call_duration.
+
+THE ROOT CAUSE:
+--------------
+- Migration 0001 created CallLog with 'call_duration'
+- Migration 0008 was supposed to rename it to 'duration_minutes'
+- But Django's migration state might not reflect this correctly
+- The database already has 'duration_minutes' (we fixed it manually)
+- But Django still thinks the model state has 'call_duration'
+
+THE SOLUTION:
+------------
+We need to tell Django that the rename already happened. We have two options:
+
+OPTION 1: Fake the migrations (Quick Fix)
+----------------------------------------
+1. Delete migrations 0012 and 0013
+2. Create a new migration that only adds indexes
+3. Fake the rename migration if needed
+
+OPTION 2: Fix the migration state (Proper Fix)
+-----------------------------------------------
+1. Apply the fixed migration 0013
+2. If Django still complains, we'll manually update the state
+
+Let's go with OPTION 1 - it's cleaner.
+
+========================================
+COMMANDS TO RUN:
+========================================
+
+Step 1: Delete the problematic migrations
+------------------------------------------
+# Delete 0012 and 0013 (we'll recreate them properly)
+
+Step 2: Create a proper migration
+----------------------------------
+python manage.py makemigrations leads
+# Answer "N" when asked about call_duration
+
+Step 3: Edit the migration to only add indexes
+-----------------------------------------------
+# Remove any RemoveField/AddField for call_duration
+# Keep only the index creation
+
+Step 4: Apply
+------------
+python manage.py migrate leads
+python manage.py migrate
+python manage.py check
+
+========================================
+

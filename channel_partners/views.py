@@ -18,6 +18,7 @@ import tempfile
 import os
 import base64
 from .models import ChannelPartner
+from leads.models import Lead, LeadProjectAssociation
 from .utils import _create_cp_column_mapper
 from projects.models import Project
 from bookings.models import Booking
@@ -44,16 +45,17 @@ def cp_list(request):
     # Fix: Use status field instead of is_active
     # cps = ChannelPartner.objects.filter(is_active=True)  # OLD - removed
     
-    # Mandate Owner sees CPs linked to their projects OR CPs with leads/bookings for their projects
+    # Mandate Owner sees all CPs, but can filter by project
     if request.user.is_mandate_owner():
-        from leads.models import Lead
-        from bookings.models import Booking
-        # Get CPs linked to mandate owner's projects OR CPs with leads/bookings for their projects
-        cps = cps.filter(
-            Q(linked_projects__mandate_owner=request.user) |
-            Q(leads__project__mandate_owner=request.user) |
-            Q(bookings__project__mandate_owner=request.user)
-        ).distinct()
+        # Filter by project if specified
+        project_filter = request.GET.get('project', '')
+        if project_filter:
+            try:
+                project = Project.objects.get(id=project_filter, mandate_owner=request.user)
+                cps = cps.filter(linked_projects=project).distinct()
+            except Project.DoesNotExist:
+                cps = ChannelPartner.objects.none()
+        # Otherwise show all CPs (no filter)
     elif request.user.is_site_head():
         # Site Head sees CPs linked to their projects OR CPs with leads/bookings for their projects
         from leads.models import Lead
@@ -81,23 +83,24 @@ def cp_list(request):
     if cp_type:
         cps = cps.filter(cp_type=cp_type)
     
-    # Annotate with stats - filter by mandate owner's or site head's projects if needed
+    # Annotate with stats - use LeadProjectAssociation instead of leads
+    from leads.models import LeadProjectAssociation
     if request.user.is_mandate_owner():
         cps = cps.annotate(
-            lead_count=Count('leads', filter=Q(leads__project__mandate_owner=request.user, leads__is_archived=False)),
+            lead_count=Count('leads__project_associations', filter=Q(leads__project_associations__project__mandate_owner=request.user, leads__project_associations__is_archived=False), distinct=True),
             booking_count=Count('bookings', filter=Q(bookings__project__mandate_owner=request.user, bookings__is_archived=False)),
             total_revenue=Sum('bookings__payments__amount', filter=Q(bookings__project__mandate_owner=request.user))
         ).order_by('-total_revenue', '-booking_count')
     elif request.user.is_site_head():
         site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
         cps = cps.annotate(
-            lead_count=Count('leads', filter=Q(leads__project__in=site_head_projects, leads__is_archived=False)),
+            lead_count=Count('leads__project_associations', filter=Q(leads__project_associations__project__in=site_head_projects, leads__project_associations__is_archived=False), distinct=True),
             booking_count=Count('bookings', filter=Q(bookings__project__in=site_head_projects, bookings__is_archived=False)),
             total_revenue=Sum('bookings__payments__amount', filter=Q(bookings__project__in=site_head_projects))
         ).order_by('-total_revenue', '-booking_count')
     else:
         cps = cps.annotate(
-            lead_count=Count('leads', filter=Q(leads__is_archived=False)),
+            lead_count=Count('leads__project_associations', filter=Q(leads__project_associations__is_archived=False), distinct=True),
             booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
             total_revenue=Sum('bookings__payments__amount')
         ).order_by('-total_revenue', '-booking_count')
@@ -161,19 +164,28 @@ def cp_detail(request, pk):
         return redirect('dashboard')
     
     # Permission check for Mandate Owner and Site Head
+    # Mandate owners have all permissions - can view all CPs
     if request.user.is_mandate_owner():
-        if not cp.linked_projects.filter(mandate_owner=request.user).exists():
-            messages.error(request, 'You do not have permission to view this channel partner.')
-            return redirect('channel_partners:list')
+        # Mandate owners can view all CPs, no restriction needed
+        pass
+    elif request.user.is_super_admin():
+        # Super admins can view all CPs
+        pass
     elif request.user.is_site_head():
         site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
         if not cp.linked_projects.filter(id__in=site_head_projects).exists():
             messages.error(request, 'You do not have permission to view this channel partner.')
             return redirect('channel_partners:list')
     
-    # Get stats - filter by mandate owner or site head if needed
+    # Get stats - use LeadProjectAssociation instead of direct leads
     if request.user.is_mandate_owner():
-        leads = cp.leads.filter(project__mandate_owner=request.user, is_archived=False)
+        # Get associations for leads with this CP in mandate owner's projects
+        association_ids = LeadProjectAssociation.objects.filter(
+            lead__channel_partner=cp,
+            project__mandate_owner=request.user,
+            is_archived=False
+        ).values_list('lead_id', flat=True).distinct()
+        leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(project__mandate_owner=request.user, is_archived=False)
         from bookings.models import Payment
         total_revenue = Payment.objects.filter(
@@ -183,7 +195,13 @@ def cp_detail(request, pk):
         linked_projects = cp.linked_projects.filter(mandate_owner=request.user)
     elif request.user.is_site_head():
         site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
-        leads = cp.leads.filter(project__in=site_head_projects, is_archived=False)
+        # Get associations for leads with this CP in site head's projects
+        association_ids = LeadProjectAssociation.objects.filter(
+            lead__channel_partner=cp,
+            project__in=site_head_projects,
+            is_archived=False
+        ).values_list('lead_id', flat=True).distinct()
+        leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(project__in=site_head_projects, is_archived=False)
         from bookings.models import Payment
         total_revenue = Payment.objects.filter(
@@ -193,7 +211,11 @@ def cp_detail(request, pk):
         linked_projects = cp.linked_projects.filter(id__in=site_head_projects)
     elif request.user.is_sourcing_manager():
         # Sourcing Manager sees all CP data
-        leads = cp.leads.filter(is_archived=False)
+        association_ids = LeadProjectAssociation.objects.filter(
+            lead__channel_partner=cp,
+            is_archived=False
+        ).values_list('lead_id', flat=True).distinct()
+        leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
         total_revenue = Payment.objects.filter(booking__channel_partner=cp).aggregate(
@@ -201,7 +223,11 @@ def cp_detail(request, pk):
         )['total'] or 0
         linked_projects = cp.linked_projects.all()
     else:
-        leads = cp.leads.filter(is_archived=False)
+        association_ids = LeadProjectAssociation.objects.filter(
+            lead__channel_partner=cp,
+            is_archived=False
+        ).values_list('lead_id', flat=True).distinct()
+        leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
         total_revenue = Payment.objects.filter(booking__channel_partner=cp).aggregate(

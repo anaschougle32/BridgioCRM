@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}Employee Performance - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Employee Performance</h1>
+        <a href="{% url 'dashboard' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-4">
+        <div class="flex items-center gap-4">
+            <span class="text-sm font-medium text-gray-700">Period:</span>
+            <span class="text-sm text-gray-600">This Month ({{ this_month_start|date:"M Y" }})</span>
+        </div>
+    </div>
+    
+    <!-- Employee Performance Cards -->
+    <div class="space-y-6">
+        {% for metrics in employee_metrics %}
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h2 class="text-xl font-heading font-bold text-olive-primary">{{ metrics.user.get_full_name|default:metrics.user.username }}</h2>
+                    <p class="text-sm text-gray-600">{{ metrics.role }}</p>
+                    {% if metrics.assigned_projects %}
+                    <p class="text-xs text-gray-500 mt-1">
+                        Projects: <span class="font-medium">{{ metrics.assigned_projects|join:", " }}</span>
+                    </p>
+                    {% endif %}
+                </div>
+                <span class="px-3 py-1 text-xs font-semibold rounded-full 
+                    {% if metrics.role_code == 'closing_manager' %}bg-green-100 text-green-800
+                    {% elif metrics.role_code == 'sourcing_manager' %}bg-blue-100 text-blue-800
+                    {% elif metrics.role_code == 'telecaller' %}bg-purple-100 text-purple-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ metrics.role }}
+                </span>
+            </div>
+            
+            {% if metrics.role_code == 'closing_manager' %}
+            <!-- Closing Manager Metrics -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Total Calls Made</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ metrics.total_calls|default:0 }}</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Total Visits Handled</p>
+                    <p class="text-2xl font-bold text-green-600">{{ metrics.total_visits_handled|default:0 }}</p>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Total Bookings Done</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ metrics.total_bookings|default:0 }}</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Visit to Conversion Ratio</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ metrics.visit_to_conversion_ratio|default:0|floatformat:1 }}%</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mt-4">
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Total Leads</p>
+                    <p class="text-lg font-semibold">{{ metrics.total_leads|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">This Month Leads</p>
+                    <p class="text-lg font-semibold">{{ metrics.leads_this_month|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">This Month Visits</p>
+                    <p class="text-lg font-semibold">{{ metrics.visits_this_month|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">This Month Bookings</p>
+                    <p class="text-lg font-semibold">{{ metrics.bookings_this_month|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">This Month Revenue</p>
+                    <p class="text-lg font-semibold">₹{{ metrics.revenue_this_month|default:0|floatformat:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Pending OTP</p>
+                    <p class="text-lg font-semibold text-yellow-600">{{ metrics.pending_otp|default:0 }}</p>
+                </div>
+            </div>
+            
+            {% elif metrics.role_code == 'sourcing_manager' %}
+            <!-- Sourcing Manager Metrics -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Total CPs Active</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ metrics.total_cps_active|default:0 }}</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Total Visits by CPs</p>
+                    <p class="text-2xl font-bold text-green-600">{{ metrics.total_visits_by_cps|default:0 }}</p>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Total Conversion Done</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ metrics.total_conversion_done|default:0 }}</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">CP Visits to Conversion Ratio</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ metrics.cp_visits_to_conversion_ratio|default:0|floatformat:1 }}%</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Total Leads Created</p>
+                    <p class="text-lg font-semibold">{{ metrics.total_leads_created|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">This Month Leads</p>
+                    <p class="text-lg font-semibold">{{ metrics.leads_this_month|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Pretagged Leads</p>
+                    <p class="text-lg font-semibold">{{ metrics.pretagged_leads|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Verified Pretagged</p>
+                    <p class="text-lg font-semibold">{{ metrics.verified_pretagged|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Conversion Rate</p>
+                    <p class="text-lg font-semibold">{{ metrics.conversion_rate|default:0|floatformat:1 }}%</p>
+                </div>
+            </div>
+            
+            {% elif metrics.role_code == 'telecaller' %}
+            <!-- Telecaller Metrics -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Total Calls Made</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ metrics.total_calls|default:0 }}</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Visits Completed</p>
+                    <p class="text-2xl font-bold text-green-600">{{ metrics.visits_completed|default:0 }}</p>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Scheduled Visits</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ metrics.scheduled_visits|default:0 }}</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-600 mb-1">Visit to Conversion Ratio</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ metrics.visit_to_conversion_ratio|default:0|floatformat:1 }}%</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mt-4">
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Total Leads Assigned</p>
+                    <p class="text-lg font-semibold">{{ metrics.total_leads_assigned|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">This Month Leads</p>
+                    <p class="text-lg font-semibold">{{ metrics.leads_this_month|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">This Month Scheduled</p>
+                    <p class="text-lg font-semibold">{{ metrics.scheduled_this_month|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">This Month Calls</p>
+                    <p class="text-lg font-semibold">{{ metrics.calls_this_month|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Active Reminders</p>
+                    <p class="text-lg font-semibold">{{ metrics.active_reminders|default:0 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-600">Untouched Leads</p>
+                    <p class="text-lg font-semibold text-red-600">{{ metrics.untouched_leads|default:0 }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-12 text-center">
+            <p class="text-gray-500 text-lg">No employees found.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

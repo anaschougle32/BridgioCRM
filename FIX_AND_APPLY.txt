@@ -1,0 +1,39 @@
+========================================
+EXACT COMMANDS TO FIX AND APPLY MIGRATIONS
+========================================
+
+Run these commands IN THIS EXACT ORDER:
+
+1. Fix database schema (rename called_by_id to user_id):
+   python fix_all_migrations.py
+
+2. Apply migration 0010 (now fixed - only adds indexes):
+   python manage.py migrate leads 0010
+
+3. Apply all remaining migrations:
+   python manage.py migrate
+
+4. Check for any remaining issues:
+   python manage.py check
+
+5. Start the server:
+   python manage.py runserver
+
+========================================
+IF YOU GET ERRORS:
+========================================
+
+If migration 0010 still fails, fake it:
+   python manage.py migrate leads 0010 --fake
+
+Then continue with:
+   python manage.py migrate
+   python manage.py check
+
+========================================
+QUICK ONE-LINER (if everything works):
+========================================
+python fix_all_migrations.py && python manage.py migrate && python manage.py check
+
+========================================
+
