@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Sum, Avg, Value
+from django.db.models import Count, Q, Sum, Avg, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from decimal import Decimal
 from leads.models import Lead, LeadProjectAssociation
 from bookings.models import Booking, Payment
 from projects.models import Project
@@ -75,7 +76,7 @@ def dashboard(request):
                 project_stats = list(Project.objects.filter(is_active=True).annotate(
                     lead_count=Count('lead_associations', filter=Q(lead_associations__is_archived=False)),
                     booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-                    revenue=Coalesce(Sum('bookings__payments__amount'), Value(0))
+                    revenue=Coalesce(Sum('bookings__payments__amount'), Value(Decimal('0')), output_field=DecimalField())
                 ).order_by('-revenue')[:10])
             except Exception as e:
                 import traceback
@@ -178,7 +179,7 @@ def dashboard(request):
                 project_stats = list(Project.objects.filter(is_active=True).annotate(
                     lead_count=Count('lead_associations', filter=Q(lead_associations__is_archived=False)),
                     booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-                    revenue=Coalesce(Sum('bookings__payments__amount'), Value(0))
+                    revenue=Coalesce(Sum('bookings__payments__amount'), Value(Decimal('0')), output_field=DecimalField())
                 ).order_by('-revenue')[:10])
             except Exception as e:
                 import traceback

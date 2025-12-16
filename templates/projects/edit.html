@@ -2,57 +2,101 @@
 
 {% block title %}Edit Project - Bridgio CRM{% endblock %}
 
+{% block page_title %}Edit Project{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-heading font-bold text-olive-primary">Edit Project: {{ project.name }}</h1>
-        <a href="{% url 'projects:detail' project.pk %}" class="text-olive-primary hover:text-olive-secondary">← Back to Project</a>
+<div class="max-w-5xl mx-auto">
+    <div class="mb-4 sm:mb-6">
+        <h1 class="text-2xl sm:text-3xl font-heading font-semibold text-text-primary mb-2">Edit Project: {{ project.name }}</h1>
+        <p class="text-sm sm:text-base text-text-secondary">Update project details, configurations, and floor mapping.</p>
     </div>
     
-    <div class="bg-white rounded-custom shadow-md p-6">
-        <form method="post" enctype="multipart/form-data" class="space-y-6">
+    <!-- Progress Steps -->
+    <div class="mb-6 sm:mb-8 overflow-x-auto">
+        <div class="flex items-center justify-between min-w-[900px] sm:min-w-0">
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-olive-primary text-white font-bold" id="step-1-indicator">1</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-olive-primary">Basic Information</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-1-2-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-2-indicator">2</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">Tower Structure</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-2-3-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-3-indicator">3</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">Configurations</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-3-4-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-4-indicator">4</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">Floor Mapping</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-4-5-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-5-indicator">5</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">Settings</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form id="project-form" method="post" action="{% url 'projects:edit' project.pk %}" enctype="multipart/form-data" class="space-y-8" onsubmit="event.preventDefault(); return false;">
             {% csrf_token %}
+            <input type="hidden" name="step" id="form-step" value="1">
             
-            <!-- Basic Information -->
-            <div>
-                <h2 class="text-xl font-heading font-bold mb-4">Basic Information</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Step 1: Basic Information -->
+            <div id="step-1" class="step-content">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Basic Information</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-medium mb-2">Project Image</label>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Project Image</label>
                         {% if project.image %}
                         <div class="mb-2">
                             <img src="{{ project.image.url }}" alt="{{ project.name }}" class="w-32 h-32 object-cover rounded-lg">
                             <p class="text-xs text-gray-500 mt-1">Current image</p>
                         </div>
                         {% endif %}
-                        <input type="file" name="image" accept="image/*"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <input type="file" name="image" id="image" accept="image/*"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                         <p class="text-xs text-gray-500 mt-1">Upload a new image to replace the current one</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2">Project Name *</label>
-                        <input type="text" name="name" value="{{ project.name }}" required
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Project Name *</label>
+                        <input type="text" name="name" id="name" value="{{ project.name }}" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2">Builder Name *</label>
-                        <input type="text" name="builder_name" value="{{ project.builder_name }}" required
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Builder Name *</label>
+                        <input type="text" name="builder_name" id="builder_name" value="{{ project.builder_name }}" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-2">Location *</label>
-                        <textarea name="location" rows="2" required
-                                  class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">{{ project.location }}</textarea>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Location *</label>
+                        <textarea name="location" id="location" rows="2" required
+                                  class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">{{ project.location }}</textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2">RERA ID</label>
-                        <input type="text" name="rera_id" value="{{ project.rera_id|default:'' }}"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">RERA ID</label>
+                        <input type="text" name="rera_id" id="rera_id" value="{{ project.rera_id|default:'' }}"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2">Project Type *</label>
-                        <select name="project_type" required
-                                class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Project Type *</label>
+                        <select name="project_type" id="project_type" required
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                             <option value="">Select Type</option>
                             {% for value, label in project_type_choices %}
                             <option value="{{ value }}" {% if project.project_type == value %}selected{% endif %}>{{ label }}</option>
@@ -60,7 +104,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2">Starting Price</label>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Starting Price</label>
                         <div class="flex gap-2">
                             {% if project.starting_price %}
                                 {% if project.starting_price_unit == 'crores' %}
@@ -69,19 +113,19 @@
                                     {% widthratio project.starting_price 100000 1 as starting_price_display %}
                                 {% endif %}
                             {% endif %}
-                            <input type="number" name="starting_price" 
+                            <input type="number" name="starting_price" id="starting_price" 
                                    value="{% if project.starting_price %}{{ starting_price_display }}{% endif %}" 
                                    step="0.01" placeholder="e.g., 58"
-                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                            <select name="starting_price_unit"
-                                    class="w-32 px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                                   class="flex-1 px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <select name="starting_price_unit" id="starting_price_unit"
+                                    class="w-32 px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                                 <option value="lakhs" {% if not project.starting_price_unit or project.starting_price_unit == 'lakhs' %}selected{% endif %}>Lakhs</option>
                                 <option value="crores" {% if project.starting_price_unit == 'crores' %}selected{% endif %}>Crores</option>
                             </select>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2">Ending Price</label>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Ending Price</label>
                         <div class="flex gap-2">
                             {% if project.ending_price %}
                                 {% if project.ending_price_unit == 'crores' %}
@@ -90,123 +134,88 @@
                                     {% widthratio project.ending_price 100000 1 as ending_price_display %}
                                 {% endif %}
                             {% endif %}
-                            <input type="number" name="ending_price" 
+                            <input type="number" name="ending_price" id="ending_price" 
                                    value="{% if project.ending_price %}{{ ending_price_display }}{% endif %}" 
                                    step="0.01" placeholder="e.g., 85"
-                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                            <select name="ending_price_unit"
-                                    class="w-32 px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                                   class="flex-1 px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <select name="ending_price_unit" id="ending_price_unit"
+                                    class="w-32 px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                                 <option value="lakhs" {% if not project.ending_price_unit or project.ending_price_unit == 'lakhs' %}selected{% endif %}>Lakhs</option>
                                 <option value="crores" {% if project.ending_price_unit == 'crores' %}selected{% endif %}>Crores</option>
                             </select>
                         </div>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-2">Inventory Summary</label>
-                        <textarea name="inventory_summary" rows="3"
-                                  class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">{{ project.inventory_summary }}</textarea>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Inventory Summary</label>
+                        <textarea name="inventory_summary" id="inventory_summary" rows="3"
+                                  class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">{{ project.inventory_summary }}</textarea>
                     </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Latitude</label>
+                        <input type="number" name="latitude" id="latitude" value="{{ project.latitude|default:'' }}" step="0.000001"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Longitude</label>
+                        <input type="number" name="longitude" id="longitude" value="{{ project.longitude|default:'' }}" step="0.000001"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <a href="{% url 'projects:detail' project.pk %}" class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition">Cancel</a>
+                    <button type="button" onclick="submitStep(1, event)" class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">Next: Tower Structure</button>
                 </div>
             </div>
             
-            <!-- Tower and Unit Structure -->
-            <div>
-                <h2 class="text-xl font-heading font-bold mb-4">Tower and Unit Structure</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Number of Towers *</label>
-                        <input type="number" name="number_of_towers" value="{{ project.number_of_towers }}" min="1" required
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Floors per Tower *</label>
-                        <input type="number" name="floors_per_tower" value="{{ project.floors_per_tower }}" min="1" required
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Units per Floor (Residential) *</label>
-                        <input type="number" name="units_per_floor" value="{{ project.units_per_floor }}" min="1" required
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    </div>
-                    <div class="flex items-center">
-                        <input type="checkbox" name="has_commercial" id="has_commercial" {% if project.has_commercial %}checked{% endif %}
-                               class="w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary"
-                               onchange="toggleCommercialFields()">
-                        <label for="has_commercial" class="ml-2 text-sm font-medium">Has Commercial Units</label>
-                    </div>
-                    <div id="commercial_fields" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 {% if not project.has_commercial %}hidden{% endif %}">
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Commercial Floors</label>
-                            <input type="number" name="commercial_floors" value="{{ project.commercial_floors }}" min="0"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Commercial Units per Floor</label>
-                            <input type="number" name="commercial_units_per_floor" value="{{ project.commercial_units_per_floor }}" min="0"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                        </div>
-                    </div>
+            <!-- Step 2: Tower Structure -->
+            <div id="step-2" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Tower and Unit Structure</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-text-primary mb-2">Number of Towers *</label>
+                    <input type="number" name="number_of_towers" id="number_of_towers" value="{{ project.number_of_towers }}" min="1" required
+                           onchange="generateTowerConfigs()"
+                           class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    <p class="text-xs text-gray-500 mt-1">Set the number of towers, then configure each tower individually below</p>
+                </div>
+                
+                <div id="tower-configs-container" class="space-y-4 mb-6">
+                    <!-- Tower configurations will be generated here -->
+                </div>
+                
+                <!-- Legacy fields (hidden, for backward compatibility) -->
+                <input type="hidden" name="floors_per_tower" id="floors_per_tower" value="{{ project.floors_per_tower }}">
+                <input type="hidden" name="units_per_floor" id="units_per_floor" value="{{ project.units_per_floor }}">
+                <input type="hidden" name="has_commercial" id="has_commercial" value="{% if project.has_commercial %}on{% else %}off{% endif %}">
+                <input type="hidden" name="commercial_floors" id="commercial_floors" value="{{ project.commercial_floors }}">
+                <input type="hidden" name="commercial_units_per_floor" id="commercial_units_per_floor" value="{{ project.commercial_units_per_floor }}">
+                
+                <div class="flex justify-end space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(2)" class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition">Previous</button>
+                    <button type="button" onclick="submitStep(2, event)" class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">Next: Configurations</button>
                 </div>
             </div>
             
-            <!-- Location Coordinates -->
-            <div>
-                <h2 class="text-xl font-heading font-bold mb-4">Location Coordinates</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Latitude</label>
-                        <input type="number" name="latitude" value="{{ project.latitude|default:'' }}" step="0.000001"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Longitude</label>
-                        <input type="number" name="longitude" value="{{ project.longitude|default:'' }}" step="0.000001"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Settings -->
-            <div>
-                <h2 class="text-xl font-heading font-bold mb-4">Project Settings</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Default Commission %</label>
-                        <input type="number" name="default_commission_percent" value="{{ project.default_commission_percent }}" step="0.01"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Auto Assignment Strategy</label>
-                        <select name="auto_assignment_strategy"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                            <option value="manual" {% if project.auto_assignment_strategy == 'manual' %}selected{% endif %}>Manual</option>
-                            <option value="round_robin" {% if project.auto_assignment_strategy == 'round_robin' %}selected{% endif %}>Round Robin</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center">
-                        <input type="checkbox" name="is_active" id="is_active" {% if project.is_active %}checked{% endif %}
-                               class="w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary">
-                        <label for="is_active" class="ml-2 text-sm font-medium">Active</label>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Configurations -->
-            <div id="configurations-section">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-heading font-bold">Configurations & Pricing</h2>
+            <!-- Step 3: Configurations -->
+            <div id="step-3" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Configurations & Pricing</h2>
+                
+                <div class="mb-4">
                     <button type="button" onclick="addConfiguration()" 
-                            class="px-4 py-2 bg-blue-600 text-white rounded-custom hover:bg-blue-700 transition text-sm">
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
                         + Add Configuration
                     </button>
                 </div>
-                <p class="text-sm text-gray-600 mb-4">Add configurations (1BHK, 2BHK, etc.) with pricing and area variants. Save configurations first, then proceed to floor mapping.</p>
-                <div id="configurations-container" class="space-y-4">
+                
+                <div id="configurations-container" class="space-y-4 mb-6">
+                    <!-- Existing configurations will be loaded here -->
                     {% for config in configurations %}
-                    <div class="config-card border-2 border-gray-300 rounded-lg p-4 bg-gray-50" data-config-id="{{ forloop.counter0 }}">
+                    <div class="config-card border-2 border-gray-300 rounded-lg p-4 bg-gray-50" data-config-id="{{ config.id }}" data-config-index="{{ forloop.counter0 }}">
+                        <input type="hidden" name="config_id_{{ forloop.counter0 }}" value="{{ config.id }}">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-semibold text-gray-800">Configuration {{ forloop.counter }}</h3>
-                            <button type="button" onclick="removeConfiguration({{ forloop.counter0 }})" 
+                            <button type="button" onclick="removeConfiguration({{ config.id }})" 
                                     class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
                                 Remove
                             </button>
@@ -220,7 +229,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Description</label>
-                                <input type="text" name="config_description_{{ forloop.counter0 }}" value="{{ config.description }}"
+                                <input type="text" name="config_description_{{ forloop.counter0 }}" value="{{ config.description|default:'' }}"
                                        class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                             </div>
                         </div>
@@ -229,149 +238,137 @@
                             <div>
                                 <label class="block text-sm font-medium mb-1">Price per Sqft (₹)</label>
                                 <input type="number" name="config_price_per_sqft_{{ forloop.counter0 }}" 
-                                       value="{% if config.price_per_sqft %}{{ config.price_per_sqft }}{% endif %}" step="0.01"
+                                       value="{{ config.price_per_sqft|default:'' }}" step="0.01"
                                        class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Stamp Duty (%)</label>
-                                <input type="number" name="config_stamp_duty_{{ forloop.counter0 }}" 
-                                       value="{{ config.stamp_duty_percent }}" step="0.01"
+                                <input type="number" name="config_stamp_duty_{{ forloop.counter0 }}" value="{{ config.stamp_duty_percent }}" step="0.01"
                                        class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">GST (%)</label>
-                                <input type="number" name="config_gst_{{ forloop.counter0 }}" 
-                                       value="{{ config.gst_percent }}" step="0.01"
+                                <input type="number" name="config_gst_{{ forloop.counter0 }}" value="{{ config.gst_percent }}" step="0.01"
                                        class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Registration Charges (₹)</label>
-                                <input type="number" name="config_registration_{{ forloop.counter0 }}" 
-                                       value="{{ config.registration_charges }}" step="0.01"
+                                <input type="number" name="config_registration_{{ forloop.counter0 }}" value="{{ config.registration_charges }}" step="0.01"
                                        class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Legal Charges (₹)</label>
-                                <input type="number" name="config_legal_{{ forloop.counter0 }}" 
-                                       value="{{ config.legal_charges }}" step="0.01"
+                                <input type="number" name="config_legal_{{ forloop.counter0 }}" value="{{ config.legal_charges }}" step="0.01"
                                        class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Development Charges (₹)</label>
-                                <input type="number" name="config_development_{{ forloop.counter0 }}" 
-                                       value="{{ config.development_charges }}" step="0.01"
-                                       placeholder="e.g., 50000"
+                                <input type="number" name="config_development_{{ forloop.counter0 }}" value="{{ config.development_charges }}" step="0.01"
                                        class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                             </div>
                         </div>
                         
-                        <!-- Area Types -->
                         <div class="mb-4">
                             <div class="flex justify-between items-center mb-2">
-                                <label class="text-sm font-semibold">Area Types (Carpet, Buildup, RERA)</label>
-                                <button type="button" onclick="addAreaType({{ forloop.counter0 }})" 
+                                <label class="text-sm font-semibold">Area Types</label>
+                                <button type="button" onclick="addAreaType({{ config.id }})" 
                                         class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">
                                     + Add Area Type
                                 </button>
                             </div>
-                            <div id="area-types-{{ forloop.counter0 }}" class="space-y-2">
-                                {% for area in config.area_types.all %}
-                                <div class="flex gap-2 items-end bg-white p-2 rounded border">
-                                    <div class="flex-1">
-                                        <label class="block text-xs font-medium mb-1">Carpet Area (sqft) *</label>
+                            <div id="area-types-{{ config.id }}" class="space-y-2">
+                                {% for area_type in config.area_types.all %}
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 p-2 bg-white rounded border">
+                                    <input type="hidden" name="config_{{ forloop.parentloop.counter0 }}_area_id_{{ forloop.counter0 }}" value="{{ area_type.id }}">
+                                    <div>
+                                        <label class="block text-xs font-medium mb-1">Carpet Area (sqft)</label>
                                         <input type="number" name="config_{{ forloop.parentloop.counter0 }}_area_carpet_{{ forloop.counter0 }}" 
-                                               value="{{ area.carpet_area }}" step="0.01" required
-                                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                               value="{{ area_type.carpet_area }}" step="0.01" required
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
                                     </div>
-                                    <div class="flex-1">
-                                        <label class="block text-xs font-medium mb-1">Buildup Area (sqft) *</label>
+                                    <div>
+                                        <label class="block text-xs font-medium mb-1">Buildup Area (sqft)</label>
                                         <input type="number" name="config_{{ forloop.parentloop.counter0 }}_area_buildup_{{ forloop.counter0 }}" 
-                                               value="{{ area.buildup_area }}" step="0.01" required
-                                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                               value="{{ area_type.buildup_area }}" step="0.01" required
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
                                     </div>
-                                    <div class="flex-1">
+                                    <div>
                                         <label class="block text-xs font-medium mb-1">RERA Area (sqft)</label>
                                         <input type="number" name="config_{{ forloop.parentloop.counter0 }}_area_rera_{{ forloop.counter0 }}" 
-                                               value="{% if area.rera_area %}{{ area.rera_area }}{% endif %}" step="0.01"
-                                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                               value="{{ area_type.rera_area|default:'' }}" step="0.01"
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
                                     </div>
-                                    <div class="flex-1">
+                                    <div>
                                         <label class="block text-xs font-medium mb-1">Description</label>
                                         <input type="text" name="config_{{ forloop.parentloop.counter0 }}_area_desc_{{ forloop.counter0 }}" 
-                                               value="{{ area.description }}"
-                                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                               value="{{ area_type.description|default:'' }}"
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
                                     </div>
-                                    <button type="button" onclick="this.parentElement.remove(); populateAreaTypeOptions();" 
-                                            class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-xs">
-                                        ×
-                                    </button>
                                 </div>
                                 {% endfor %}
                             </div>
                         </div>
-                        
                     </div>
                     {% endfor %}
                 </div>
-                <div class="mt-6 flex justify-end">
-                    <button type="button" onclick="saveConfigurations()" 
-                            class="px-6 py-2 bg-green-600 text-white rounded-custom hover:bg-green-700 transition">
-                        Save Configurations & Continue to Floor Mapping
-                    </button>
+                
+                <div class="flex justify-end space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(3)" class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition">Previous</button>
+                    <button type="button" id="step-3-submit-btn" onclick="submitStep(3, event)" class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">Next: Floor Mapping</button>
                 </div>
             </div>
             
-            <!-- Floor Mapping Section -->
-            <div id="floor-mapping-section" class="{% if configurations %}block{% else %}hidden{% endif %}">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-heading font-bold">Floor & Unit Mapping</h2>
-                </div>
-                <p class="text-sm text-gray-600 mb-4">Map each unit to a configuration variant. Make sure "Floors per Tower" and "Units per Floor" are set above.</p>
+            <!-- Step 4: Floor Mapping -->
+            <div id="step-4" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Floor & Unit Mapping</h2>
+                
+                <p class="text-sm text-gray-600 mb-4">Map each unit to a configuration variant.</p>
+                
                 <div id="floor-mapping-container" class="space-y-4">
-                    <!-- Floor mapping will be generated here -->
+                    <p class="text-sm text-gray-500">Please complete previous steps to enable floor mapping.</p>
+                </div>
+                
+                <div class="flex justify-end space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(4)" class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition">Previous</button>
+                    <button type="button" onclick="submitStep(4, event)" class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">Next: Settings</button>
                 </div>
             </div>
             
-            <!-- Assignment -->
-            <div>
-                <h2 class="text-xl font-heading font-bold mb-4">Assignment</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {% if mandate_owners %}
+            <!-- Step 5: Settings -->
+            <div id="step-5" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Settings & Assignment</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-medium mb-2">Mandate Owner *</label>
-                        <select name="mandate_owner" required
-                                class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                            {% for owner in mandate_owners %}
-                            <option value="{{ owner.id }}" {% if project.mandate_owner_id == owner.id %}selected{% endif %}>
-                                {% if owner.get_full_name %}{{ owner.get_full_name }} ({{ owner.username }}){% else %}{{ owner.username }}{% endif %}
-                            </option>
-                            {% endfor %}
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Default Commission %</label>
+                        <input type="number" name="default_commission_percent" id="default_commission_percent" 
+                               value="{{ project.default_commission_percent }}" step="0.01"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Auto Assignment Strategy</label>
+                        <select name="auto_assignment_strategy" id="auto_assignment_strategy"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="manual" {% if project.auto_assignment_strategy == 'manual' %}selected{% endif %}>Manual</option>
+                            <option value="round_robin" {% if project.auto_assignment_strategy == 'round_robin' %}selected{% endif %}>Round Robin</option>
                         </select>
                     </div>
-                    {% endif %}
                     <div>
-                        <label class="block text-sm font-medium mb-2">Site Head</label>
-                        <select name="site_head"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Site Head</label>
+                        <select name="site_head" id="site_head"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
                             <option value="">None</option>
                             {% for head in site_heads %}
-                            <option value="{{ head.id }}" {% if project.site_head_id == head.id %}selected{% endif %}>{{ head.username }}</option>
+                            <option value="{{ head.id }}" {% if project.site_head_id == head.id %}selected{% endif %}>{{ head.get_full_name|default:head.username }}</option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Submit -->
-            <div id="submit-section" class="{% if configurations %}flex{% else %}hidden{% endif %} justify-end space-x-4">
-                <a href="{% url 'projects:detail' project.pk %}" 
-                   class="px-6 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition">
-                    Cancel
-                </a>
-                <button type="submit" 
-                        class="px-6 py-2 bg-olive-primary text-white rounded-custom hover:bg-olive-secondary transition">
-                    Save Project
-                </button>
+                
+                <div class="flex justify-end space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(5)" class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition">Previous</button>
+                    <button type="button" onclick="submitFinalForm()" class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">Update Project</button>
+                </div>
             </div>
         </form>
     </div>
@@ -379,16 +376,347 @@
 {% endblock %}
 
 {% block extra_js %}
+<script id="commercial-floors-data" type="application/json">{{ commercial_floors_data|safe }}</script>
 <script>
-    let configCounter = {{ configurations|length }};
+    let configCounter = {{ configurations.count }};
     let areaCounters = {};
-    let floorCounters = {};
     
-    // Initialize counters for existing configurations
+    // Initialize area counters for existing configs
     {% for config in configurations %}
-    areaCounters[{{ forloop.counter0 }}] = {{ config.area_types.all|length }};
-    floorCounters[{{ forloop.counter0 }}] = {{ config.floor_mappings.all|length }};
+    areaCounters[{{ config.id }}] = {{ config.area_types.count }};
     {% endfor %}
+    
+    // Step Navigation (same as create)
+    function updateStepIndicators(currentStep) {
+        for (let i = 1; i <= 5; i++) {
+            const indicator = document.getElementById(`step-${i}-indicator`);
+            const label = indicator.nextElementSibling.querySelector('p');
+            const prevLine = i > 1 ? document.getElementById(`step-${i-1}-${i}-line`) : null;
+            
+            if (i < currentStep) {
+                indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white font-bold';
+                label.className = 'text-sm font-medium text-green-600';
+                if (prevLine) prevLine.className = 'flex-1 h-1 mx-4 bg-green-500';
+            } else if (i === currentStep) {
+                indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-olive-primary text-white font-bold';
+                label.className = 'text-sm font-medium text-olive-primary';
+                if (prevLine) prevLine.className = 'flex-1 h-1 mx-4 bg-olive-primary';
+            } else {
+                indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold';
+                label.className = 'text-sm font-medium text-gray-500';
+                if (prevLine) prevLine.className = 'flex-1 h-1 mx-4 bg-gray-200';
+            }
+        }
+    }
+    
+    function showStep(step) {
+        for (let i = 1; i <= 5; i++) {
+            document.getElementById(`step-${i}`).classList.add('hidden');
+        }
+        document.getElementById(`step-${step}`).classList.remove('hidden');
+        updateStepIndicators(step);
+        document.getElementById('form-step').value = step;
+        
+        // Generate floor mapping when step 4 is shown
+        if (step === 4 && typeof generateFloorMapping === 'function') {
+            setTimeout(() => {
+                generateFloorMapping();
+            }, 100);
+        }
+    }
+    
+    function previousStep(fromStep) {
+        if (fromStep > 1) {
+            showStep(fromStep - 1);
+        }
+    }
+    
+    function submitStep(step, event) {
+        // Prevent default if event is provided
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        const form = document.getElementById('project-form');
+        if (!form) {
+            alert('Form not found!');
+            return;
+        }
+        
+        const formData = new FormData(form);
+        formData.set('step', step.toString());
+        
+        // Show loading state
+        let submitButton = null;
+        let originalText = '';
+        if (event && event.target) {
+            submitButton = event.target;
+        } else {
+            // Try to find button by ID or onclick attribute
+            submitButton = document.getElementById(`step-${step}-submit-btn`) || 
+                          document.querySelector(`button[onclick*="submitStep(${step})"]`);
+        }
+        
+        if (submitButton) {
+            originalText = submitButton.textContent;
+            submitButton.disabled = true;
+            submitButton.textContent = 'Saving...';
+        }
+        
+        const url = '{% url "projects:edit" project.pk %}';
+        console.log('Submitting step', step, 'to', url);
+        
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(async response => {
+            clearTimeout(timeoutId); // Clear timeout on successful response
+            console.log('Response status:', response.status, 'Content-Type:', response.headers.get('content-type'));
+            
+            // Check content type to see if it's JSON
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                // If not JSON, it's likely an HTML error page
+                const text = await response.text();
+                console.error('Non-JSON response (first 1000 chars):', text.substring(0, 1000));
+                throw new Error('Server returned an error (Status: ' + response.status + '). Check browser console (F12) for details.');
+            }
+            
+            const data = await response.json();
+            console.log('Response data:', data);
+            
+            if (!response.ok) {
+                throw new Error(data.error || data.message || 'Request failed with status ' + response.status);
+            }
+            return data;
+        })
+        .then(data => {
+            if (data.success) {
+                if (step === 1) {
+                    showStep(2);
+                    // Initialize commercial floors after moving to step 2
+                    setTimeout(() => {
+                        const numTowers = parseInt(document.getElementById('number_of_towers')?.value) || {{ project.number_of_towers }};
+                        for (let i = 0; i < numTowers; i++) {
+                            if (typeof updateCommercialFloors === 'function') {
+                                updateCommercialFloors(i);
+                            }
+                        }
+                    }, 100);
+                } else if (step === 2) {
+                    showStep(3);
+                } else if (step === 3) {
+                    showStep(4);
+                    // Reload page to get updated configurations, or regenerate floor mapping after a short delay
+                    setTimeout(() => {
+                        if (typeof generateFloorMapping === 'function') {
+                            generateFloorMapping();
+                        }
+                    }, 500);
+                } else if (step === 4) {
+                    showStep(5);
+                } else if (step === 5 && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            } else {
+                alert(data.error || 'An error occurred. Please try again.');
+            }
+        })
+        .catch(error => {
+            clearTimeout(timeoutId); // Clear timeout on error
+            console.error('Full error:', error);
+            console.error('Error stack:', error.stack);
+            
+            if (error.name === 'AbortError') {
+                alert('Request timed out after 30 seconds. The server may be processing a large amount of data. Please try again.');
+            } else {
+                alert('Error: ' + (error.message || 'An error occurred. Please check the browser console (F12) for details.'));
+            }
+        })
+        .finally(() => {
+            // Restore button state
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            }
+        });
+    }
+    
+    function submitFinalForm() {
+        const form = document.getElementById('project-form');
+        const formData = new FormData(form);
+        formData.set('step', '5');
+        
+        fetch('{% url "projects:edit" project.pk %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || data.message || 'Request failed');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    window.location.href = '{% url "projects:detail" project.pk %}';
+                }
+            } else {
+                alert(data.error || data.message || 'An error occurred. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+    
+    // Configuration Management (same as create)
+    function addConfiguration() {
+        const container = document.getElementById('configurations-container');
+        const configId = configCounter++;
+        // Use configId as index for new configs (they don't have database IDs yet)
+        const configIndex = configId;
+        areaCounters[configId] = 0;
+        
+        const configHtml = `
+            <div class="config-card border-2 border-gray-300 rounded-lg p-4 bg-gray-50" data-config-id="${configId}" data-config-index="${configIndex}">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Configuration ${configId + 1}</h3>
+                    <button type="button" onclick="removeConfiguration(${configId})" 
+                            class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                        Remove
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Configuration Name *</label>
+                        <input type="text" name="config_name_${configIndex}" required
+                               placeholder="e.g., 1BHK"
+                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Description</label>
+                        <input type="text" name="config_description_${configIndex}"
+                               placeholder="Optional description"
+                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Price per Sqft (₹)</label>
+                        <input type="number" name="config_price_per_sqft_${configIndex}" step="0.01"
+                               placeholder="e.g., 5000"
+                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Stamp Duty (%)</label>
+                        <input type="number" name="config_stamp_duty_${configIndex}" value="5.00" step="0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">GST (%)</label>
+                        <input type="number" name="config_gst_${configIndex}" value="5.00" step="0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Registration Charges (₹)</label>
+                        <input type="number" name="config_registration_${configIndex}" value="30000" step="0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Legal Charges (₹)</label>
+                        <input type="number" name="config_legal_${configIndex}" value="15000" step="0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Development Charges (₹)</label>
+                        <input type="number" name="config_development_${configIndex}" value="0" step="0.01"
+                               placeholder="e.g., 50000"
+                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-sm font-semibold">Area Types</label>
+                        <button type="button" onclick="addAreaType(${configId})" 
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">
+                            + Add Area Type
+                        </button>
+                    </div>
+                    <div id="area-types-${configId}" class="space-y-2">
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', configHtml);
+    }
+    
+    function removeConfiguration(configId) {
+        const configCard = document.querySelector(`[data-config-id="${configId}"]`);
+        if (configCard) {
+            configCard.remove();
+        }
+    }
+    
+    function addAreaType(configId) {
+        const container = document.getElementById(`area-types-${configId}`);
+        const areaId = areaCounters[configId] || 0;
+        areaCounters[configId] = areaId + 1;
+        
+        // Get config index from the card's data attribute
+        const configCard = document.querySelector(`[data-config-id="${configId}"]`);
+        const configIndex = configCard ? (configCard.getAttribute('data-config-index') || configId) : configId;
+        
+        const areaHtml = `
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-2 p-2 bg-white rounded border">
+                <div>
+                    <label class="block text-xs font-medium mb-1">Carpet Area (sqft)</label>
+                    <input type="number" name="config_${configIndex}_area_carpet_${areaId}" step="0.01" required
+                           class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1">Buildup Area (sqft)</label>
+                    <input type="number" name="config_${configIndex}_area_buildup_${areaId}" step="0.01" required
+                           class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1">RERA Area (sqft)</label>
+                    <input type="number" name="config_${configIndex}_area_rera_${areaId}" step="0.01"
+                           class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1">Description</label>
+                    <input type="text" name="config_${configIndex}_area_desc_${areaId}"
+                           class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', areaHtml);
+    }
     
     function toggleCommercialFields() {
         const checkbox = document.getElementById('has_commercial');
@@ -400,689 +728,582 @@
         }
     }
     
-    function addConfiguration() {
-        const container = document.getElementById('configurations-container');
-        const configId = configCounter++;
-        areaCounters[configId] = 0;
-        floorCounters[configId] = 0;
-        
-        const configHtml = `
-            <div class="config-card border-2 border-gray-300 rounded-lg p-4 bg-gray-50" data-config-id="${configId}">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800">Configuration ${configId + 1}</h3>
-                    <button type="button" onclick="removeConfiguration(${configId})" 
-                            class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
-                        Remove
-                    </button>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Configuration Name * (e.g., 1BHK, 2BHK)</label>
-                        <input type="text" name="config_name_${configId}" required
-                               placeholder="e.g., 1BHK"
-                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Description</label>
-                        <input type="text" name="config_description_${configId}"
-                               placeholder="Optional description"
-                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Price per Sqft (₹)</label>
-                        <input type="number" name="config_price_per_sqft_${configId}" step="0.01"
-                               placeholder="e.g., 5000"
-                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Stamp Duty (%)</label>
-                        <input type="number" name="config_stamp_duty_${configId}" value="5.00" step="0.01"
-                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">GST (%)</label>
-                        <input type="number" name="config_gst_${configId}" value="5.00" step="0.01"
-                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Registration Charges (₹)</label>
-                        <input type="number" name="config_registration_${configId}" value="30000" step="0.01"
-                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Legal Charges (₹)</label>
-                        <input type="number" name="config_legal_${configId}" value="15000" step="0.01"
-                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Development Charges (₹)</label>
-                        <input type="number" name="config_development_${configId}" value="0" step="0.01"
-                               placeholder="e.g., 50000"
-                               class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-                
-                <!-- Area Types -->
-                <div class="mb-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-sm font-semibold">Area Types (Carpet, Buildup, RERA)</label>
-                        <button type="button" onclick="addAreaType(${configId})" 
-                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">
-                            + Add Area Type
-                        </button>
-                    </div>
-                    <div id="area-types-${configId}" class="space-y-2">
-                        <!-- Area types will be added here -->
-                    </div>
-                </div>
-                
-                <!-- Floor Mappings -->
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-sm font-semibold">Floor Mappings (Which floors have this configuration)</label>
-                        <button type="button" onclick="addFloorMapping(${configId})" 
-                                class="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs">
-                            + Add Floor
-                        </button>
-                    </div>
-                    <div id="floor-mappings-${configId}" class="space-y-2">
-                        <!-- Floor mappings will be added here -->
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        container.insertAdjacentHTML('beforeend', configHtml);
+    function getFloorDisplayName(floorNum) {
+        if (floorNum === 1) return "Ground (G)";
+        if (floorNum === 2) return "1st Floor";
+        if (floorNum === 3) return "2nd Floor";
+        return `${floorNum - 1}th Floor`;
     }
     
-    function removeConfiguration(configId) {
-        const card = document.querySelector(`[data-config-id="${configId}"]`);
-        if (card) {
-            card.remove();
-        }
-        delete areaCounters[configId];
-        delete floorCounters[configId];
-        // Update dropdowns after removing configuration
-        populateAreaTypeOptions();
-    }
-    
-    function addAreaType(configId) {
-        const container = document.getElementById(`area-types-${configId}`);
-        const areaId = areaCounters[configId]++;
+    function updateCommercialFloors(towerIndex) {
+        const floorsInput = document.getElementById(`tower_${towerIndex}_floors`);
+        const floorsCount = parseInt(floorsInput?.value) || 1;
+        const container = document.getElementById(`commercial-floors-${towerIndex}`);
         
-        const areaHtml = `
-            <div class="flex gap-2 items-end bg-white p-2 rounded border">
-                <div class="flex-1">
-                    <label class="block text-xs font-medium mb-1">Carpet Area (sqft) *</label>
-                    <input type="number" name="config_${configId}_area_carpet_${areaId}" step="0.01" required
-                           placeholder="e.g., 500"
-                           class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
-                </div>
-                <div class="flex-1">
-                    <label class="block text-xs font-medium mb-1">Buildup Area (sqft) *</label>
-                    <input type="number" name="config_${configId}_area_buildup_${areaId}" step="0.01" required
-                           placeholder="e.g., 650"
-                           class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
-                </div>
-                <div class="flex-1">
-                    <label class="block text-xs font-medium mb-1">RERA Area (sqft)</label>
-                    <input type="number" name="config_${configId}_area_rera_${areaId}" step="0.01"
-                           placeholder="e.g., 600"
-                           class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
-                </div>
-                <div class="flex-1">
-                    <label class="block text-xs font-medium mb-1">Description</label>
-                    <input type="text" name="config_${configId}_area_desc_${areaId}"
-                           placeholder="e.g., Compact"
-                           class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
-                </div>
-                <button type="button" onclick="this.parentElement.remove(); populateAreaTypeOptions();"
-                        class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-xs">
-                    ×
-                </button>
-            </div>
-        `;
+        if (!container) return;
         
-        container.insertAdjacentHTML('beforeend', areaHtml);
-        // Update dropdowns when new area type is added
-        populateAreaTypeOptions();
+        // Total floors = G (floor 1) + floorsCount (floors 2 to floorsCount+1)
+        // So we display: G, 1st, 2nd, ..., floorsCount-th
+        const totalFloors = floorsCount + 1; // G + N floors
         
-        // Add event listeners to the new inputs to update dropdowns when values change
-        const newCarpetInput = container.querySelector(`input[name="config_${configId}_area_carpet_${areaId}"]`);
-        const newBuildupInput = container.querySelector(`input[name="config_${configId}_area_buildup_${areaId}"]`);
-        
-        if (newCarpetInput) {
-            newCarpetInput.addEventListener('input', function() {
-                clearTimeout(newCarpetInput.updateTimeout);
-                newCarpetInput.updateTimeout = setTimeout(() => {
-                    populateAreaTypeOptions();
-                }, 300);
-            });
-        }
-        if (newBuildupInput) {
-            newBuildupInput.addEventListener('input', function() {
-                clearTimeout(newBuildupInput.updateTimeout);
-                newBuildupInput.updateTimeout = setTimeout(() => {
-                    populateAreaTypeOptions();
-                }, 300);
-            });
-        }
-    }
-    
-    function updateFloorMappings(configId) {
-        const container = document.getElementById(`floor-mappings-${configId}`);
-        const floorsPerTower = parseInt(document.querySelector('[name="floors_per_tower"]').value) || {{ floors_per_tower }};
-        const existingData = (window.floorMappingData && window.floorMappingData[configId]) || {};
-        
-        let floorHtml = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
-        for (let floorNum = 1; floorNum <= floorsPerTower; floorNum++) {
-            const floorData = existingData[floorNum] || {};
-            const defaultUnitStart = floorNum * 100 + 1;
-            const isChecked = floorData.units_per_floor ? 'checked' : '';
-            const isVisible = floorData.units_per_floor ? '' : 'hidden';
+        let html = '';
+        for (let floor = 1; floor <= totalFloors; floor++) {
+            const floorName = getFloorDisplayName(floor);
+            const existingCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial"]`);
+            const isChecked = existingCheck ? existingCheck.checked : false;
+            const existingUnits = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial_units"]`)?.value || '';
             
-            floorHtml += `
-                <div class="border rounded p-3 bg-gray-50 floor-mapping-item" data-floor="${floorNum}">
-                    <div class="flex items-center mb-2">
-                        <input type="checkbox" 
-                               name="config_${configId}_floor_${floorNum}" 
-                               id="config_${configId}_floor_${floorNum}"
-                               ${isChecked}
-                               onchange="toggleFloorDetails(${configId}, ${floorNum})"
+            html += `
+                <div class="flex items-center gap-3 p-3 bg-white border border-gray-300 rounded hover:bg-gray-50">
+                    <label class="flex items-center cursor-pointer flex-1">
+                        <input type="checkbox" name="tower_${towerIndex}_floor_${floor}_commercial" 
+                               value="on" ${isChecked ? 'checked' : ''}
+                               onchange="toggleCommercialUnits(${towerIndex}, ${floor}, this.checked)"
                                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                        <label for="config_${configId}_floor_${floorNum}" class="ml-2 text-sm font-medium">
-                            Floor ${floorNum}
-                        </label>
+                        <span class="ml-2 text-sm font-medium">${floorName}</span>
+                    </label>
+                    ${floor === 1 ? '<span class="text-xs text-gray-500">(Vacant/Parking if not commercial)</span>' : ''}
+                    <div id="commercial-units-${towerIndex}-${floor}" class="${isChecked ? '' : 'hidden'}">
+                        <label class="text-xs text-gray-600 mr-2">Units:</label>
+                        <input type="number" name="tower_${towerIndex}_floor_${floor}_commercial_units" 
+                               value="${existingUnits}" min="1" placeholder="Units"
+                               class="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-blue-500">
                     </div>
-                    <div id="config_${configId}_floor_${floorNum}_details" class="${isVisible} space-y-2 mt-2">
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    }
+    
+    function toggleCommercialUnits(towerIndex, floor, isChecked) {
+        const unitsDiv = document.getElementById(`commercial-units-${towerIndex}-${floor}`);
+        if (unitsDiv) {
+            if (isChecked) {
+                unitsDiv.classList.remove('hidden');
+            } else {
+                unitsDiv.classList.add('hidden');
+                const unitsInput = unitsDiv.querySelector('input[type="number"]');
+                if (unitsInput) unitsInput.value = '';
+            }
+        }
+    }
+    
+    function generateTowerConfigs() {
+        const container = document.getElementById('tower-configs-container');
+        const numTowers = parseInt(document.getElementById('number_of_towers')?.value) || {{ project.number_of_towers }};
+        
+        let html = '';
+        for (let i = 0; i < numTowers; i++) {
+            const towerNum = i + 1;
+            // Try to get existing config values from form inputs
+            const existingConfig = document.querySelector(`input[name="tower_${i}_number"]`);
+            const existingFloors = existingConfig ? document.querySelector(`input[name="tower_${i}_floors"]`)?.value : '{{ project.floors_per_tower }}';
+            const existingUnits = existingConfig ? document.querySelector(`input[name="tower_${i}_units_per_floor"]`)?.value : '{{ project.units_per_floor }}';
+            const existingCommercial = existingConfig ? document.querySelector(`input[name="tower_${i}_is_commercial"]`)?.checked : false;
+            
+            html += `
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-4" data-tower-index="${i}">
+                    <h3 class="text-lg font-semibold mb-4">Tower ${towerNum}</h3>
+                    <input type="hidden" name="tower_${i}_number" value="${towerNum}">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-xs font-medium mb-1">Units per Floor *</label>
-                            <input type="number" 
-                                   name="config_${configId}_floor_units_${floorNum}" 
-                                   value="${floorData.units_per_floor || 1}" min="1" 
-                                   onchange="updateUnitStart(${configId}, ${floorNum})"
-                                   class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                            <label class="block text-sm font-medium mb-2">Number of Floors *</label>
+                            <input type="number" name="tower_${i}_floors" id="tower_${i}_floors" value="${existingFloors || 1}" min="1" required
+                                   onchange="updateCommercialFloors(${i})"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium mb-1">Starting Unit Number *</label>
-                            <input type="number" 
-                                   name="config_${configId}_floor_unit_start_${floorNum}" 
-                                   value="${floorData.unit_number_start || defaultUnitStart}" 
-                                   min="1"
-                                   class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                   placeholder="e.g., ${defaultUnitStart}">
-                            <p class="text-xs text-gray-500 mt-1">e.g., ${defaultUnitStart} means units ${defaultUnitStart}, ${defaultUnitStart + 1}, etc.</p>
+                            <label class="block text-sm font-medium mb-2">Units per Floor *</label>
+                            <input type="number" name="tower_${i}_units_per_floor" value="${existingUnits || 1}" min="1" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium mb-2">Select Commercial Floors:</label>
+                        <div id="commercial-floors-${i}" class="flex flex-wrap gap-3 p-3 bg-white rounded border border-gray-300">
+                            <!-- Commercial floor checkboxes will be generated here -->
                         </div>
                     </div>
                 </div>
             `;
         }
-        floorHtml += '</div>';
-        container.innerHTML = floorHtml;
-    }
-    
-    function toggleFloorDetails(configId, floorNum) {
-        const checkbox = document.getElementById(`config_${configId}_floor_${floorNum}`);
-        const details = document.getElementById(`config_${configId}_floor_${floorNum}_details`);
-        if (checkbox.checked) {
-            details.classList.remove('hidden');
-        } else {
-            details.classList.add('hidden');
+        container.innerHTML = html;
+        // Initialize commercial floors for all towers
+        for (let i = 0; i < numTowers; i++) {
+            updateCommercialFloors(i);
         }
     }
     
-    function updateUnitStart(configId, floorNum) {
-        const unitsInput = document.querySelector(`[name="config_${configId}_floor_units_${floorNum}"]`);
-        const unitStartInput = document.querySelector(`[name="config_${configId}_floor_unit_start_${floorNum}"]`);
-        if (unitsInput && unitStartInput && !unitStartInput.value) {
-            const defaultStart = floorNum * 100 + 1;
-            unitStartInput.value = defaultStart;
-        }
-    }
-    
-    function saveConfigurations() {
-        console.log('saveConfigurations called');
+    function loadExistingTowerConfigs() {
+        const towerConfigs = [
+            {% for tfc in tower_floor_configs %}
+            {
+                towerNum: {{ tfc.tower_number }},
+                floors: {{ tfc.floors_count }},
+                unitsPerFloor: {{ tfc.units_per_floor }},
+                isCommercial: {{ tfc.is_commercial|yesno:"true,false" }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
         
-        // Validate that at least one configuration exists
-        const configCards = document.querySelectorAll('[data-config-id]');
-        console.log('Found config cards:', configCards.length);
-        
-        if (configCards.length === 0) {
-            alert('Please add at least one configuration before proceeding.');
-            return false;
-        }
-        
-        // Validate configurations have required fields
-        let hasValidConfig = false;
-        let validationErrors = [];
-        
-        configCards.forEach(card => {
-            const configId = card.dataset.configId;
-            const configName = card.querySelector(`[name="config_name_${configId}"]`)?.value?.trim();
-            
-            if (!configName) {
-                validationErrors.push(`Configuration ${parseInt(configId) + 1} is missing a name.`);
-                return;
-            }
-            
-            const areaContainer = card.querySelector(`#area-types-${configId}`);
-            if (!areaContainer) {
-                validationErrors.push(`Configuration "${configName}" has no area types section.`);
-                return;
-            }
-            
-            // Get all carpet area inputs
-            const carpetInputs = areaContainer.querySelectorAll(`input[name^="config_${configId}_area_carpet_"]`);
-            
-            if (carpetInputs.length === 0) {
-                validationErrors.push(`Configuration "${configName}" has no area types. Please add at least one area type.`);
-                return;
-            }
-            
-            // Check if at least one area type has both carpet and buildup
-            let hasValidAreaType = false;
-            for (let input of carpetInputs) {
-                // Extract area ID from name: config_X_area_carpet_Y
-                const nameMatch = input.name.match(/config_\d+_area_carpet_(\d+)/);
-                if (nameMatch) {
-                    const areaId = nameMatch[1];
-                    const carpetArea = input.value.trim();
-                    const buildupInput = areaContainer.querySelector(`input[name="config_${configId}_area_buildup_${areaId}"]`);
-                    const buildupArea = buildupInput?.value.trim() || '';
-                    
-                    if (carpetArea && buildupArea) {
-                        hasValidAreaType = true;
-                        hasValidConfig = true;
-                        break;
-                    }
+        // Get existing commercial floors from unit configurations
+        const existingCommercialFloors = {};
+        {% for key, uc in unit_configurations.items %}
+        {% if uc.is_commercial %}
+        (function() {
+            const keyStr = '{{ key }}';
+            const parts = keyStr.split('_');
+            if (parts.length >= 2) {
+                const towerKey = parts[0];
+                const floorKey = parts[1];
+                if (!existingCommercialFloors[towerKey]) {
+                    existingCommercialFloors[towerKey] = new Set();
                 }
+                existingCommercialFloors[towerKey].add(floorKey);
             }
-            
-            if (!hasValidAreaType) {
-                validationErrors.push(`Configuration "${configName}" needs at least one area type with both carpet and buildup area filled.`);
-            }
-        });
-        
-        // Also check existing configurations from server
-        {% for config in configurations %}
-        {% if config.area_types.all %}
-        hasValidConfig = true;
+        })();
         {% endif %}
         {% endfor %}
         
-        if (!hasValidConfig) {
-            const errorMsg = validationErrors.length > 0 
-                ? validationErrors.join('\n') 
-                : 'Please add at least one configuration with area types (carpet and buildup area) before proceeding.';
-            alert(errorMsg);
-            return false;
+        // Set number of towers input
+        if (towerConfigs.length > 0) {
+            const numTowersInput = document.getElementById('number_of_towers');
+            if (numTowersInput) {
+                numTowersInput.value = towerConfigs.length;
+            }
         }
         
-        console.log('Validation passed, showing floor mapping...');
+        // Get commercial floors from backend data
+        const backendCommercialFloors = JSON.parse(document.getElementById('commercial-floors-data')?.textContent || '{}');
         
-        // First, populate area type options to ensure dropdowns are ready
-        if (typeof populateAreaTypeOptions === 'function') {
-            populateAreaTypeOptions();
-        }
-        
-        // Hide configurations section, show floor mapping section
-        const configSection = document.getElementById('configurations-section');
-        const floorSection = document.getElementById('floor-mapping-section');
-        const submitSection = document.getElementById('submit-section');
-        
-        if (configSection) {
-            configSection.classList.add('hidden');
-            console.log('Hidden configurations section');
-        }
-        if (floorSection) {
-            floorSection.classList.remove('hidden');
-            console.log('Shown floor mapping section');
-        }
-        if (submitSection) {
-            submitSection.classList.remove('hidden');
-            submitSection.classList.add('flex');
-            console.log('Shown submit section');
-        } else {
-            console.error('submit-section element not found!');
-        }
-        
-        // Generate floor mapping (this will also call populateAreaTypeOptions)
-        if (typeof generateFloorMapping === 'function') {
-            generateFloorMapping();
-        }
-        
-        // Scroll to floor mapping section
-        if (floorSection) {
-            floorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        
-        return true;
-    }
-    
-    // Generate floor mapping UI with per-unit dropdowns (tower-based)
-    function generateFloorMapping() {
-        const container = document.getElementById('floor-mapping-container');
-        const floorsPerTower = parseInt(document.querySelector('[name="floors_per_tower"]').value) || 0;
-        const unitsPerFloor = parseInt(document.querySelector('[name="units_per_floor"]').value) || 0;
-        const numberOfTowers = parseInt(document.querySelector('[name="number_of_towers"]').value) || 1;
-        
-        if (floorsPerTower === 0 || unitsPerFloor === 0) {
-            container.innerHTML = '<p class="text-sm text-gray-500">Set "Floors per Tower" and "Units per Floor" above to enable floor mapping.</p>';
-            document.getElementById('floor-mapping-section').classList.add('hidden');
-            return;
-        }
-        
-        document.getElementById('floor-mapping-section').classList.remove('hidden');
-        
-        // Get all area types from server (existing configurations)
-        const areaTypes = [
-            {% for area_type in all_area_types %}
-            {
-                id: {{ area_type.id }},
-                name: '{{ area_type.get_display_name|escapejs }}',
-                configName: '{{ area_type.configuration.name|escapejs }}',
-                carpetArea: {{ area_type.carpet_area }}
-            },
-            {% endfor %}
-        ];
-        
-        // Get existing unit configurations from server
-        // Key format: "tower_floor_unit" -> config
-        const unitConfigurationsData = {
-            {% for key, unit_config in unit_configurations.items %}
-            '{{ key }}': {
-                area_type_id: {% if unit_config.area_type %}{{ unit_config.area_type.id }}{% else %}null{% endif %},
-                is_excluded: {{ unit_config.is_excluded|yesno:"true,false" }}
-            },
-            {% endfor %}
-        };
-        
-        let floorHtml = '';
-        
-        // Generate floor mapping for each tower
-        for (let towerNum = 1; towerNum <= numberOfTowers; towerNum++) {
-            floorHtml += `
-                <div class="border-2 border-blue-300 rounded-lg p-4 bg-blue-50 mb-4">
-                    <h2 class="text-xl font-semibold mb-4">Tower ${towerNum}</h2>
-            `;
-            
-            for (let floorNum = 1; floorNum <= floorsPerTower; floorNum++) {
-                // Check if floor is excluded (check any unit on this floor in this tower)
-                let floorExcluded = false;
-                for (let unitIdx = 1; unitIdx <= unitsPerFloor; unitIdx++) {
-                    // Unit number format: Floor-Unit (e.g., Floor 1, Unit 1 = 101, Floor 2, Unit 1 = 201)
-                    // Same unit numbers can exist in different towers
-                    const unitNumber = floorNum * 100 + unitIdx;
-                    // Get existing unit configuration from server data using key format: "tower_floor_unit"
-                    const configKey = `${towerNum}_${floorNum}_${unitNumber}`;
-                    const existingUnitConfig = unitConfigurationsData[configKey] || null;
-                    if (existingUnitConfig && existingUnitConfig.is_excluded) {
-                        floorExcluded = true;
-                        break;
-                    }
-                }
+        if (towerConfigs.length > 0) {
+            const container = document.getElementById('tower-configs-container');
+            let html = '';
+            towerConfigs.forEach((config, i) => {
+                // Convert floors_count to "number of floors excluding ground"
+                // floors_count = G + N, so N = floors_count - 1
+                const floorsExcludingGround = config.floors - 1;
                 
-                floorHtml += `
-                    <div class="border-2 border-gray-300 rounded-lg p-4 bg-white mb-3">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-lg font-semibold">Floor ${floorNum}</h3>
-                            <label class="flex items-center">
-                                <input type="checkbox" 
-                                       name="tower_${towerNum}_floor_${floorNum}_excluded" 
-                                       id="tower_${towerNum}_floor_${floorNum}_excluded"
-                                       ${floorExcluded ? 'checked' : ''}
-                                       onchange="toggleFloorExclusion(${towerNum}, ${floorNum})"
-                                       class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
-                                <span class="ml-2 text-sm text-red-600">Exclude Floor (Commercial)</span>
-                            </label>
-                        </div>
-                        <div id="tower_${towerNum}_floor_${floorNum}_units" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                `;
-                
-                for (let unitIdx = 1; unitIdx <= unitsPerFloor; unitIdx++) {
-                    // Unit number format: Floor-Unit (e.g., Floor 1, Unit 1 = 101, Floor 2, Unit 1 = 201)
-                    // Same unit numbers can exist in different towers
-                    const unitNumber = floorNum * 100 + unitIdx;
-                    // Get existing unit configuration from server data (need to match by tower, floor, and unit)
-                    // Since unit numbers can repeat across towers, we need to check tower_number too
-                    let existingUnitConfig = null;
-                    let existingAreaTypeId = null;
-                    let isExcluded = false;
-                    
-                    // Find matching unit config using key format: "tower_floor_unit"
-                    const configKey = `${towerNum}_${floorNum}_${unitNumber}`;
-                    existingUnitConfig = unitConfigurationsData[configKey] || null;
-                    if (existingUnitConfig) {
-                        existingAreaTypeId = existingUnitConfig.area_type_id;
-                        isExcluded = existingUnitConfig.is_excluded;
-                    }
-                    
-                    floorHtml += `
-                            <div class="border rounded p-3 bg-gray-50">
-                                <div class="flex items-center justify-between mb-2">
-                                    <label class="text-sm font-medium">Unit ${unitNumber}</label>
-                                    <label class="flex items-center">
-                                        <input type="checkbox" 
-                                               name="tower_${towerNum}_floor_${floorNum}_unit_${unitIdx}_excluded" 
-                                               id="tower_${towerNum}_floor_${floorNum}_unit_${unitIdx}_excluded"
-                                               ${isExcluded ? 'checked' : ''}
-                                               onchange="toggleUnitExclusion(${towerNum}, ${floorNum}, ${unitIdx})"
-                                               class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
-                                        <span class="ml-1 text-xs text-red-600">Exclude</span>
-                                    </label>
-                                </div>
-                                <select name="tower_${towerNum}_floor_${floorNum}_unit_${unitIdx}_area_type" 
-                                        id="tower_${towerNum}_floor_${floorNum}_unit_${unitIdx}_area_type"
-                                        ${isExcluded ? 'disabled' : ''}
-                                        class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
-                                    <option value="">Select Configuration</option>
-                                    ${areaTypes.map(at => `<option value="${at.id}" ${existingAreaTypeId === at.id ? 'selected' : ''}>${at.name}</option>`).join('')}
-                                </select>
+                html += `
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-4" data-tower-index="${i}">
+                        <h3 class="text-lg font-semibold mb-4">Tower ${config.towerNum}</h3>
+                        <input type="hidden" name="tower_${i}_number" value="${config.towerNum}">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Number of Floors (excluding Ground) *</label>
+                                <input type="number" name="tower_${i}_floors" id="tower_${i}_floors" value="${floorsExcludingGround}" min="1" required
+                                       onchange="updateCommercialFloors(${i})"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                                <p class="text-xs text-gray-500 mt-1">Total floors: ${config.floors} (G + ${floorsExcludingGround})</p>
                             </div>
-                    `;
-                }
-                
-                floorHtml += `
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Units per Floor *</label>
+                                <input type="number" name="tower_${i}_units_per_floor" value="${config.unitsPerFloor}" min="1" required
+                                       class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium mb-2">Select Commercial Floors:</label>
+                            <div id="commercial-floors-${i}" class="flex flex-wrap gap-3 p-3 bg-white rounded border border-gray-300">
+                                <!-- Commercial floor checkboxes will be generated here -->
+                            </div>
                         </div>
                     </div>
                 `;
-            }
-            
-            floorHtml += `
-                </div>
-            `;
-        }
-        
-        container.innerHTML = floorHtml;
-    }
-    
-    function toggleFloorExclusion(towerNum, floorNum) {
-        const checkbox = document.getElementById(`tower_${towerNum}_floor_${floorNum}_excluded`);
-        const unitsContainer = document.getElementById(`tower_${towerNum}_floor_${floorNum}_units`);
-        const units = unitsContainer.querySelectorAll('select, input[type="checkbox"]:not([id*="_excluded"])');
-        
-        if (checkbox.checked) {
-            units.forEach(el => {
-                el.disabled = true;
-                el.closest('.border').classList.add('opacity-50');
             });
-        } else {
-            units.forEach(el => {
-                el.disabled = false;
-                el.closest('.border').classList.remove('opacity-50');
-            });
-        }
-    }
-    
-    function toggleUnitExclusion(towerNum, floorNum, unitIdx) {
-        const checkbox = document.getElementById(`tower_${towerNum}_floor_${floorNum}_unit_${unitIdx}_excluded`);
-        const select = document.getElementById(`tower_${towerNum}_floor_${floorNum}_unit_${unitIdx}_area_type`);
-        
-        if (checkbox.checked) {
-            select.disabled = true;
-            select.value = '';
-            select.closest('.border').classList.add('opacity-50');
-        } else {
-            select.disabled = false;
-            select.closest('.border').classList.remove('opacity-50');
-        }
-    }
-    
-    function populateAreaTypeOptions() {
-        // Collect all area types from configurations in the form
-        const selects = document.querySelectorAll('[id$="_area_type"]');
-        const areaTypes = [];
-        
-        // First, add existing area types from server
-        const serverAreaTypes = [
-            {% for area_type in all_area_types %}
-            {
-                id: {{ area_type.id }},
-                name: '{{ area_type.get_display_name|escapejs }}',
-                configName: '{{ area_type.configuration.name|escapejs }}',
-                carpetArea: {{ area_type.carpet_area }}
-            },
-            {% endfor %}
-        ];
-        serverAreaTypes.forEach(at => {
-            areaTypes.push({value: at.id, text: at.name, isServer: true});
-        });
-        
-        // Find all configuration cards
-        const configCards = document.querySelectorAll('[data-config-id]');
-        configCards.forEach(card => {
-            const configId = card.dataset.configId;
-            const configName = card.querySelector(`[name="config_name_${configId}"]`)?.value || '';
-            
-            if (!configName) return; // Skip if config name is empty
-            
-            // Find all area types for this configuration
-            const areaContainer = card.querySelector(`#area-types-${configId}`);
-            if (areaContainer) {
-                // Get all carpet area inputs by name pattern
-                const carpetInputs = areaContainer.querySelectorAll(`input[name^="config_${configId}_area_carpet_"]`);
-                
-                carpetInputs.forEach(input => {
-                    // Extract area ID from name: config_X_area_carpet_Y
-                    const nameMatch = input.name.match(/config_\d+_area_carpet_(\d+)/);
-                    if (nameMatch) {
-                        const areaId = nameMatch[1];
-                        const carpetArea = input.value.trim();
-                        
-                        // Find corresponding buildup input
-                        const buildupInput = areaContainer.querySelector(`input[name="config_${configId}_area_buildup_${areaId}"]`);
-                        const buildupArea = buildupInput?.value.trim() || '';
-                        
-                        // Only add if both carpet and buildup are provided
-                        if (carpetArea && buildupArea) {
-                            // Create a unique identifier for this area type
-                            const optionValue = `config_${configId}_area_${areaId}`;
-                            const displayName = `${configName}-${parseInt(carpetArea) || carpetArea}sqft`;
-                            areaTypes.push({value: optionValue, text: displayName, configId, areaId, carpetArea, isServer: false});
+            container.innerHTML = html;
+            // Generate commercial floor checkboxes and check existing ones
+            towerConfigs.forEach((config, i) => {
+                updateCommercialFloors(i);
+                // Check existing commercial floors from backend data
+                const towerCommercialFloors = backendCommercialFloors[config.towerNum] || {};
+                for (const [floorNum, unitsCount] of Object.entries(towerCommercialFloors)) {
+                    const floor = parseInt(floorNum);
+                    const checkbox = document.querySelector(`input[name="tower_${i}_floor_${floor}_commercial"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        toggleCommercialUnits(i, floor, true);
+                        const unitsInput = document.querySelector(`input[name="tower_${i}_floor_${floor}_commercial_units"]`);
+                        if (unitsInput) {
+                            unitsInput.value = unitsCount;
                         }
                     }
-                });
-            }
-        });
-        
-        // Populate all selects with collected area types
-        selects.forEach(select => {
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">Select Configuration</option>';
-            areaTypes.forEach(areaType => {
-                const option = document.createElement('option');
-                option.value = areaType.value;
-                option.textContent = areaType.text;
-                if (currentValue === areaType.value || (currentValue && currentValue == areaType.value)) option.selected = true;
-                select.appendChild(option);
+                }
+                // Also check from existingCommercialFloors set (for backward compatibility)
+                const towerKey = config.towerNum.toString();
+                if (existingCommercialFloors[towerKey]) {
+                    existingCommercialFloors[towerKey].forEach(floorKey => {
+                        const floor = parseInt(floorKey);
+                        const checkbox = document.querySelector(`input[name="tower_${i}_floor_${floor}_commercial"]`);
+                        if (checkbox && !checkbox.checked) {
+                            checkbox.checked = true;
+                            toggleCommercialUnits(i, floor, true);
+                        }
+                    });
+                }
             });
-        });
-        
-        console.log(`Populated ${areaTypes.length} area types in ${selects.length} dropdowns`);
+        } else {
+            generateTowerConfigs();
+        }
     }
     
-    // Update area type options when configurations or area types change
-    document.addEventListener('input', function(e) {
-        if (e.target.matches('[name^="config_"][name$="_area_carpet_"]') || 
-            e.target.matches('[name^="config_"][name$="_area_buildup_"]') ||
-            e.target.matches('[name^="config_name_"]')) {
-            populateAreaTypeOptions();
-        }
-    });
-    
-    // Update floor mapping when floors_per_tower, units_per_floor, or number_of_towers changes
-    document.addEventListener('DOMContentLoaded', function() {
-        const floorsInput = document.querySelector('[name="floors_per_tower"]');
-        const unitsInput = document.querySelector('[name="units_per_floor"]');
-        const towersInput = document.querySelector('[name="number_of_towers"]');
+    function generateFloorMapping() {
+        const container = document.getElementById('floor-mapping-container');
+        const numTowers = parseInt(document.getElementById('number_of_towers')?.value) || {{ project.number_of_towers }};
         
-        if (floorsInput) {
-            floorsInput.addEventListener('change', function() {
-                if (!document.getElementById('floor-mapping-section').classList.contains('hidden')) {
-                    generateFloorMapping();
+        // Get tower configurations from form inputs - find all tower number inputs first
+        const towerConfigs = [];
+        const towerInputs = document.querySelectorAll('input[name^="tower_"][name$="_number"]');
+        
+        // Collect all tower configs by finding their corresponding inputs
+        towerInputs.forEach(towerNumInput => {
+            const nameMatch = towerNumInput.name.match(/tower_(\d+)_number/);
+            if (nameMatch) {
+                const index = parseInt(nameMatch[1]);
+                const towerNum = parseInt(towerNumInput.value) || (index + 1);
+                const floorsInput = document.querySelector(`input[name="tower_${index}_floors"]`);
+                const unitsInput = document.querySelector(`input[name="tower_${index}_units_per_floor"]`);
+                const commercialInput = document.querySelector(`input[name="tower_${index}_is_commercial"]`);
+                
+                if (floorsInput && unitsInput) {
+                    // floorsInput.value is "number of floors excluding ground" (N)
+                    // Total floors = G + N = 1 + N
+                    const floorsExcludingGround = parseInt(floorsInput.value) || 1;
+                    const totalFloors = floorsExcludingGround + 1; // G + N
+                    towerConfigs.push({
+                        towerNum: towerNum,
+                        floors: totalFloors, // Total floors including ground
+                        floorsExcludingGround: floorsExcludingGround, // N (for reference)
+                        unitsPerFloor: parseInt(unitsInput.value) || 1,
+                        isCommercial: commercialInput ? commercialInput.checked : false
+                    });
                 }
-            });
-        }
-        if (unitsInput) {
-            unitsInput.addEventListener('change', function() {
-                if (!document.getElementById('floor-mapping-section').classList.contains('hidden')) {
-                    generateFloorMapping();
-                }
-            });
-        }
-        if (towersInput) {
-            towersInput.addEventListener('change', function() {
-                if (!document.getElementById('floor-mapping-section').classList.contains('hidden')) {
-                    generateFloorMapping();
-                }
-            });
-        }
-        
-        // Add event listeners to all existing area type inputs to update dropdowns
-        document.querySelectorAll('input[name$="_area_carpet_"], input[name$="_area_buildup_"]').forEach(input => {
-            input.addEventListener('input', function() {
-                clearTimeout(input.updateTimeout);
-                input.updateTimeout = setTimeout(() => {
-                    populateAreaTypeOptions();
-                }, 300);
-            });
-        });
-        
-        // Also update when configuration names change
-        document.querySelectorAll('input[name^="config_name_"]').forEach(input => {
-            input.addEventListener('input', function() {
-                clearTimeout(input.updateTimeout);
-                input.updateTimeout = setTimeout(() => {
-                    populateAreaTypeOptions();
-                }, 300);
-            });
-        });
-        
-        // Initialize populateAreaTypeOptions on page load
-        if (typeof populateAreaTypeOptions === 'function') {
-            populateAreaTypeOptions();
-        }
-        
-        // If configurations exist, show floor mapping and submit sections
-        {% if configurations %}
-        const floorSection = document.getElementById('floor-mapping-section');
-        const submitSection = document.getElementById('submit-section');
-        if (floorSection && submitSection) {
-            floorSection.classList.remove('hidden');
-            floorSection.classList.add('block');
-            submitSection.classList.remove('hidden');
-            submitSection.classList.add('flex');
-            // Generate floor mapping if not already generated
-            if (typeof generateFloorMapping === 'function') {
-                generateFloorMapping();
             }
+        });
+        
+        // Sort by tower number to ensure correct order
+        towerConfigs.sort((a, b) => a.towerNum - b.towerNum);
+        
+        if (towerConfigs.length === 0) {
+            container.innerHTML = '<p class="text-sm text-gray-500">Please complete Tower Structure step first.</p>';
+            return;
         }
+        
+        // Get all configurations for dropdown
+        const configs = [];
+        document.querySelectorAll('[data-config-id]').forEach(card => {
+            const configId = card.getAttribute('data-config-id');
+            // Get config index from data attribute or hidden input
+            let configIndex = card.getAttribute('data-config-index');
+            if (!configIndex) {
+                const configIdInput = card.querySelector('input[name^="config_id_"]');
+                if (configIdInput) {
+                    const nameMatch = configIdInput.name.match(/config_id_(\d+)/);
+                    if (nameMatch) {
+                        configIndex = parseInt(nameMatch[1]);
+                    }
+                }
+            } else {
+                configIndex = parseInt(configIndex);
+            }
+            
+            if (configIndex === null || isNaN(configIndex)) {
+                console.warn('Could not find config index for config', configId);
+                return;
+            }
+            
+            // Find config name input (config_name_0, config_name_1, etc.)
+            const configNameInput = card.querySelector(`input[name="config_name_${configIndex}"]`);
+            if (configNameInput && configNameInput.value) {
+                const configName = configNameInput.value;
+                const areaContainer = card.querySelector(`#area-types-${configId}`);
+                if (areaContainer) {
+                    const areaTypes = [];
+                    // Look for area type inputs - they use config_{index}_area_carpet_{areaIndex}
+                    // e.g., config_0_area_carpet_0, config_0_area_carpet_1, etc.
+                    const carpetInputs = areaContainer.querySelectorAll(`input[name^="config_${configIndex}_area_carpet_"]`);
+                    carpetInputs.forEach(input => {
+                        const nameMatch = input.name.match(/config_\d+_area_carpet_(\d+)/);
+                        if (nameMatch) {
+                            const areaId = nameMatch[1];
+                            const carpet = input.value.trim();
+                            const buildupInput = areaContainer.querySelector(`input[name="config_${configIndex}_area_buildup_${areaId}"]`);
+                            const buildup = buildupInput?.value.trim() || '';
+                            if (carpet && buildup) {
+                                areaTypes.push({
+                                    id: areaId,
+                                    carpet: carpet,
+                                    buildup: buildup,
+                                    value: `config_${configIndex}_area_${areaId}`
+                                });
+                            }
+                        }
+                    });
+                    if (areaTypes.length > 0) {
+                        configs.push({id: configId, index: configIndex, name: configName, areaTypes: areaTypes});
+                    } else {
+                        console.warn('Config', configName, 'has no area types');
+                    }
+                } else {
+                    console.warn('Could not find area container for config', configId);
+                }
+            } else {
+                console.warn('Could not find config name input for config', configId, 'index', configIndex);
+            }
+        });
+        
+        console.log('Found configurations:', configs);
+        
+        if (configs.length === 0) {
+            container.innerHTML = '<p class="text-sm text-red-600">Please add at least one configuration with area types first.</p>';
+            return;
+        }
+        
+        // Get commercial floors data from backend
+        const backendCommercialFloors = JSON.parse(document.getElementById('commercial-floors-data')?.textContent || '{}');
+        
+        // Get existing unit configurations
+        const existingUnits = {};
+        const commercialFloors = new Set(); // Track which floors are commercial
+        {% for key, uc in unit_configurations.items %}
+        existingUnits['{{ key }}'] = {
+            area_type_id: {{ uc.area_type_id|default:"null" }},
+            is_excluded: {{ uc.is_excluded|yesno:"true,false" }},
+            is_commercial: {{ uc.is_commercial|yesno:"true,false" }}
+        };
+        {% if uc.is_commercial %}
+        // Extract tower and floor from key (format: "tower_floor_unit")
+        (function(keyStr) {
+            const parts = keyStr.split('_');
+            if (parts.length >= 2) {
+                commercialFloors.add(`${parts[0]}_${parts[1]}`);
+            }
+        })('{{ key }}');
         {% endif %}
-    });
+        {% endfor %}
+        
+        let html = '';
+        for (const towerConfig of towerConfigs) {
+            const tower = towerConfig.towerNum;
+            // floorsPerTower from form is "N" (excluding ground), but we stored it as total (G + N)
+            // If it has floorsExcludingGround, use that to calculate total, otherwise assume it's already total
+            let floorsPerTower = towerConfig.floors;
+            if (towerConfig.floorsExcludingGround !== undefined) {
+                // floorsExcludingGround is N, total = G + N = 1 + N
+                floorsPerTower = towerConfig.floorsExcludingGround + 1;
+            }
+            const unitsPerFloor = towerConfig.unitsPerFloor;
+            const isCommercialTower = towerConfig.isCommercial;
+            
+            html += `<div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">`;
+            html += `<h3 class="text-lg font-semibold mb-4">Tower ${tower}${isCommercialTower ? ' <span class="text-sm text-blue-600">(Commercial)</span>' : ''}</h3>`;
+            
+            // Get commercial floors and their unit counts
+            // First try from backend data (most reliable)
+            const commercialFloorsData = {};
+            try {
+                const backendCommercialFloors = JSON.parse(document.getElementById('commercial-floors-data')?.textContent || '{}');
+                if (backendCommercialFloors && backendCommercialFloors[tower]) {
+                    Object.assign(commercialFloorsData, backendCommercialFloors[tower]);
+                }
+            } catch (e) {
+                console.warn('Error parsing commercial floors data:', e);
+            }
+            
+            // Also try to read from form inputs (in case user just updated step 2)
+            // Need to find the tower index first, then use that to find the inputs
+            const towerInputs = document.querySelectorAll('input[name^="tower_"][name$="_number"]');
+            let towerIndex = null;
+            for (const input of towerInputs) {
+                if (parseInt(input.value) === tower) {
+                    const nameMatch = input.name.match(/tower_(\d+)_number/);
+                    if (nameMatch) {
+                        towerIndex = parseInt(nameMatch[1]);
+                        break;
+                    }
+                }
+            }
+            
+            // If we found the tower index, read commercial floor data from form
+            // floorsPerTower is already total floors (G + N) after our fix above
+            if (towerIndex !== null) {
+                for (let floor = 1; floor <= floorsPerTower; floor++) {
+                    const commercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial"]`);
+                    if (commercialCheck && commercialCheck.checked) {
+                        const unitsInput = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial_units"]`);
+                        const units = unitsInput ? parseInt(unitsInput.value) || unitsPerFloor : unitsPerFloor;
+                        // Form data takes precedence over backend data
+                        commercialFloorsData[floor] = units;
+                    }
+                }
+            }
+            
+            // Track if any commercial floors were found
+            let hasCommercialFloors = Object.keys(commercialFloorsData).length > 0 || commercialFloors.has(`${tower}_1`) || isCommercialTower;
+            
+            // Only show floors that are marked as commercial
+            // If G (floor 1) is not commercial, skip it
+            let floorsAdded = 0;
+            for (let floor = 1; floor <= floorsPerTower; floor++) {
+                const floorKey = `${tower}_${floor}`;
+                // Check if this floor is marked as commercial
+                const isCommercialFloor = floor in commercialFloorsData || commercialFloors.has(floorKey) || isCommercialTower;
+                
+                // Skip ground floor (G) if it's not commercial - it's vacant/parking
+                // But show all other floors (residential or commercial)
+                if (floor === 1 && !isCommercialFloor) {
+                    continue;
+                }
+                
+                floorsAdded++;
+                
+                const floorExcluded = existingUnits[`${tower}_${floor}_0`]?.is_excluded || false;
+                
+                // Get units per floor for this floor
+                // For commercial floors, use the specified unit count, otherwise use default
+                let unitsPerFloorThis = unitsPerFloor;
+                if (isCommercialFloor && floor in commercialFloorsData) {
+                    unitsPerFloorThis = commercialFloorsData[floor];
+                }
+                
+                // Get floor display name
+                let floorDisplayName;
+                if (floor === 1) {
+                    floorDisplayName = "Ground (G)";
+                } else if (floor === 2) {
+                    floorDisplayName = "1st Floor";
+                } else if (floor === 3) {
+                    floorDisplayName = "2nd Floor";
+                } else {
+                    floorDisplayName = `${floor - 1}th Floor`;
+                }
+                
+                // Determine floor type label
+                const floorTypeLabel = isCommercialFloor ? 
+                    `<span class="ml-4 text-sm font-medium text-blue-600">✓ Commercial Floor (${unitsPerFloorThis} units)</span>` :
+                    `<span class="ml-4 text-sm font-medium text-green-600">✓ Residential Floor (${unitsPerFloorThis} units)</span>`;
+                
+                html += `<div class="mb-4 p-3 bg-white rounded border ${isCommercialFloor ? 'border-blue-300 bg-blue-50' : 'border-green-300 bg-green-50'}">`;
+                html += `<div class="flex items-center justify-between mb-2 flex-wrap gap-2">`;
+                html += `<div class="flex items-center gap-4">`;
+                html += `<label class="flex items-center">`;
+                html += `<input type="checkbox" name="tower_${tower}_floor_${floor}_excluded" ${floorExcluded ? 'checked' : ''} class="mr-2">`;
+                html += `<span class="font-medium">${floorDisplayName} - Exclude Entire Floor</span>`;
+                html += `</label>`;
+                html += floorTypeLabel;
+                html += `</div>`;
+                html += `</div>`;
+                
+                for (let unit = 1; unit <= unitsPerFloorThis; unit++) {
+                    // Ground floor (1): 01, 02, 03... First floor (2): 101, 102, 103...
+                    let unitNumber;
+                    if (floor === 1) {
+                        unitNumber = unit; // Will be displayed as 01, 02, 03...
+                    } else {
+                        unitNumber = (floor - 1) * 100 + unit;
+                    }
+                    const unitKey = `${tower}_${floor}_${unitNumber}`;
+                    const unitData = existingUnits[unitKey];
+                    const unitExcluded = unitData?.is_excluded || false;
+                    
+                    // Find the matching area type for this unit
+                    // unitData.area_type_id is the database ID of ConfigurationAreaType
+                    // We need to find which config and area type index it corresponds to
+                    let selectedAreaType = '';
+                    if (unitData?.area_type_id) {
+                        // Search through all configs and area types to find a match
+                        // The hidden input format is: config_{configIndex}_area_id_{areaIndex}
+                        // We need to search all area type hidden inputs to find the one with matching ID
+                        for (const config of configs) {
+                            const areaContainer = document.querySelector(`#area-types-${config.id}`);
+                            if (areaContainer) {
+                                // Find all hidden area_id inputs for this config
+                                const areaIdInputs = areaContainer.querySelectorAll(`input[name^="config_${config.index}_area_id_"]`);
+                                for (const areaIdInput of areaIdInputs) {
+                                    if (parseInt(areaIdInput.value) === unitData.area_type_id) {
+                                        // Extract the area index from the input name
+                                        const nameMatch = areaIdInput.name.match(/config_\d+_area_id_(\d+)/);
+                                        if (nameMatch) {
+                                            const areaIndex = nameMatch[1];
+                                            // Find the corresponding area type in our configs array
+                                            const matchingAreaType = config.areaTypes.find(at => at.id === areaIndex);
+                                            if (matchingAreaType) {
+                                                selectedAreaType = matchingAreaType.value;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (selectedAreaType) break;
+                        }
+                    }
+                    
+                    // Format unit number for display
+                    let unitDisplay;
+                    if (floor === 1) {
+                        unitDisplay = String(unitNumber).padStart(2, '0'); // 01, 02, 03...
+                    } else {
+                        unitDisplay = unitNumber;
+                    }
+                    html += `<div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 p-2 bg-gray-50 rounded">`;
+                    html += `<div class="flex items-center">`;
+                    html += `<span class="text-sm font-medium">Unit ${unitDisplay}</span>`;
+                    html += `</div>`;
+                    html += `<div class="flex items-center">`;
+                    html += `<input type="checkbox" name="tower_${tower}_floor_${floor}_unit_${unit}_excluded" ${unitExcluded ? 'checked' : ''} class="mr-2">`;
+                    html += `<span class="text-xs">Exclude</span>`;
+                    html += `</div>`;
+                    html += `<div>`;
+                    html += `<select name="tower_${tower}_floor_${floor}_unit_${unit}_area_type" class="w-full px-2 py-1 text-sm border border-gray-300 rounded">`;
+                    html += `<option value="">Select Configuration</option>`;
+                    configs.forEach(config => {
+                        config.areaTypes.forEach(areaType => {
+                            const selected = selectedAreaType === areaType.value ? 'selected' : '';
+                            html += `<option value="${areaType.value}" ${selected}>${config.name} - ${areaType.carpet}/${areaType.buildup} sqft</option>`;
+                        });
+                    });
+                    html += `</select>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                }
+                
+                html += `</div>`;
+            }
+            
+            // If no floors were found for this tower (all skipped or no floors configured), show a message
+            if (floorsAdded === 0) {
+                html += `<div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">`;
+                html += `<p class="text-sm text-yellow-800 font-medium mb-2">No floors available for mapping in Tower ${tower}</p>`;
+                html += `<p class="text-xs text-yellow-700">This tower has no floors configured, or only ground floor (G) which is not commercial. Please go back to <strong>Tower Structure</strong> step to configure floors. Residential floors (above ground) will automatically appear in floor mapping.</p>`;
+                html += `</div>`;
+            }
+            
+            html += `</div>`;
+        }
+        
+        if (html.trim() === '') {
+            container.innerHTML = '<div class="p-4 bg-red-50 border border-red-200 rounded-lg"><p class="text-sm text-red-800 font-medium">No tower configurations found. Please complete Tower Structure step first.</p></div>';
+        } else {
+            container.innerHTML = html;
+        }
+        
+        console.log('Floor mapping generated. HTML length:', html.length, 'Towers:', towerConfigs.length);
+    }
+    
+    // Initialize
+    updateStepIndicators(1);
+    {% if tower_floor_configs %}
+    loadExistingTowerConfigs(); // Load existing tower configs
+    {% else %}
+    generateTowerConfigs(); // Generate initial tower configs if none exist
+    // Initialize commercial floors for new towers
+    setTimeout(() => {
+        const numTowers = parseInt(document.getElementById('number_of_towers')?.value) || 1;
+        for (let i = 0; i < numTowers; i++) {
+            updateCommercialFloors(i);
+        }
+    }, 100);
+    {% endif %}
 </script>
 {% endblock %}
-

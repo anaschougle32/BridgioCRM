@@ -76,12 +76,22 @@ class Project(models.Model):
     
     @property
     def total_residential_units(self):
-        """Calculate total residential units"""
+        """Calculate total residential units - use TowerFloorConfig if available"""
+        tower_configs = self.tower_floor_configs.all()
+        if tower_configs.exists():
+            # Use flexible tower structure
+            return sum(tc.floors_count * tc.units_per_floor for tc in tower_configs if not tc.is_commercial)
+        # Fallback to legacy calculation
         return self.number_of_towers * self.floors_per_tower * self.units_per_floor
     
     @property
     def total_commercial_units(self):
-        """Calculate total commercial units"""
+        """Calculate total commercial units - use TowerFloorConfig if available"""
+        tower_configs = self.tower_floor_configs.filter(is_commercial=True)
+        if tower_configs.exists():
+            # Use flexible tower structure
+            return sum(tc.floors_count * tc.units_per_floor for tc in tower_configs)
+        # Fallback to legacy calculation
         if self.has_commercial:
             return self.commercial_floors * self.commercial_units_per_floor
         return 0
@@ -216,6 +226,7 @@ class UnitConfiguration(models.Model):
                                   related_name='unit_configurations', 
                                   help_text="Configuration variant assigned to this unit (e.g., 1BHK-379sqft)")
     is_excluded = models.BooleanField(default=False, help_text="Exclude this unit (e.g., for commercial floors)")
+    is_commercial = models.BooleanField(default=False, help_text="Is this unit on a commercial floor?")
     
     class Meta:
         db_table = 'unit_configurations'
@@ -228,6 +239,23 @@ class UnitConfiguration(models.Model):
         if self.area_type:
             return f"{self.project.name} - Tower {self.tower_number} - Floor {self.floor_number} - Unit {self.unit_number} - {self.area_type.configuration.name}-{self.area_type.carpet_area}sqft"
         return f"{self.project.name} - Tower {self.tower_number} - Floor {self.floor_number} - Unit {self.unit_number} (Unassigned)"
+
+
+class TowerFloorConfig(models.Model):
+    """Flexible tower/floor configuration - allows different floors per tower and units per floor"""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tower_floor_configs')
+    tower_number = models.IntegerField(help_text="Tower number (1, 2, 3, etc.)")
+    floors_count = models.IntegerField(default=1, help_text="Number of floors in this tower")
+    units_per_floor = models.IntegerField(default=1, help_text="Number of units per floor in this tower")
+    is_commercial = models.BooleanField(default=False, help_text="Is this tower commercial?")
+    
+    class Meta:
+        db_table = 'tower_floor_configs'
+        unique_together = ['project', 'tower_number']
+        ordering = ['tower_number']
+    
+    def __str__(self):
+        return f"{self.project.name} - Tower {self.tower_number} ({self.floors_count} floors, {self.units_per_floor} units/floor)"
 
 
 class PaymentMilestone(models.Model):

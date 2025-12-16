@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load tz %}
+{% load lead_filters %}
 
 {% block title %}{{ lead.name }} - Bridgio CRM{% endblock %}
 
@@ -142,19 +143,28 @@
                 
                 <!-- Notes Section - Critical for lead management -->
                 <div class="mt-6">
-                    <h3 class="font-heading font-bold mb-3 text-olive-primary">Notes</h3>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-heading font-bold text-olive-primary">Notes</h3>
+                        <button onclick="document.getElementById('notes-modal').classList.remove('hidden')" 
+                                class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm">
+                            + Add Note
+                        </button>
+                    </div>
                     <div id="notes-section">
                         {% if lead.notes %}
-                        <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-3">
-                            <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ lead.notes }}</p>
+                        <div class="space-y-3">
+                            {% for note in lead.notes|split_by_timestamp %}
+                            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                {% if note.timestamp %}
+                                <div class="text-xs text-gray-500 mb-2">--- {{ note.timestamp }} ({{ note.user }}) ---</div>
+                                {% endif %}
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ note.content }}</p>
+                            </div>
+                            {% endfor %}
                         </div>
                         {% else %}
                         <p class="text-sm text-gray-500 mb-3">No notes added yet.</p>
                         {% endif %}
-                        <button onclick="document.getElementById('notes-modal').classList.remove('hidden')" 
-                                class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm">
-                            {% if lead.notes %}Edit Notes{% else %}Add Notes{% endif %}
-                        </button>
                     </div>
                 </div>
                 

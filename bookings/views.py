@@ -9,6 +9,7 @@ from .models import Booking, Payment
 from leads.models import Lead
 from projects.models import Project
 from channel_partners.models import ChannelPartner
+from accounts.models import User
 
 
 @login_required
@@ -103,14 +104,23 @@ def booking_create(request, lead_id):
         return redirect('leads:detail', pk=lead_id)
     
     # Get project from request (required for association-based booking)
+    # IMPORTANT: Always use project_id from request to avoid booking on wrong project when leads are duplicated
     project_id = request.GET.get('project_id') or request.POST.get('project_id')
     if not project_id:
-        # Try to get primary project
-        primary_project = lead.primary_project
-        if not primary_project:
-            messages.error(request, 'Project is required to create booking.')
-            return redirect('leads:detail', pk=lead_id)
-        project_id = primary_project.id
+        # If no project_id in request, try to get from the association that was used to access this page
+        # This is safer than using primary_project which might be from a different project
+        from leads.models import LeadProjectAssociation
+        # Try to find the most recent active association (likely the one being used)
+        association = lead.project_associations.filter(is_archived=False).order_by('-created_at').first()
+        if association:
+            project_id = association.project.id
+        else:
+            # Last resort: use primary project
+            primary_project = lead.primary_project
+            if not primary_project:
+                messages.error(request, 'Project is required to create booking. Please specify project_id in the request.')
+                return redirect('leads:detail', pk=lead_id)
+            project_id = primary_project.id
     
     project = get_object_or_404(Project, pk=project_id, is_active=True)
     
@@ -123,7 +133,7 @@ def booking_create(request, lead_id):
     ).first()
     
     if not association:
-        messages.error(request, 'Lead is not associated with this project.')
+        messages.error(request, f'Lead is not associated with project "{project.name}". Please ensure the lead is associated with this project before creating a booking.')
         return redirect('leads:detail', pk=lead_id)
     
     # Check if lead is assigned to user (for Telecallers only)

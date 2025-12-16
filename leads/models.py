@@ -148,6 +148,9 @@ class Lead(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_archived = models.BooleanField(default=False)
     
+    # Legacy field - kept for backward compatibility (will be removed in future migration)
+    is_pretagged = models.BooleanField(default=False, help_text="DEPRECATED: Use LeadProjectAssociation.is_pretagged instead")
+    
     class Meta:
         db_table = 'leads'
         ordering = ['-created_at']

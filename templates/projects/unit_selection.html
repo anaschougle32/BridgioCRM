@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load price_filters %}
+{% load price_filters project_filters %}
 
 {% block title %}Unit Selection - {{ project.name }} - Bridgio CRM{% endblock %}
 
@@ -69,9 +69,14 @@
             <!-- Floors (displayed from top to bottom, like building floors) -->
             <div class="space-y-4">
                 {% for floor_num, floor_units in floors.items|dictsortreversed:0 %}
-                <div class="tower-{{ tower_num }}-floor-{{ floor_num }}" data-tower="{{ tower_num }}" data-floor="{{ floor_num }}">
-                    <div class="flex items-center gap-4 mb-3">
-                        <h3 class="text-lg font-semibold text-gray-700 min-w-[100px]">Floor {{ floor_num }}</h3>
+                {% with first_unit=floor_units.0.unit_config %}
+                {% with is_commercial_floor=first_unit.is_commercial %}
+                <div class="tower-{{ tower_num }}-floor-{{ floor_num }} {% if is_commercial_floor %}commercial-floor{% endif %}" 
+                     data-tower="{{ tower_num }}" data-floor="{{ floor_num }}">
+                    <div class="flex items-center gap-4 mb-3 {% if is_commercial_floor %}p-2 bg-blue-50 border-l-4 border-blue-500 rounded{% endif %}">
+                        <h3 class="text-lg font-semibold {% if is_commercial_floor %}text-blue-700{% else %}text-gray-700{% endif %} min-w-[100px]">
+                            {{ floor_num|floor_display_name }}{% if is_commercial_floor %} <span class="text-sm text-blue-600 font-normal">(Commercial)</span>{% endif %}
+                        </h3>
                         <div class="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                             {% for unit_data in floor_units %}
                             {% with unit=unit_data.unit_config pricing=unit_data.pricing_info is_booked=unit_data.is_booked %}
@@ -95,7 +100,13 @@
                                     {% endif %}
                                 ">
                                     <div class="text-center">
-                                        <div class="text-sm font-bold text-gray-800 mb-1">{{ unit.unit_number }}</div>
+                                        <div class="text-sm font-bold text-gray-800 mb-1">
+                                            {% if unit.floor_number == 1 %}
+                                                {{ unit.unit_number|stringformat:"02d" }}
+                                            {% else %}
+                                                {{ unit.unit_number }}
+                                            {% endif %}
+                                        </div>
                                         {% if unit.area_type %}
                                         <div class="text-xs text-gray-600 mb-1">{{ unit.area_type.configuration.name }}</div>
                                         <div class="text-xs text-gray-500">{{ unit.area_type.carpet_area|floatformat:0 }}sqft</div>
@@ -197,6 +208,8 @@
                         </div>
                     </div>
                 </div>
+                {% endwith %}
+                {% endwith %}
                 {% endfor %}
             </div>
         </div>

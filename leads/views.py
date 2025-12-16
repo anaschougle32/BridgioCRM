@@ -178,15 +178,16 @@ def lead_list(request):
     channel_partners = ChannelPartner.objects.filter(status='active').order_by('cp_name')
     
     # Get call metrics for current user
-    from datetime import datetime, timedelta
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    # Use call_date instead of created_at for accurate date-based filtering
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
     
     call_metrics = {
-        'today': CallLog.objects.filter(user=request.user, created_at__gte=today_start).count(),
-        'this_week': CallLog.objects.filter(user=request.user, created_at__gte=week_start).count(),
-        'this_month': CallLog.objects.filter(user=request.user, created_at__gte=month_start).count(),
+        'today': CallLog.objects.filter(user=request.user, call_date__gte=today_start).count(),
+        'this_week': CallLog.objects.filter(user=request.user, call_date__gte=week_start).count(),
+        'this_month': CallLog.objects.filter(user=request.user, call_date__gte=month_start).count(),
         'total': CallLog.objects.filter(user=request.user).count(),
     }
     
@@ -569,6 +570,12 @@ def lead_create(request):
                     configs = GlobalConfiguration.objects.filter(id__in=config_ids, is_active=True)
                     lead.configurations.set(configs)
                 
+                # Check if phone is already verified in ANY project association (phone verification never expires)
+                phone_already_verified = lead.project_associations.filter(
+                    phone_verified=True,
+                    is_archived=False
+                ).exists()
+                
                 # Create or get LeadProjectAssociation for this project
                 association, assoc_created = LeadProjectAssociation.objects.get_or_create(
                     lead=lead,
@@ -576,7 +583,7 @@ def lead_create(request):
                     defaults={
                         'status': 'visit_completed',  # Visit is completed when created via New Visit form
                         'is_pretagged': False,
-                        'phone_verified': True,  # OTP was verified in step 2
+                        'phone_verified': True,  # OTP was verified in step 2, or already verified elsewhere
                         'created_by': request.user,
                     }
                 )
@@ -584,8 +591,15 @@ def lead_create(request):
                 # Update association if it already existed
                 if not assoc_created:
                     association.status = 'visit_completed'
-                    association.phone_verified = True
+                    # If phone was verified in any other association, mark it verified here too (never expires)
+                    if phone_already_verified or association.phone_verified:
+                        association.phone_verified = True
                     association.save()
+                else:
+                    # For new association, if phone was verified elsewhere, ensure it's verified here too
+                    if phone_already_verified:
+                        association.phone_verified = True
+                        association.save()
                 
                 # Create OTP log entry for audit trail
                 otp_data = request.session.get('new_visit_otp', {})
@@ -966,9 +980,9 @@ def send_otp(request, pk):
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check - Only Closing Managers, Site Heads, and Super Admins can send OTP
-    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin()):
-        return JsonResponse({'success': False, 'error': 'Only Closing Managers can send OTP.'}, status=403)
+    # Permission check - Closing Managers, Site Heads, Mandate Owners, and Super Admins can send OTP
+    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
+        return JsonResponse({'success': False, 'error': 'You do not have permission to send OTP.'}, status=403)
     
     # For Closing Managers, allow OTP for:
     # 1. Assigned leads (in their projects)
@@ -1093,12 +1107,16 @@ def verify_otp(request, pk):
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check - Only Closing Managers, Site Heads, and Super Admins can verify OTP
-    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin()):
-        return JsonResponse({'success': False, 'error': 'Only Closing Managers can verify OTP.'}, status=403)
+    # Permission check - Closing Managers, Site Heads, Mandate Owners, and Super Admins can verify OTP
+    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
+        return JsonResponse({'success': False, 'error': 'You do not have permission to verify OTP.'}, status=403)
     
+    # Super Admins can verify OTP for any lead - skip project checks
+    if request.user.is_super_admin():
+        has_permission = True
     # For Closing Managers, allow OTP verification for assigned leads OR visited leads
-    if request.user.is_closing_manager():
+    # For Mandate Owners and Site Heads, allow OTP verification for all leads in their projects
+    elif request.user.is_closing_manager():
         # Check associations in user's projects
         user_projects = request.user.assigned_projects.all()
         associations = lead.project_associations.filter(
@@ -1114,6 +1132,27 @@ def verify_otp(request, pk):
         
         if not has_permission:
             return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads assigned to you, pretagged leads, or visited leads in your projects.'}, status=403)
+    elif request.user.is_mandate_owner():
+        # Mandate owners can verify OTP for all leads (they have full access)
+        # Allow verification for any lead - mandate owners have full permissions
+        has_permission = True
+    elif request.user.is_site_head():
+        # Site heads can verify OTP for all leads in their projects
+        # Also allow for booking conversion (check referer for booking context)
+        site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
+        referer = request.headers.get('Referer', '')
+        is_booking_context = 'calculate' in referer or 'unit' in referer
+        has_permission = (
+            lead.project_associations.filter(
+                project__in=site_head_projects,
+                is_archived=False
+            ).exists() or
+            # Allow for booking conversion even without association
+            (is_booking_context and site_head_projects.exists())
+        )
+        if not has_permission:
+            return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads in your projects.'}, status=403)
+    # Note: Super admin case is handled above with has_permission = True
     
     otp_code = request.POST.get('otp', '').strip()
     if not otp_code or len(otp_code) != 6:
@@ -1645,12 +1684,23 @@ def scheduled_visits(request):
         messages.error(request, 'Only Telecallers and Closing Managers can view scheduled visits.')
         return redirect('dashboard')
     
-    # Get associations for scheduled visits created by this user
-    associations = LeadProjectAssociation.objects.filter(
-        status='visit_scheduled',
-        created_by=request.user,
-        is_archived=False
-    ).select_related('lead', 'project')
+    # Get associations for scheduled visits
+    # For telecallers: show visits assigned to them or created by them
+    # For closing managers: show visits assigned to them or created by them
+    if request.user.is_telecaller():
+        associations = LeadProjectAssociation.objects.filter(
+            status='visit_scheduled',
+            is_archived=False
+        ).filter(
+            Q(assigned_to=request.user) | Q(created_by=request.user)
+        ).select_related('lead', 'project')
+    else:  # Closing Manager
+        associations = LeadProjectAssociation.objects.filter(
+            status='visit_scheduled',
+            is_archived=False
+        ).filter(
+            Q(assigned_to=request.user) | Q(created_by=request.user)
+        ).select_related('lead', 'project')
     
     # Search
     search = request.GET.get('search', '')
@@ -1689,36 +1739,32 @@ def scheduled_visits(request):
     
     # Get associations for each lead
     lead_associations_dict = {}
+    stats_filter = Q(assigned_to=request.user) | Q(created_by=request.user)
     for lead in leads_page:
         lead_associations_dict[lead.id] = lead.project_associations.filter(
             status='visit_scheduled',
-            created_by=request.user,
             is_archived=False
-        ).select_related('project', 'assigned_to')
+        ).filter(stats_filter).select_related('project', 'assigned_to')
     
-    # Stats - count associations
+    # Stats - count associations (assigned to user or created by user)
     total_scheduled = LeadProjectAssociation.objects.filter(
         status='visit_scheduled',
-        created_by=request.user,
         is_archived=False
-    ).count()
+    ).filter(stats_filter).count()
     pending_otp = LeadProjectAssociation.objects.filter(
         status='visit_scheduled',
-        created_by=request.user,
         phone_verified=False,
         is_archived=False
-    ).count()
+    ).filter(stats_filter).count()
     verified = LeadProjectAssociation.objects.filter(
         status='visit_scheduled',
-        created_by=request.user,
         phone_verified=True,
         is_archived=False
-    ).count()
+    ).filter(stats_filter).count()
     completed = LeadProjectAssociation.objects.filter(
         status='visit_completed',
-        created_by=request.user,
         is_archived=False
-    ).count()
+    ).filter(stats_filter).count()
     
     context = {
         'leads': leads_page,
@@ -1838,9 +1884,11 @@ def log_call(request, pk):
         return JsonResponse({'success': False, 'error': 'Invalid call outcome.'}, status=400)
     
     # Create call log
+    from django.utils import timezone
     call_log = CallLog.objects.create(
         lead=lead,
         user=request.user,
+        call_date=timezone.now(),  # Set call_date to current time
         outcome=outcome,
         notes=notes,
     )
@@ -1985,12 +2033,16 @@ def complete_reminder(request, pk, reminder_id):
 
 @login_required
 def update_notes(request, pk):
-    """Update lead notes"""
+    """Update lead notes - append new notes with timestamp"""
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check
+    # Permission check - use associations for assigned_to
     if request.user.is_telecaller() or request.user.is_closing_manager():
-        if lead.assigned_to != request.user:
+        has_permission = lead.project_associations.filter(
+            assigned_to=request.user,
+            is_archived=False
+        ).exists()
+        if not has_permission:
             return JsonResponse({'success': False, 'error': 'You do not have permission to update notes for this lead.'}, status=403)
     
     if request.method == 'GET':
@@ -1998,8 +2050,22 @@ def update_notes(request, pk):
         return JsonResponse({'success': True, 'notes': lead.notes or ''})
     
     if request.method == 'POST':
-        notes = request.POST.get('notes', '').strip()
-        lead.notes = notes
+        new_note = request.POST.get('notes', '').strip()
+        if not new_note:
+            return JsonResponse({'success': False, 'error': 'Note cannot be empty.'}, status=400)
+        
+        # Append new note with timestamp
+        from django.utils import timezone
+        timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        user_name = request.user.get_full_name() or request.user.username
+        
+        if lead.notes:
+            # Append to existing notes
+            lead.notes = f"{lead.notes}\n\n--- {timestamp} ({user_name}) ---\n{new_note}"
+        else:
+            # First note
+            lead.notes = f"--- {timestamp} ({user_name}) ---\n{new_note}"
+        
         lead.save()
         
         # Create audit log
@@ -2009,12 +2075,48 @@ def update_notes(request, pk):
             action='notes_updated',
             model_name='Lead',
             object_id=str(lead.id),
-            changes={'notes': notes},
+            changes={'notes': new_note},
         )
         
-        # Return success response with updated notes for htmx
+        # Return success response with updated notes for htmx - refresh notes section
         if request.headers.get('HX-Request'):
-            return HttpResponse(f'<div id="notes-result" class="text-green-600">Notes updated successfully!</div>')
+            # Parse notes and display as list
+            notes_html = '<div class="space-y-3">'
+            if lead.notes:
+                # Split notes by timestamp markers
+                import re
+                note_blocks = re.split(r'\n\n--- (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \((.+?)\) ---\n', lead.notes)
+                if len(note_blocks) > 1:
+                    # First element is empty or initial content, then pairs of (timestamp, user, content)
+                    for i in range(1, len(note_blocks), 3):
+                        if i + 2 < len(note_blocks):
+                            timestamp = note_blocks[i]
+                            user = note_blocks[i + 1]
+                            content = note_blocks[i + 2]
+                            notes_html += f'''
+                            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <div class="text-xs text-gray-500 mb-2">--- {timestamp} ({user}) ---</div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{content.strip()}</p>
+                            </div>
+                            '''
+                else:
+                    # Single note without timestamp (legacy)
+                    notes_html += f'<div class="p-4 bg-gray-50 rounded-lg border border-gray-200"><p class="text-sm text-gray-700 whitespace-pre-wrap">{lead.notes}</p></div>'
+            else:
+                notes_html += '<p class="text-sm text-gray-500 mb-3">No notes added yet.</p>'
+            notes_html += '</div>'
+            
+            return HttpResponse(
+                notes_html +
+                '<div id="notes-result" class="text-green-600 mb-3 mt-3">Note added successfully!</div>'
+                '<script>'
+                'setTimeout(function() { '
+                '  document.getElementById("notes-modal").classList.add("hidden"); '
+                '  document.getElementById("notes-textarea").value = ""; '
+                '  document.getElementById("notes-result").remove(); '
+                '}, 1500);'
+                '</script>'
+            )
         return JsonResponse({'success': True, 'message': 'Notes updated successfully'})
 
 
@@ -3232,7 +3334,6 @@ def lead_assign_admin(request):
                             defaults={
                                 'daily_quota': daily_quota,
                                 'is_active': True,
-                                'created_by': request.user,
                             }
                         )
             
@@ -3251,21 +3352,23 @@ def lead_assign_admin(request):
                     assigned_count = 0
                     for quota in quotas:
                         # Use select_for_update to lock rows and prevent concurrent assignment
-                        leads_to_assign = list(
-                            Lead.objects.select_for_update(skip_locked=True)
+                        # Use LeadProjectAssociation instead of Lead
+                        associations_to_assign = list(
+                            LeadProjectAssociation.objects.select_for_update(skip_locked=True)
                             .filter(
                                 project=project,
                                 assigned_to__isnull=True,
                                 is_archived=False
                             )
+                            .select_related('lead')
                             .order_by('created_at')[:quota.daily_quota]
                         )
                         
-                        for lead in leads_to_assign:
-                            lead.assigned_to = quota.employee
-                            lead.assigned_by = request.user
-                            lead.assigned_at = timezone.now()
-                            lead.save()
+                        for association in associations_to_assign:
+                            association.assigned_to = quota.employee
+                            association.assigned_by = request.user
+                            association.assigned_at = timezone.now()
+                            association.save()
                             assigned_count += 1
                 
                 if assigned_count > 0:
@@ -3280,10 +3383,10 @@ def lead_assign_admin(request):
         except Exception as e:
             messages.error(request, f'Error saving assignment quotas: {str(e)}')
     
-    # Get projects with unassigned leads count
+    # Get projects with unassigned leads count (using LeadProjectAssociation)
     projects_with_counts = []
     for project in projects:
-        unassigned_count = Lead.objects.filter(
+        unassigned_count = LeadProjectAssociation.objects.filter(
             project=project,
             assigned_to__isnull=True,
             is_archived=False

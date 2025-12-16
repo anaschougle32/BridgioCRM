@@ -2,13 +2,35 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, Sum, Q
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.urls import reverse
+from django.views.decorators.http import require_http_methods
 from .models import Project, ProjectConfiguration, PaymentMilestone, UnitConfiguration, ConfigurationAreaType
 from accounts.models import User
 from leads.models import Lead
 from bookings.models import Booking, Payment
 from decimal import Decimal
 from leads.models import DailyAssignmentQuota
+
+
+def get_floor_display_name(floor_num):
+    """
+    Convert floor number to display name.
+    Floor 1 = Ground (G)
+    Floor 2 = 1st Floor
+    Floor 3 = 2nd Floor
+    etc.
+    """
+    if floor_num == 1:
+        return "Ground (G)"
+    elif floor_num == 2:
+        return "1st Floor"
+    elif floor_num == 3:
+        return "2nd Floor"
+    elif floor_num == 4:
+        return "3rd Floor"
+    else:
+        return f"{floor_num - 1}th Floor"
 
 
 @login_required
@@ -49,178 +71,340 @@ def project_create(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        name = request.POST.get('name')
-        builder_name = request.POST.get('builder_name')
-        location = request.POST.get('location')
-        rera_id = request.POST.get('rera_id', '')
-        project_type = request.POST.get('project_type')
-        starting_price = request.POST.get('starting_price') or None
-        starting_price_unit = request.POST.get('starting_price_unit', 'lakhs')
-        ending_price = request.POST.get('ending_price') or None
-        ending_price_unit = request.POST.get('ending_price_unit', 'lakhs')
-        inventory_summary = request.POST.get('inventory_summary', '')
+        step = request.POST.get('step', '1')
         
-        # Convert price to actual decimal value based on unit
-        if starting_price:
-            starting_price = float(starting_price)
-            if starting_price_unit == 'crores':
-                starting_price = starting_price * 10000000
-            else:  # lakhs
-                starting_price = starting_price * 100000
+        if step == '1':
+            # Step 1: Basic Information - Store in session
+            request.session['new_project_data'] = {
+                'name': request.POST.get('name'),
+                'builder_name': request.POST.get('builder_name'),
+                'location': request.POST.get('location'),
+                'rera_id': request.POST.get('rera_id', ''),
+                'project_type': request.POST.get('project_type'),
+                'starting_price': request.POST.get('starting_price'),
+                'starting_price_unit': request.POST.get('starting_price_unit', 'lakhs'),
+                'ending_price': request.POST.get('ending_price'),
+                'ending_price_unit': request.POST.get('ending_price_unit', 'lakhs'),
+                'inventory_summary': request.POST.get('inventory_summary', ''),
+                'latitude': request.POST.get('latitude'),
+                'longitude': request.POST.get('longitude'),
+            }
+            # Store image in session if uploaded
+            if 'image' in request.FILES:
+                # For now, we'll handle image in final step
+                pass
+            request.session.modified = True
+            return JsonResponse({'success': True, 'step': 2})
         
-        if ending_price:
-            ending_price = float(ending_price)
-            if ending_price_unit == 'crores':
-                ending_price = ending_price * 10000000
-            else:  # lakhs
-                ending_price = ending_price * 100000
-        latitude = request.POST.get('latitude') or None
-        longitude = request.POST.get('longitude') or None
-        default_commission_percent = request.POST.get('default_commission_percent') or 0
-        auto_assignment_strategy = request.POST.get('auto_assignment_strategy', 'manual')
-        site_head_id = request.POST.get('site_head') or None
-        
-        # Tower and Unit Structure
-        number_of_towers = int(request.POST.get('number_of_towers', 1))
-        floors_per_tower = int(request.POST.get('floors_per_tower', 1))
-        units_per_floor = int(request.POST.get('units_per_floor', 1))
-        has_commercial = request.POST.get('has_commercial') == 'on'
-        commercial_floors = int(request.POST.get('commercial_floors', 0)) if has_commercial else 0
-        commercial_units_per_floor = int(request.POST.get('commercial_units_per_floor', 0)) if has_commercial else 0
-        
-        project = Project.objects.create(
-            name=name,
-            builder_name=builder_name,
-            location=location,
-            rera_id=rera_id,
-            project_type=project_type,
-            starting_price=Decimal(str(starting_price)) if starting_price else None,
-            starting_price_unit=starting_price_unit,
-            ending_price=Decimal(str(ending_price)) if ending_price else None,
-            ending_price_unit=ending_price_unit,
-            inventory_summary=inventory_summary,
-            latitude=Decimal(str(latitude)) if latitude else None,
-            longitude=Decimal(str(longitude)) if longitude else None,
-            default_commission_percent=Decimal(str(default_commission_percent)),
-            auto_assignment_strategy=auto_assignment_strategy,
-            mandate_owner=request.user,
-            site_head_id=site_head_id,
-            number_of_towers=number_of_towers,
-            floors_per_tower=floors_per_tower,
-            units_per_floor=units_per_floor,
-            has_commercial=has_commercial,
-            commercial_floors=commercial_floors,
-            commercial_units_per_floor=commercial_units_per_floor,
-            is_active=True
-        )
-        
-        # Handle image upload
-        if 'image' in request.FILES:
-            project.image = request.FILES['image']
-            project.save()
-        
-        # Handle configurations
-        from projects.models import ProjectConfiguration, ConfigurationAreaType
-        from decimal import Decimal
-        
-        # Map to store area type IDs: "config_0_area_0" -> actual_area_type_id
-        area_type_map = {}
-        
-        # Process configurations
-        config_count = 0
-        while True:
-            config_name = request.POST.get(f'config_name_{config_count}')
-            if not config_name:
-                break
-            
-            config_description = request.POST.get(f'config_description_{config_count}', '')
-            price_per_sqft = request.POST.get(f'config_price_per_sqft_{config_count}')
-            stamp_duty = request.POST.get(f'config_stamp_duty_{config_count}', '5.00')
-            gst = request.POST.get(f'config_gst_{config_count}', '5.00')
-            registration = request.POST.get(f'config_registration_{config_count}', '30000.00')
-            legal = request.POST.get(f'config_legal_{config_count}', '15000.00')
-            development = request.POST.get(f'config_development_{config_count}', '0.00')
-            
-            config = ProjectConfiguration.objects.create(
-                project=project,
-                name=config_name,
-                description=config_description,
-                price_per_sqft=Decimal(price_per_sqft) if price_per_sqft else None,
-                stamp_duty_percent=Decimal(stamp_duty),
-                gst_percent=Decimal(gst),
-                registration_charges=Decimal(registration),
-                legal_charges=Decimal(legal),
-                development_charges=Decimal(development),
-            )
-            
-            # Process area types for this configuration
-            # Check all possible area indices (up to 50 to handle multiple area types)
-            area_count = 0
-            found_any = False
-            while area_count < 50:  # Reasonable limit
-                carpet_area = request.POST.get(f'config_{config_count}_area_carpet_{area_count}')
-                buildup_area = request.POST.get(f'config_{config_count}_area_buildup_{area_count}')
+        elif step == '2':
+            # Step 2: Tower/Unit Structure - Store in session
+            # Collect tower configurations (flexible structure)
+            tower_configs = []
+            commercial_floors = {}  # Store which floors are commercial per tower
+            tower_count = 0
+            while True:
+                tower_num = request.POST.get(f'tower_{tower_count}_number')
+                if not tower_num:
+                    break
+                tower_num_int = int(tower_num)
+                floors_count = int(request.POST.get(f'tower_{tower_count}_floors', '1'))
+                # floors_count is number of floors excluding ground, so total = floors_count + 1 (G + N floors)
+                total_floors = floors_count + 1
                 
-                # Only process if both carpet and buildup are provided
-                if carpet_area and buildup_area:
-                    found_any = True
-                    rera_area = request.POST.get(f'config_{config_count}_area_rera_{area_count}')
-                    area_description = request.POST.get(f'config_{config_count}_area_desc_{area_count}', '')
-                    
-                    area_type = ConfigurationAreaType.objects.create(
-                        configuration=config,
-                        carpet_area=Decimal(carpet_area),
-                        buildup_area=Decimal(buildup_area),
-                        rera_area=Decimal(rera_area) if rera_area else None,
-                        description=area_description,
-                    )
-                    # Map the form identifier to the actual area type ID
-                    area_type_map[f'config_{config_count}_area_{area_count}'] = area_type.id
-                elif not found_any and area_count > 10:
-                    # If we haven't found any and checked 10 indices, stop
+                # Collect commercial floors and their unit counts for this tower
+                tower_commercial_floors = {}
+                for floor_num in range(1, total_floors + 1):  # Include ground floor (1) + floors_count floors
+                    if request.POST.get(f'tower_{tower_count}_floor_{floor_num}_commercial') == 'on':
+                        commercial_units = request.POST.get(f'tower_{tower_count}_floor_{floor_num}_commercial_units', '0')
+                        tower_commercial_floors[floor_num] = int(commercial_units) if commercial_units else 0
+                
+                tower_configs.append({
+                    'tower_number': tower_num_int,
+                    'floors_count': total_floors,  # Store total floors (G + N)
+                    'units_per_floor': int(request.POST.get(f'tower_{tower_count}_units_per_floor', '1')),
+                    'is_commercial': request.POST.get(f'tower_{tower_count}_is_commercial') == 'on',
+                })
+                commercial_floors[tower_num_int] = tower_commercial_floors
+                tower_count += 1
+                if tower_count > 100:  # Safety limit
+                    break
+            
+            # Also store legacy fields for backward compatibility
+            request.session['new_project_data'].update({
+                'number_of_towers': request.POST.get('number_of_towers', str(len(tower_configs))),
+                'floors_per_tower': request.POST.get('floors_per_tower', '1'),
+                'units_per_floor': request.POST.get('units_per_floor', '1'),
+                'has_commercial': request.POST.get('has_commercial') == 'on',
+                'commercial_floors': request.POST.get('commercial_floors', '0'),
+                'commercial_units_per_floor': request.POST.get('commercial_units_per_floor', '0'),
+                'tower_configs': tower_configs,  # New flexible structure
+                'commercial_floors': commercial_floors,  # Which floors are commercial per tower
+            })
+            request.session.modified = True
+            return JsonResponse({'success': True, 'step': 3})
+        
+        elif step == '3':
+            # Step 3: Configurations & Pricing - Store in session
+            # Collect all configuration data
+            configs_data = []
+            config_count = 0
+            while True:
+                config_name = request.POST.get(f'config_name_{config_count}', '').strip()
+                if not config_name:
                     break
                 
-                area_count += 1
-            
-            config_count += 1
-        
-        # Handle unit configurations (floor mapping) - separate from configuration creation
-        from projects.models import UnitConfiguration
-        # Delete existing unit configurations
-        project.unit_configurations.all().delete()
-        
-        # Process unit configurations for each tower, floor and unit
-        floors_per_tower = project.floors_per_tower
-        units_per_floor = project.units_per_floor
-        number_of_towers = project.number_of_towers
-        
-        for tower_num in range(1, number_of_towers + 1):
-            for floor_num in range(1, floors_per_tower + 1):
-                # Check if floor is excluded (commercial)
-                floor_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
+                config_data = {
+                    'name': config_name,
+                    'description': request.POST.get(f'config_description_{config_count}', ''),
+                    'price_per_sqft': request.POST.get(f'config_price_per_sqft_{config_count}'),
+                    'stamp_duty': request.POST.get(f'config_stamp_duty_{config_count}', '5.00'),
+                    'gst': request.POST.get(f'config_gst_{config_count}', '5.00'),
+                    'registration': request.POST.get(f'config_registration_{config_count}', '30000.00'),
+                    'legal': request.POST.get(f'config_legal_{config_count}', '15000.00'),
+                    'development': request.POST.get(f'config_development_{config_count}', '0.00'),
+                    'config_id': request.POST.get(f'config_id_{config_count}', '').strip(),
+                    'area_types': []
+                }
                 
-                for unit_idx in range(1, units_per_floor + 1):
-                    # Unit number format: Floor-Unit (e.g., Floor 1, Unit 1 = 101, Floor 2, Unit 1 = 201)
-                    # Same unit numbers can exist in different towers
-                    unit_number = floor_num * 100 + unit_idx
-                    
-                    # Check if this specific unit is excluded
-                    unit_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
-                    area_type_key = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
-                    # Map the form key to actual area type ID
-                    area_type_id = area_type_map.get(area_type_key) if area_type_key else None
-                    
-                    UnitConfiguration.objects.create(
+                # Collect area types
+                area_count = 0
+                while area_count < 50:
+                    carpet_area = request.POST.get(f'config_{config_count}_area_carpet_{area_count}')
+                    buildup_area = request.POST.get(f'config_{config_count}_area_buildup_{area_count}')
+                    if carpet_area and buildup_area:
+                        config_data['area_types'].append({
+                            'carpet_area': carpet_area,
+                            'buildup_area': buildup_area,
+                            'rera_area': request.POST.get(f'config_{config_count}_area_rera_{area_count}'),
+                            'description': request.POST.get(f'config_{config_count}_area_desc_{area_count}', ''),
+                        })
+                        area_count += 1
+                    elif area_count > 10:
+                        break
+                    else:
+                        area_count += 1
+                
+                configs_data.append(config_data)
+                config_count += 1
+            
+            request.session['new_project_data']['configurations'] = configs_data
+            request.session.modified = True
+            return JsonResponse({'success': True, 'step': 4})
+        
+        elif step == '4':
+            # Step 4: Floor Mapping - Store in session
+            floor_mapping_data = {}
+            for key in request.POST.keys():
+                if key.startswith('tower_'):
+                    floor_mapping_data[key] = request.POST.get(key)
+            request.session['new_project_data']['floor_mapping'] = floor_mapping_data
+            request.session.modified = True
+            return JsonResponse({'success': True, 'step': 5})
+        
+        elif step == '5':
+            # Step 5: Settings & Assignment - Final submission
+            project_data = request.session.get('new_project_data', {})
+            
+            # Get all data
+            name = project_data.get('name')
+            builder_name = project_data.get('builder_name')
+            location = project_data.get('location')
+            rera_id = project_data.get('rera_id', '')
+            project_type = project_data.get('project_type')
+            starting_price = project_data.get('starting_price')
+            starting_price_unit = project_data.get('starting_price_unit', 'lakhs')
+            ending_price = project_data.get('ending_price')
+            ending_price_unit = project_data.get('ending_price_unit', 'lakhs')
+            inventory_summary = project_data.get('inventory_summary', '')
+            latitude = project_data.get('latitude')
+            longitude = project_data.get('longitude')
+            default_commission_percent = request.POST.get('default_commission_percent') or 0
+            auto_assignment_strategy = request.POST.get('auto_assignment_strategy', 'manual')
+            site_head_id = request.POST.get('site_head') or None
+            
+            # Convert price to actual decimal value based on unit
+            if starting_price:
+                starting_price = float(starting_price)
+                if starting_price_unit == 'crores':
+                    starting_price = starting_price * 10000000
+                else:  # lakhs
+                    starting_price = starting_price * 100000
+            
+            if ending_price:
+                ending_price = float(ending_price)
+                if ending_price_unit == 'crores':
+                    ending_price = ending_price * 10000000
+                else:  # lakhs
+                    ending_price = ending_price * 100000
+            
+            # Tower and Unit Structure
+            number_of_towers = int(project_data.get('number_of_towers', 1))
+            floors_per_tower = int(project_data.get('floors_per_tower', 1))
+            units_per_floor = int(project_data.get('units_per_floor', 1))
+            has_commercial = project_data.get('has_commercial', False)
+            commercial_floors = int(project_data.get('commercial_floors', 0)) if has_commercial else 0
+            commercial_units_per_floor = int(project_data.get('commercial_units_per_floor', 0)) if has_commercial else 0
+            
+            # Create project
+            project = Project.objects.create(
+                name=name,
+                builder_name=builder_name,
+                location=location,
+                rera_id=rera_id,
+                project_type=project_type,
+                starting_price=Decimal(str(starting_price)) if starting_price else None,
+                starting_price_unit=starting_price_unit,
+                ending_price=Decimal(str(ending_price)) if ending_price else None,
+                ending_price_unit=ending_price_unit,
+                inventory_summary=inventory_summary,
+                latitude=Decimal(str(latitude)) if latitude else None,
+                longitude=Decimal(str(longitude)) if longitude else None,
+                default_commission_percent=Decimal(str(default_commission_percent)),
+                auto_assignment_strategy=auto_assignment_strategy,
+                mandate_owner=request.user,
+                site_head_id=site_head_id,
+                number_of_towers=number_of_towers,
+                floors_per_tower=floors_per_tower,
+                units_per_floor=units_per_floor,
+                has_commercial=has_commercial,
+                commercial_floors=commercial_floors,
+                commercial_units_per_floor=commercial_units_per_floor,
+                is_active=True
+            )
+            
+            # Handle image upload
+            if 'image' in request.FILES:
+                project.image = request.FILES['image']
+                project.save()
+            
+            # Create flexible tower/floor configurations
+            from projects.models import TowerFloorConfig
+            tower_configs = project_data.get('tower_configs', [])
+            if tower_configs:
+                for tower_config in tower_configs:
+                    TowerFloorConfig.objects.create(
+                        project=project,
+                        tower_number=tower_config['tower_number'],
+                        floors_count=tower_config['floors_count'],
+                        units_per_floor=tower_config['units_per_floor'],
+                        is_commercial=tower_config.get('is_commercial', False),
+                    )
+            else:
+                # Create default configs for backward compatibility
+                for tower_num in range(1, number_of_towers + 1):
+                    TowerFloorConfig.objects.create(
                         project=project,
                         tower_number=tower_num,
-                        floor_number=floor_num,
-                        unit_number=unit_number,
-                        area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
-                        is_excluded=(floor_excluded or unit_excluded),
+                        floors_count=floors_per_tower,
+                        units_per_floor=units_per_floor,
+                        is_commercial=has_commercial,
                     )
-        
-        messages.success(request, f'Project "{project.name}" created successfully!')
-        return redirect('projects:detail', pk=project.pk)
+            
+            # Process configurations
+            from projects.models import ProjectConfiguration, ConfigurationAreaType
+            area_type_map = {}
+            configs_data = project_data.get('configurations', [])
+            
+            for config_data in configs_data:
+                config = ProjectConfiguration.objects.create(
+                    project=project,
+                    name=config_data['name'],
+                    description=config_data.get('description', ''),
+                    price_per_sqft=Decimal(config_data['price_per_sqft']) if config_data.get('price_per_sqft') else None,
+                    stamp_duty_percent=Decimal(config_data.get('stamp_duty', '5.00')),
+                    gst_percent=Decimal(config_data.get('gst', '5.00')),
+                    registration_charges=Decimal(config_data.get('registration', '30000.00')),
+                    legal_charges=Decimal(config_data.get('legal', '15000.00')),
+                    development_charges=Decimal(config_data.get('development', '0.00')),
+                )
+                
+                # Process area types
+                for idx, area_data in enumerate(config_data.get('area_types', [])):
+                    area_type = ConfigurationAreaType.objects.create(
+                        configuration=config,
+                        carpet_area=Decimal(area_data['carpet_area']),
+                        buildup_area=Decimal(area_data['buildup_area']),
+                        rera_area=Decimal(area_data['rera_area']) if area_data.get('rera_area') else None,
+                        description=area_data.get('description', ''),
+                    )
+                    # Map for floor mapping
+                    area_type_map[f'config_{len(area_type_map)}_area_{idx}'] = area_type.id
+            
+            # Handle floor mapping
+            from projects.models import UnitConfiguration, TowerFloorConfig
+            floor_mapping_data = project_data.get('floor_mapping', {})
+            tower_configs_list = list(TowerFloorConfig.objects.filter(project=project).order_by('tower_number'))
+            
+            if floor_mapping_data:
+                if tower_configs_list:
+                    # Use flexible structure
+                    for tower_config in tower_configs_list:
+                        tower_num = tower_config.tower_number
+                        floors_count = tower_config.floors_count
+                        units_per_floor_tower = tower_config.units_per_floor
+                        
+                        # Get commercial floors and their unit counts from tower structure step
+                        commercial_floors_data = project_data.get('commercial_floors', {})
+                        tower_commercial_floors = commercial_floors_data.get(tower_num, {})  # Dict: {floor_num: units_count}
+                        
+                        for floor_num in range(1, floors_count + 1):
+                            floor_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
+                            # Check if this floor is commercial from tower structure step
+                            floor_is_commercial = floor_num in tower_commercial_floors
+                            # Get units per floor for commercial floors, otherwise use default
+                            if floor_is_commercial:
+                                units_per_floor_this = tower_commercial_floors.get(floor_num, units_per_floor_tower)
+                            else:
+                                units_per_floor_this = units_per_floor_tower
+                            for unit_idx in range(1, units_per_floor_this + 1):
+                                # Ground floor (1): 01, 02, 03... First floor (2): 101, 102, 103...
+                                if floor_num == 1:
+                                    unit_number = unit_idx  # Will be displayed as 01, 02, 03...
+                                else:
+                                    unit_number = (floor_num - 1) * 100 + unit_idx
+                                unit_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
+                                area_type_key = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
+                                area_type_id = area_type_map.get(area_type_key) if area_type_key else None
+                                
+                                UnitConfiguration.objects.create(
+                                    project=project,
+                                    tower_number=tower_num,
+                                    floor_number=floor_num,
+                                    unit_number=unit_number,
+                                    area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
+                                    is_excluded=(floor_excluded or unit_excluded),
+                                    is_commercial=floor_is_commercial,
+                                )
+                else:
+                    # Fallback to legacy structure
+                    for tower_num in range(1, number_of_towers + 1):
+                        for floor_num in range(1, floors_per_tower + 1):
+                            floor_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
+                            for unit_idx in range(1, units_per_floor + 1):
+                                unit_number = floor_num * 100 + unit_idx
+                                unit_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
+                                area_type_key = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
+                                area_type_id = area_type_map.get(area_type_key) if area_type_key else None
+                                
+                                UnitConfiguration.objects.create(
+                                    project=project,
+                                    tower_number=tower_num,
+                                    floor_number=floor_num,
+                                    unit_number=unit_number,
+                                    area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
+                                    is_excluded=(floor_excluded or unit_excluded),
+                                )
+            
+            # Clear session
+            if 'new_project_data' in request.session:
+                del request.session['new_project_data']
+            request.session.modified = True
+            
+            messages.success(request, f'Project "{project.name}" created successfully!')
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('projects:detail', kwargs={'pk': project.pk})
+            })
     
     # GET request - show form
     mandate_owners = User.objects.filter(role='mandate_owner')
@@ -305,11 +489,18 @@ def project_detail(request, pk):
     milestones = project.payment_milestones.all().order_by('order')
     
     # Get unit configurations for inventory overview
-    from projects.models import UnitConfiguration
+    from projects.models import UnitConfiguration, TowerFloorConfig
     unit_configs = UnitConfiguration.objects.filter(project=project).select_related('area_type', 'area_type__configuration')
     
-    # Calculate unit statistics
-    total_units = project.total_units
+    # Calculate total units - use TowerFloorConfig if available, otherwise use legacy calculation
+    tower_configs = TowerFloorConfig.objects.filter(project=project)
+    if tower_configs.exists():
+        # Use flexible tower structure
+        total_units = sum(tc.floors_count * tc.units_per_floor for tc in tower_configs)
+    else:
+        # Fallback to legacy calculation
+        total_units = project.total_units
+    
     assigned_units = unit_configs.filter(area_type__isnull=False, is_excluded=False).count()
     excluded_units = unit_configs.filter(is_excluded=True).count()
     available_units = total_units - assigned_units - excluded_units
@@ -356,204 +547,485 @@ def project_edit(request, pk):
         return redirect('projects:detail', pk=project.pk)
     
     if request.method == 'POST':
-        name = request.POST.get('name')
-        builder_name = request.POST.get('builder_name')
-        location = request.POST.get('location')
-        rera_id = request.POST.get('rera_id', '')
-        project_type = request.POST.get('project_type')
-        starting_price = request.POST.get('starting_price') or None
-        starting_price_unit = request.POST.get('starting_price_unit', 'lakhs')
-        ending_price = request.POST.get('ending_price') or None
-        ending_price_unit = request.POST.get('ending_price_unit', 'lakhs')
-        inventory_summary = request.POST.get('inventory_summary', '')
+        step = request.POST.get('step', '1')
         
-        # Convert price to actual decimal value based on unit
-        if starting_price:
-            starting_price = float(starting_price)
-            if starting_price_unit == 'crores':
-                starting_price = starting_price * 10000000
-            else:  # lakhs
-                starting_price = starting_price * 100000
-        
-        if ending_price:
-            ending_price = float(ending_price)
-            if ending_price_unit == 'crores':
-                ending_price = ending_price * 10000000
-            else:  # lakhs
-                ending_price = ending_price * 100000
-        latitude = request.POST.get('latitude') or None
-        longitude = request.POST.get('longitude') or None
-        default_commission_percent = request.POST.get('default_commission_percent') or 0
-        auto_assignment_strategy = request.POST.get('auto_assignment_strategy', 'manual')
-        site_head_id = request.POST.get('site_head') or None
-        
-        # Tower and Unit Structure
-        number_of_towers = int(request.POST.get('number_of_towers', 1))
-        floors_per_tower = int(request.POST.get('floors_per_tower', 1))
-        units_per_floor = int(request.POST.get('units_per_floor', 1))
-        has_commercial = request.POST.get('has_commercial') == 'on'
-        commercial_floors = int(request.POST.get('commercial_floors', 0)) if has_commercial else 0
-        commercial_units_per_floor = int(request.POST.get('commercial_units_per_floor', 0)) if has_commercial else 0
-        
-        project.name = name
-        project.builder_name = builder_name
-        project.location = location
-        project.rera_id = rera_id
-        project.project_type = project_type
-        project.starting_price = Decimal(str(starting_price)) if starting_price else None
-        project.starting_price_unit = starting_price_unit
-        project.ending_price = Decimal(str(ending_price)) if ending_price else None
-        project.ending_price_unit = ending_price_unit
-        project.inventory_summary = inventory_summary
-        project.latitude = Decimal(str(latitude)) if latitude else None
-        project.longitude = Decimal(str(longitude)) if longitude else None
-        project.default_commission_percent = Decimal(str(default_commission_percent))
-        project.auto_assignment_strategy = auto_assignment_strategy
-        project.site_head_id = site_head_id
-        project.number_of_towers = number_of_towers
-        project.floors_per_tower = floors_per_tower
-        project.units_per_floor = units_per_floor
-        project.has_commercial = has_commercial
-        project.commercial_floors = commercial_floors
-        project.commercial_units_per_floor = commercial_units_per_floor
-        
-        if 'image' in request.FILES:
-            project.image = request.FILES['image']
-        
-        project.save()
-        
-        # Handle configurations - update or create
-        from projects.models import ProjectConfiguration, ConfigurationAreaType, ConfigurationFloorMapping
-        
-        # Get all existing config names to track what to keep
-        submitted_config_names = set()
-        
-        # Process configurations
-        config_count = 0
-        while True:
-            config_name = request.POST.get(f'config_name_{config_count}')
-            if not config_name:
-                break
+        if step == '1':
+            # Step 1: Basic Information - Update project
+            name = request.POST.get('name')
+            builder_name = request.POST.get('builder_name')
+            location = request.POST.get('location')
+            rera_id = request.POST.get('rera_id', '')
+            project_type = request.POST.get('project_type')
+            starting_price = request.POST.get('starting_price') or None
+            starting_price_unit = request.POST.get('starting_price_unit', 'lakhs')
+            ending_price = request.POST.get('ending_price') or None
+            ending_price_unit = request.POST.get('ending_price_unit', 'lakhs')
+            inventory_summary = request.POST.get('inventory_summary', '')
+            latitude = request.POST.get('latitude')
+            longitude = request.POST.get('longitude')
             
-            submitted_config_names.add(config_name)
-            config_description = request.POST.get(f'config_description_{config_count}', '')
-            price_per_sqft = request.POST.get(f'config_price_per_sqft_{config_count}')
-            stamp_duty = request.POST.get(f'config_stamp_duty_{config_count}', '5.00')
-            gst = request.POST.get(f'config_gst_{config_count}', '5.00')
-            registration = request.POST.get(f'config_registration_{config_count}', '30000.00')
-            legal = request.POST.get(f'config_legal_{config_count}', '15000.00')
-            development = request.POST.get(f'config_development_{config_count}', '0.00')
+            # Convert price to actual decimal value based on unit
+            if starting_price:
+                starting_price = float(starting_price)
+                if starting_price_unit == 'crores':
+                    starting_price = starting_price * 10000000
+                else:  # lakhs
+                    starting_price = starting_price * 100000
             
-            # Use get_or_create to avoid IntegrityError
-            config, created = ProjectConfiguration.objects.get_or_create(
-                project=project,
-                name=config_name,
-                defaults={
-                    'description': config_description,
-                    'price_per_sqft': Decimal(price_per_sqft) if price_per_sqft else None,
-                    'stamp_duty_percent': Decimal(stamp_duty),
-                    'gst_percent': Decimal(gst),
-                    'registration_charges': Decimal(registration),
-                    'legal_charges': Decimal(legal),
-                    'development_charges': Decimal(development),
-                }
-            )
+            if ending_price:
+                ending_price = float(ending_price)
+                if ending_price_unit == 'crores':
+                    ending_price = ending_price * 10000000
+                else:  # lakhs
+                    ending_price = ending_price * 100000
             
-            # Update if it already exists
-            if not created:
-                config.description = config_description
-                config.price_per_sqft = Decimal(price_per_sqft) if price_per_sqft else None
-                config.stamp_duty_percent = Decimal(stamp_duty)
-                config.gst_percent = Decimal(gst)
-                config.registration_charges = Decimal(registration)
-                config.legal_charges = Decimal(legal)
-                config.development_charges = Decimal(development)
-                config.save()
-                
-                # Delete existing area types and floor mappings for this config
-                config.area_types.all().delete()
-                config.floor_mappings.all().delete()
+            project.name = name
+            project.builder_name = builder_name
+            project.location = location
+            project.rera_id = rera_id
+            project.project_type = project_type
+            project.starting_price = Decimal(str(starting_price)) if starting_price else None
+            project.starting_price_unit = starting_price_unit
+            project.ending_price = Decimal(str(ending_price)) if ending_price else None
+            project.ending_price_unit = ending_price_unit
+            project.inventory_summary = inventory_summary
+            project.latitude = Decimal(str(latitude)) if latitude else None
+            project.longitude = Decimal(str(longitude)) if longitude else None
             
-            # Process area types for this configuration
-            # Check all possible area indices (up to 50 to handle multiple area types)
-            area_count = 0
-            found_any = False
-            while area_count < 50:  # Reasonable limit
-                carpet_area = request.POST.get(f'config_{config_count}_area_carpet_{area_count}')
-                buildup_area = request.POST.get(f'config_{config_count}_area_buildup_{area_count}')
-                
-                # Only process if both carpet and buildup are provided
-                if carpet_area and buildup_area:
-                    found_any = True
-                    rera_area = request.POST.get(f'config_{config_count}_area_rera_{area_count}')
-                    area_description = request.POST.get(f'config_{config_count}_area_desc_{area_count}', '')
-                    
-                    area_type = ConfigurationAreaType.objects.create(
-                        configuration=config,
-                        carpet_area=Decimal(carpet_area),
-                        buildup_area=Decimal(buildup_area),
-                        rera_area=Decimal(rera_area) if rera_area else None,
-                        description=area_description,
-                    )
-                elif not found_any and area_count > 10:
-                    # If we haven't found any and checked 10 indices, stop
+            if 'image' in request.FILES:
+                project.image = request.FILES['image']
+            
+            project.save()
+            return JsonResponse({'success': True, 'step': 2})
+        
+        elif step == '2':
+            # Step 2: Tower/Unit Structure - Update project with flexible structure
+            from projects.models import TowerFloorConfig
+            
+            number_of_towers = int(request.POST.get('number_of_towers', 1))
+            
+            # Update legacy fields for backward compatibility
+            floors_per_tower = int(request.POST.get('floors_per_tower', 1))
+            units_per_floor = int(request.POST.get('units_per_floor', 1))
+            has_commercial = request.POST.get('has_commercial') == 'on'
+            commercial_floors = int(request.POST.get('commercial_floors', 0)) if has_commercial else 0
+            commercial_units_per_floor = int(request.POST.get('commercial_units_per_floor', 0)) if has_commercial else 0
+            
+            project.number_of_towers = number_of_towers
+            project.floors_per_tower = floors_per_tower
+            project.units_per_floor = units_per_floor
+            project.has_commercial = has_commercial
+            project.commercial_floors = commercial_floors
+            project.commercial_units_per_floor = commercial_units_per_floor
+            project.save()
+            
+            # Delete existing tower configs and recreate from form data
+            TowerFloorConfig.objects.filter(project=project).delete()
+            
+            # Collect tower configurations (flexible structure)
+            tower_count = 0
+            while tower_count < number_of_towers:
+                tower_num = request.POST.get(f'tower_{tower_count}_number')
+                if not tower_num:
                     break
+                tower_num = int(tower_num)
+                floors_count = int(request.POST.get(f'tower_{tower_count}_floors', '1'))
+                # floors_count is number of floors excluding ground, so total = floors_count + 1 (G + N floors)
+                total_floors = floors_count + 1
+                units_per_floor_tower = int(request.POST.get(f'tower_{tower_count}_units_per_floor', '1'))
+                is_commercial = request.POST.get(f'tower_{tower_count}_is_commercial') == 'on'
                 
-                area_count += 1
+                # Store commercial floors and their unit counts in session for floor mapping step
+                tower_commercial_floors = {}
+                for floor_num in range(1, total_floors + 1):  # Include ground floor (1) + floors_count floors
+                    if request.POST.get(f'tower_{tower_count}_floor_{floor_num}_commercial') == 'on':
+                        commercial_units = request.POST.get(f'tower_{tower_count}_floor_{floor_num}_commercial_units', '0')
+                        tower_commercial_floors[floor_num] = int(commercial_units) if commercial_units else 0
+                
+                if 'edit_project_data' not in request.session:
+                    request.session['edit_project_data'] = {}
+                if 'commercial_floors' not in request.session['edit_project_data']:
+                    request.session['edit_project_data']['commercial_floors'] = {}
+                request.session['edit_project_data']['commercial_floors'][tower_num] = tower_commercial_floors
+                request.session.modified = True
+                
+                TowerFloorConfig.objects.create(
+                    project=project,
+                    tower_number=tower_num,
+                    floors_count=total_floors,  # Store total floors (G + N)
+                    units_per_floor=units_per_floor_tower,
+                    is_commercial=is_commercial,
+                )
+                tower_count += 1
             
-            config_count += 1
+            return JsonResponse({'success': True, 'step': 3})
         
-        # Handle unit configurations (floor mapping) - separate from configuration creation
-        from projects.models import UnitConfiguration
-        # Delete existing unit configurations
-        project.unit_configurations.all().delete()
-        
-        # Process unit configurations for each tower, floor and unit
-        floors_per_tower = project.floors_per_tower
-        units_per_floor = project.units_per_floor
-        number_of_towers = project.number_of_towers
-        
-        for tower_num in range(1, number_of_towers + 1):
-            for floor_num in range(1, floors_per_tower + 1):
-                # Check if floor is excluded (commercial)
-                floor_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
+        elif step == '3':
+            # Step 3: Configurations & Pricing - Update configurations
+            try:
+                from django.db import transaction
+                from projects.models import ProjectConfiguration, ConfigurationAreaType
                 
-                for unit_idx in range(1, units_per_floor + 1):
-                    # Unit number format: Floor-Unit (e.g., Floor 1, Unit 1 = 101, Floor 2, Unit 1 = 201)
-                    # Same unit numbers can exist in different towers
-                    unit_number = floor_num * 100 + unit_idx
+                with transaction.atomic():
+                    submitted_config_ids = set()
+                    all_config_ids_in_form = set()
+                    for key in request.POST.keys():
+                        if key.startswith('config_id_'):
+                            config_id = request.POST.get(key, '').strip()
+                            if config_id and config_id.isdigit():
+                                all_config_ids_in_form.add(int(config_id))
                     
-                    # Check if this specific unit is excluded
-                    unit_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
-                    area_type_key = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
+                    # Find all config indices that exist in the form
+                    config_indices = set()
+                    for key in request.POST.keys():
+                        if key.startswith('config_name_'):
+                            idx = key.replace('config_name_', '')
+                            if idx.isdigit():
+                                config_indices.add(int(idx))
                     
-                    # For edit: area_type_key can be either form key (config_X_area_Y) or actual ID
-                    # Try to find matching area type
-                    area_type_id = None
-                    if area_type_key:
-                        # If it's a numeric ID, use it directly
-                        if area_type_key.isdigit():
-                            area_type_id = int(area_type_key)
-                        else:
-                            # Otherwise, it's a form key - find matching area type
-                            # This is complex, so for edit we'll use IDs directly
-                            # The template should populate with actual IDs
+                    config_count = 0
+                    processed_configs = 0
+                    max_configs = max(config_indices) if config_indices else 0
+                    
+                    while config_count <= max(max_configs, 100):
+                        config_name = request.POST.get(f'config_name_{config_count}', '').strip()
+                        if not config_name:
+                            config_id = request.POST.get(f'config_id_{config_count}', '').strip()
+                            if config_id and config_id.isdigit():
+                                submitted_config_ids.add(int(config_id))
+                            config_count += 1
+                            continue
+                        
+                        config_id = request.POST.get(f'config_id_{config_count}', '').strip()
+                        config_description = request.POST.get(f'config_description_{config_count}', '')
+                        price_per_sqft = request.POST.get(f'config_price_per_sqft_{config_count}')
+                        stamp_duty = request.POST.get(f'config_stamp_duty_{config_count}', '5.00')
+                        gst = request.POST.get(f'config_gst_{config_count}', '5.00')
+                        registration = request.POST.get(f'config_registration_{config_count}', '30000.00')
+                        legal = request.POST.get(f'config_legal_{config_count}', '15000.00')
+                        development = request.POST.get(f'config_development_{config_count}', '0.00')
+                        
+                        if config_id and config_id.isdigit():
+                            # Existing configuration - update it
                             try:
-                                area_type_id = int(area_type_key)
-                            except:
-                                pass
-                    
-                    UnitConfiguration.objects.create(
-                        project=project,
-                        tower_number=tower_num,
-                        floor_number=floor_num,
-                        unit_number=unit_number,
-                        area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
-                        is_excluded=(floor_excluded or unit_excluded),
-                    )
+                                config = ProjectConfiguration.objects.get(id=int(config_id), project=project)
+                                if config.name != config_name:
+                                    config.name = config_name
+                                config.description = config_description
+                                config.price_per_sqft = Decimal(price_per_sqft) if price_per_sqft else None
+                                config.stamp_duty_percent = Decimal(stamp_duty)
+                                config.gst_percent = Decimal(gst)
+                                config.registration_charges = Decimal(registration)
+                                config.legal_charges = Decimal(legal)
+                                config.development_charges = Decimal(development)
+                                config.save()
+                                created = False
+                                # Add to submitted IDs to prevent deletion
+                                submitted_config_ids.add(config.id)
+                            except ProjectConfiguration.DoesNotExist:
+                                # ID doesn't exist, create new
+                                config = ProjectConfiguration.objects.create(
+                                    project=project,
+                                    name=config_name,
+                                    description=config_description,
+                                    price_per_sqft=Decimal(price_per_sqft) if price_per_sqft else None,
+                                    stamp_duty_percent=Decimal(stamp_duty),
+                                    gst_percent=Decimal(gst),
+                                    registration_charges=Decimal(registration),
+                                    legal_charges=Decimal(legal),
+                                    development_charges=Decimal(development),
+                                )
+                                created = True
+                                # Add new config ID to prevent deletion
+                                submitted_config_ids.add(config.id)
+                        else:
+                            # New configuration - create it
+                            config, created = ProjectConfiguration.objects.get_or_create(
+                                project=project,
+                                name=config_name,
+                                defaults={
+                                    'description': config_description,
+                                    'price_per_sqft': Decimal(price_per_sqft) if price_per_sqft else None,
+                                    'stamp_duty_percent': Decimal(stamp_duty),
+                                    'gst_percent': Decimal(gst),
+                                    'registration_charges': Decimal(registration),
+                                    'legal_charges': Decimal(legal),
+                                    'development_charges': Decimal(development),
+                                }
+                            )
+                            if not created:
+                                # Config with same name exists, update it
+                                config.description = config_description
+                                config.price_per_sqft = Decimal(price_per_sqft) if price_per_sqft else None
+                                config.stamp_duty_percent = Decimal(stamp_duty)
+                                config.gst_percent = Decimal(gst)
+                                config.registration_charges = Decimal(registration)
+                                config.legal_charges = Decimal(legal)
+                                config.development_charges = Decimal(development)
+                                config.save()
+                            # Add config ID to prevent deletion (whether created or updated)
+                            submitted_config_ids.add(config.id)
+                        
+                        has_area_types = any(key.startswith(f'config_{config_count}_area_') for key in request.POST.keys())
+                        if has_area_types:
+                            # Collect area type IDs from form to track which ones to keep
+                            area_type_ids_in_form = set()
+                            
+                            # First, update or create area types
+                            area_count = 0
+                            while area_count < 50:
+                                carpet_area = request.POST.get(f'config_{config_count}_area_carpet_{area_count}')
+                                buildup_area = request.POST.get(f'config_{config_count}_area_buildup_{area_count}')
+                                area_type_id = request.POST.get(f'config_{config_count}_area_id_{area_count}', '').strip()
+                                
+                                if carpet_area and buildup_area:
+                                    try:
+                                        rera_area = request.POST.get(f'config_{config_count}_area_rera_{area_count}')
+                                        area_description = request.POST.get(f'config_{config_count}_area_desc_{area_count}', '')
+                                        
+                                        carpet_decimal = Decimal(carpet_area)
+                                        buildup_decimal = Decimal(buildup_area)
+                                        rera_decimal = Decimal(rera_area) if rera_area else None
+                                        
+                                        # If we have an area_type_id, try to update existing
+                                        if area_type_id and area_type_id.isdigit():
+                                            try:
+                                                area_type = ConfigurationAreaType.objects.get(
+                                                    id=int(area_type_id),
+                                                    configuration=config
+                                                )
+                                                # Check if carpet_area or buildup_area changed (unique constraint fields)
+                                                carpet_changed = area_type.carpet_area != carpet_decimal
+                                                buildup_changed = area_type.buildup_area != buildup_decimal
+                                                
+                                                if carpet_changed or buildup_changed:
+                                                    # If unique fields changed, we need to handle the unique constraint
+                                                    # First, check if a record with new values already exists
+                                                    try:
+                                                        existing = ConfigurationAreaType.objects.get(
+                                                            configuration=config,
+                                                            carpet_area=carpet_decimal,
+                                                            buildup_area=buildup_decimal
+                                                        )
+                                                        # If it exists and it's not the same record, update it and delete old
+                                                        if existing.id != area_type.id:
+                                                            existing.rera_area = rera_decimal
+                                                            existing.description = area_description
+                                                            existing.save()
+                                                            area_type.delete()
+                                                            area_type = existing
+                                                            area_type_ids_in_form.add(area_type.id)
+                                                        else:
+                                                            # Same record, just update
+                                                            area_type.carpet_area = carpet_decimal
+                                                            area_type.buildup_area = buildup_decimal
+                                                            area_type.rera_area = rera_decimal
+                                                            area_type.description = area_description
+                                                            area_type.save()
+                                                            area_type_ids_in_form.add(area_type.id)
+                                                    except ConfigurationAreaType.DoesNotExist:
+                                                        # No conflict, delete old and create new
+                                                        old_id = area_type.id
+                                                        area_type.delete()
+                                                        area_type = ConfigurationAreaType.objects.create(
+                                                            configuration=config,
+                                                            carpet_area=carpet_decimal,
+                                                            buildup_area=buildup_decimal,
+                                                            rera_area=rera_decimal,
+                                                            description=area_description,
+                                                        )
+                                                        area_type_ids_in_form.add(area_type.id)
+                                                else:
+                                                    # Only non-unique fields changed, update in place
+                                                    area_type.rera_area = rera_decimal
+                                                    area_type.description = area_description
+                                                    area_type.save()
+                                                    area_type_ids_in_form.add(area_type.id)
+                                            except ConfigurationAreaType.DoesNotExist:
+                                                # ID doesn't exist, create new
+                                                area_type = ConfigurationAreaType.objects.create(
+                                                    configuration=config,
+                                                    carpet_area=carpet_decimal,
+                                                    buildup_area=buildup_decimal,
+                                                    rera_area=rera_decimal,
+                                                    description=area_description,
+                                                )
+                                                area_type_ids_in_form.add(area_type.id)
+                                        else:
+                                            # No ID provided, create new area type
+                                            area_type = ConfigurationAreaType.objects.create(
+                                                configuration=config,
+                                                carpet_area=carpet_decimal,
+                                                buildup_area=buildup_decimal,
+                                                rera_area=rera_decimal,
+                                                description=area_description,
+                                            )
+                                            area_type_ids_in_form.add(area_type.id)
+                                    except Exception as e:
+                                        import traceback
+                                        return JsonResponse({
+                                            'success': False,
+                                            'error': f'Error saving area type: {str(e)}'
+                                        }, status=400)
+                                elif area_count > 10:
+                                    break
+                                area_count += 1
+                            
+                            # Delete area types that are no longer in the form
+                            if area_type_ids_in_form:
+                                # Get area types to delete before deleting them
+                                area_types_to_delete = list(config.area_types.exclude(id__in=area_type_ids_in_form).values_list('id', flat=True))
+                                if area_types_to_delete:
+                                    # Delete floor mappings that reference these area types
+                                    config.floor_mappings.filter(area_type_id__in=area_types_to_delete).delete()
+                                    # Now delete the area types
+                                    config.area_types.filter(id__in=area_types_to_delete).delete()
+                            else:
+                                # If no area types in form, delete all
+                                config.floor_mappings.all().delete()
+                                config.area_types.all().delete()
+                        
+                        config_count += 1
+                        processed_configs += 1
+                        
+                        # Safety check to prevent infinite loops
+                        if processed_configs > 100:
+                            break
+                
+                # Delete removed configurations
+                existing_configs = ProjectConfiguration.objects.filter(project=project)
+                if submitted_config_ids or all_config_ids_in_form:
+                    ids_to_keep = submitted_config_ids | all_config_ids_in_form
+                    configs_to_delete = existing_configs.exclude(id__in=ids_to_keep)
+                    for config in configs_to_delete:
+                        config.area_types.all().delete()
+                        config.floor_mappings.all().delete()
+                    configs_to_delete.delete()
+                
+                return JsonResponse({'success': True, 'step': 4})
+            except Exception as e:
+                import traceback
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Error updating configurations: {str(e)}'
+                }, status=400)
         
-        messages.success(request, f'Project "{project.name}" updated successfully!')
-        return redirect('projects:detail', pk=project.pk)
+        elif step == '4':
+            # Step 4: Floor Mapping - Update unit configurations
+            from projects.models import UnitConfiguration, TowerFloorConfig
+            
+            has_floor_mapping_data = any(key.startswith('tower_') for key in request.POST.keys())
+            if has_floor_mapping_data:
+                project.unit_configurations.all().delete()
+                
+                # Build area type map from configurations
+                area_type_map = {}
+                for config in project.configurations.all():
+                    for idx, area_type in enumerate(config.area_types.all()):
+                        # Support both old format (config_{config.id}_area_{idx}) and new format (config_{index}_area_{idx})
+                        area_type_map[f'config_{config.id}_area_{idx}'] = area_type.id
+                        # Also map by index for compatibility
+                        config_index = list(project.configurations.all()).index(config) if config in list(project.configurations.all()) else config.id
+                        area_type_map[f'config_{config_index}_area_{idx}'] = area_type.id
+                
+                # Check if using flexible tower structure
+                tower_configs_list = list(TowerFloorConfig.objects.filter(project=project).order_by('tower_number'))
+                
+                if tower_configs_list:
+                    # Use flexible structure
+                    for tower_config in tower_configs_list:
+                        tower_num = tower_config.tower_number
+                        floors_count = tower_config.floors_count
+                        units_per_floor_tower = tower_config.units_per_floor
+                        
+                        # Get commercial floors and their unit counts from tower structure step (stored in session)
+                        commercial_floors_data = request.session.get('edit_project_data', {}).get('commercial_floors', {})
+                        tower_commercial_floors = commercial_floors_data.get(tower_num, {})  # Dict: {floor_num: units_count}
+                        
+                        for floor_num in range(1, floors_count + 1):
+                            floor_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
+                            # Check if this floor is commercial from tower structure step
+                            floor_is_commercial = floor_num in tower_commercial_floors
+                            
+                            # Skip ground floor (G) if it's not commercial - it's vacant/parking
+                            if floor_num == 1 and not floor_is_commercial:
+                                continue
+                            
+                            # Get units per floor
+                            # For commercial floors, use the specified unit count, otherwise use default
+                            if floor_is_commercial and floor_num in tower_commercial_floors:
+                                units_per_floor_this = tower_commercial_floors.get(floor_num, units_per_floor_tower)
+                            else:
+                                units_per_floor_this = units_per_floor_tower
+                            
+                            for unit_idx in range(1, units_per_floor_this + 1):
+                                # Ground floor (1): 01, 02, 03... First floor (2): 101, 102, 103...
+                                if floor_num == 1:
+                                    unit_number = unit_idx  # Will be displayed as 01, 02, 03...
+                                else:
+                                    unit_number = (floor_num - 1) * 100 + unit_idx
+                                unit_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
+                                area_type_key = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
+                                area_type_id = area_type_map.get(area_type_key) if area_type_key else None
+                                
+                                UnitConfiguration.objects.create(
+                                    project=project,
+                                    tower_number=tower_num,
+                                    floor_number=floor_num,
+                                    unit_number=unit_number,
+                                    area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
+                                    is_excluded=(floor_excluded or unit_excluded),
+                                    is_commercial=floor_is_commercial,
+                                )
+                else:
+                    # Fallback to legacy structure
+                    floors_per_tower = project.floors_per_tower
+                    units_per_floor = project.units_per_floor
+                    number_of_towers = project.number_of_towers
+                    
+                    for tower_num in range(1, number_of_towers + 1):
+                        for floor_num in range(1, floors_per_tower + 1):
+                            floor_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
+                            floor_is_commercial = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_is_commercial') == 'on'
+                            for unit_idx in range(1, units_per_floor + 1):
+                                # Ground floor (1): 01, 02, 03... First floor (2): 101, 102, 103...
+                                if floor_num == 1:
+                                    unit_number = unit_idx  # Will be displayed as 01, 02, 03...
+                                else:
+                                    unit_number = (floor_num - 1) * 100 + unit_idx
+                                unit_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
+                                area_type_key = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
+                                area_type_id = area_type_map.get(area_type_key) if area_type_key else None
+                                
+                                UnitConfiguration.objects.create(
+                                    project=project,
+                                    tower_number=tower_num,
+                                    floor_number=floor_num,
+                                    unit_number=unit_number,
+                                    area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
+                                    is_excluded=(floor_excluded or unit_excluded),
+                                    is_commercial=floor_is_commercial,
+                                )
+            
+            return JsonResponse({'success': True, 'step': 5})
+        
+        elif step == '5':
+            # Step 5: Settings & Assignment - Final update
+            default_commission_percent = request.POST.get('default_commission_percent') or 0
+            auto_assignment_strategy = request.POST.get('auto_assignment_strategy', 'manual')
+            site_head_id = request.POST.get('site_head') or None
+            
+            project.default_commission_percent = Decimal(str(default_commission_percent))
+            project.auto_assignment_strategy = auto_assignment_strategy
+            project.site_head_id = site_head_id
+            project.save()
+            
+            messages.success(request, f'Project "{project.name}" updated successfully!')
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('projects:detail', kwargs={'pk': project.pk})
+            })
+        
     
     # GET request - show form with existing data
     mandate_owners = User.objects.filter(role='mandate_owner')
@@ -567,12 +1039,44 @@ def project_edit(request, pk):
     all_area_types = ConfigurationAreaType.objects.filter(configuration__project=project).select_related('configuration')
     
     # Get existing unit configurations
-    from projects.models import UnitConfiguration
+    from projects.models import UnitConfiguration, TowerFloorConfig
     # Create a key-based lookup: "tower_floor_unit" -> unit_config
     unit_configurations = {}
     for uc in project.unit_configurations.all().select_related('area_type'):
         key = f"{uc.tower_number}_{uc.floor_number}_{uc.unit_number}"
         unit_configurations[key] = uc
+    
+    # Get existing tower floor configs
+    tower_floor_configs = TowerFloorConfig.objects.filter(project=project).order_by('tower_number')
+    
+    # Get commercial floors data from session (if available from step 2)
+    commercial_floors_data = request.session.get('edit_project_data', {}).get('commercial_floors', {})
+    
+    # Also get commercial floors from existing unit configurations
+    existing_commercial_floors = {}
+    for uc in project.unit_configurations.filter(is_commercial=True).select_related():
+        tower_key = uc.tower_number
+        if tower_key not in existing_commercial_floors:
+            existing_commercial_floors[tower_key] = {}
+        # Count units per floor for commercial floors
+        floor_key = uc.floor_number
+        if floor_key not in existing_commercial_floors[tower_key]:
+            existing_commercial_floors[tower_key][floor_key] = 0
+        existing_commercial_floors[tower_key][floor_key] += 1
+    
+    # Merge session data with existing data (session takes precedence)
+    for tower_num, floors_dict in commercial_floors_data.items():
+        tower_num_int = int(tower_num) if isinstance(tower_num, str) and tower_num.isdigit() else tower_num
+        if tower_num_int not in existing_commercial_floors:
+            existing_commercial_floors[tower_num_int] = {}
+        # Convert floor numbers to int if they're strings
+        if isinstance(floors_dict, dict):
+            floors_dict_int = {int(k) if isinstance(k, str) and k.isdigit() else k: v for k, v in floors_dict.items()}
+            existing_commercial_floors[tower_num_int].update(floors_dict_int)
+    
+    # Convert to JSON string for template
+    import json
+    commercial_floors_json = json.dumps(existing_commercial_floors)
     
     # Get project type choices for dropdown
     project_type_choices = Project.PROJECT_TYPE_CHOICES
@@ -584,6 +1088,8 @@ def project_edit(request, pk):
         'configurations': configurations,
         'all_area_types': all_area_types,
         'unit_configurations': unit_configurations,
+        'tower_floor_configs': tower_floor_configs,
+        'commercial_floors_data': commercial_floors_json,  # Pass as JSON string
         'project_type_choices': project_type_choices,
     }
     return render(request, 'projects/edit.html', context)
@@ -618,9 +1124,13 @@ def unit_selection(request, pk):
         return redirect('projects:list')
     
     # Get all unit configurations with related data
+    # Filter out non-commercial ground floors (floor 1) - they're vacant/parking
     unit_configs = UnitConfiguration.objects.filter(project=project).select_related(
         'area_type', 
         'area_type__configuration'
+    ).exclude(
+        floor_number=1,
+        is_commercial=False
     ).order_by('tower_number', 'floor_number', 'unit_number')
     
     # Get all configurations with area types for filtering
@@ -1069,3 +1579,52 @@ def search_visited_leads(request, pk):
         })
     
     return JsonResponse({'results': results})
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_archive_data(request, pk):
+    """Archive all bookings and lead associations for a project - Super Admin and Mandate Owners only"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner()):
+        messages.error(request, 'You do not have permission to archive project data.')
+        return redirect('projects:detail', pk=project.pk)
+    
+    from leads.models import LeadProjectAssociation
+    from bookings.models import Booking
+    
+    # Archive all bookings
+    bookings_count = Booking.objects.filter(project=project, is_archived=False).update(is_archived=True)
+    
+    # Archive all lead associations
+    associations_count = LeadProjectAssociation.objects.filter(project=project, is_archived=False).update(is_archived=True)
+    
+    messages.success(request, f'Archived {bookings_count} booking(s) and {associations_count} lead association(s) for project "{project.name}". You can now delete the project.')
+    return redirect('projects:detail', pk=project.pk)
+
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def project_delete(request, pk):
+    """Delete project - Super Admin and Mandate Owners only"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner()):
+        messages.error(request, 'You do not have permission to delete projects.')
+        return redirect('projects:list')
+    
+    # Check if project has any bookings or leads
+    from leads.models import LeadProjectAssociation
+    has_bookings = Booking.objects.filter(project=project, is_archived=False).exists()
+    has_leads = LeadProjectAssociation.objects.filter(project=project, is_archived=False).exists()
+    
+    if has_bookings or has_leads:
+        messages.error(request, f'Cannot delete project "{project.name}" because it has associated bookings or leads. Please archive them first.')
+        return redirect('projects:detail', pk=project.pk)
+    
+    project_name = project.name
+    project.delete()
+    
+    messages.success(request, f'Project "{project_name}" has been deleted successfully.')
+    return redirect('projects:list')
