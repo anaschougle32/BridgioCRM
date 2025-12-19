@@ -2278,7 +2278,93 @@ def complete_reminder(request, pk, reminder_id):
     reminder.completed_at = timezone.now()
     reminder.save()
     messages.success(request, 'Reminder marked as completed.')
+    
+    # If HTMX request, return JSON for dynamic update
+    is_htmx = request.headers.get('HX-Request') or request.headers.get('hx-request')
+    if is_htmx:
+        return JsonResponse({'success': True, 'message': 'Reminder completed'})
+    
     return redirect('leads:detail', pk=pk)
+
+
+@login_required
+def followups_list(request):
+    """List all follow-up reminders with Kanban board (desktop) and list view (mobile/tablet)"""
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    
+    # Get all reminders based on user role
+    reminders = FollowUpReminder.objects.select_related('lead', 'created_by').all()
+    
+    # Role-based filtering
+    if request.user.is_telecaller() or request.user.is_closing_manager():
+        # See reminders for leads assigned to them
+        reminders = reminders.filter(
+            lead__project_associations__assigned_to=request.user,
+            lead__project_associations__is_archived=False
+        ).distinct()
+    elif request.user.is_site_head():
+        # See reminders for leads in their projects
+        reminders = reminders.filter(
+            lead__project_associations__project__site_head=request.user,
+            lead__project_associations__is_archived=False
+        ).distinct()
+    elif request.user.is_sourcing_manager():
+        # See reminders for leads they created or are assigned to
+        reminders = reminders.filter(
+            Q(created_by=request.user) |
+            Q(lead__project_associations__assigned_to=request.user)
+        ).distinct()
+    # Super admin and mandate owner see all
+    
+    # Filter by assigned user if provided
+    assigned_to = request.GET.get('assigned_to', '')
+    if assigned_to:
+        reminders = reminders.filter(
+            lead__project_associations__assigned_to_id=assigned_to,
+            lead__project_associations__is_archived=False
+        ).distinct()
+    
+    # Filter by date range if provided
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+            reminders = reminders.filter(reminder_date__gte=date_from_obj)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+            reminders = reminders.filter(reminder_date__lt=date_to_obj)
+        except ValueError:
+            pass
+    
+    # Categorize reminders
+    overdue = reminders.filter(is_completed=False, reminder_date__lt=today_start).order_by('reminder_date')
+    today = reminders.filter(is_completed=False, reminder_date__gte=today_start, reminder_date__lt=today_end).order_by('reminder_date')
+    upcoming = reminders.filter(is_completed=False, reminder_date__gte=today_end).order_by('reminder_date')
+    completed = reminders.filter(is_completed=True).order_by('-completed_at')[:50]  # Limit completed to recent 50
+    
+    # Get assignees for filter
+    assignees = User.objects.filter(
+        role__in=['closing_manager', 'telecaller', 'sourcing_manager']
+    ).order_by('username')
+    
+    context = {
+        'overdue': overdue,
+        'today': today,
+        'upcoming': upcoming,
+        'completed': completed,
+        'assignees': assignees,
+        'selected_assigned_to': assigned_to,
+        'date_from': date_from,
+        'date_to': date_to,
+        'now': now,
+    }
+    return render(request, 'leads/followups.html', context)
 
 
 @login_required

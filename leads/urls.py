@@ -4,7 +4,7 @@ from .views import (
     upcoming_visits, visits_list, pretagged_leads, schedule_visit, scheduled_visits, closing_manager_visits, log_call, create_reminder, complete_reminder, whatsapp, 
     lead_assign, lead_upload, lead_assign_admin, update_status, update_notes,
     upload_analyze, upload_preview, lead_upload_errors_csv, lead_download,
-    update_budget, update_configuration, track_call_click, search_channel_partners, search_leads
+    update_budget, update_configuration, track_call_click, search_channel_partners, search_leads, followups_list
 )
 
 app_name = 'leads'
@@ -27,6 +27,7 @@ urlpatterns = [
     path('my-visits/', closing_manager_visits, name='closing_manager_visits'),
     path('pretagged-leads/', pretagged_leads, name='pretagged_leads'),
     path('scheduled-visits/', scheduled_visits, name='scheduled_visits'),
+    path('followups/', followups_list, name='followups_list'),
     path('<int:pk>/', lead_detail, name='detail'),
     path('<int:pk>/send-otp/', send_otp, name='send_otp'),
     path('<int:pk>/verify-otp/', verify_otp, name='verify_otp'),

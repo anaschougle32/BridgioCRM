@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+{% load tz %}
+
+{% block title %}Follow-Ups - Bridgio CRM{% endblock %}
+
+{% block page_title %}Follow-Ups{% endblock %}
+
+{% block content %}
+<div class="space-y-4 sm:space-y-6">
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-md p-4">
+        <form method="get" class="flex flex-col sm:flex-row gap-3">
+            <select name="assigned_to" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary text-sm">
+                <option value="">All Users</option>
+                {% for assignee in assignees %}
+                <option value="{{ assignee.id }}" {% if selected_assigned_to == assignee.id|stringformat:"s" %}selected{% endif %}>{{ assignee.get_full_name|default:assignee.username }}</option>
+                {% endfor %}
+            </select>
+            <input type="date" name="date_from" value="{{ date_from }}" placeholder="From Date" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary text-sm">
+            <input type="date" name="date_to" value="{{ date_to }}" placeholder="To Date" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary text-sm">
+            <button type="submit" class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm font-medium">Filter</button>
+            <a href="{% url 'leads:followups_list' %}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm font-medium text-center">Clear</a>
+        </form>
+    </div>
+
+    <!-- Desktop Kanban Board (≥1025px) -->
+    <div class="hidden lg:block">
+        <div class="flex space-x-4 overflow-x-auto pb-4">
+            <!-- Overdue Column -->
+            <div class="flex-shrink-0 w-72 bg-red-50 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-red-800">Overdue</h3>
+                    <span class="px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold">{{ overdue.count }}</span>
+                </div>
+                <div class="space-y-3 max-h-[calc(100vh-16rem)] overflow-y-auto">
+                    {% for reminder in overdue %}
+                    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500" draggable="true" data-reminder-id="{{ reminder.id }}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1">
+                                <a href="{% url 'leads:detail' reminder.lead.id %}" class="font-semibold text-sm text-gray-900 hover:text-olive-primary">{{ reminder.lead.name }}</a>
+                                <p class="text-xs text-gray-600 mt-1">{{ reminder.lead.phone }}</p>
+                            </div>
+                            <form method="post" action="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}" 
+                                  hx-post="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}"
+                                  hx-target="closest div"
+                                  hx-swap="outerHTML">
+                                {% csrf_token %}
+                                <button type="submit" class="text-xs text-green-600 hover:text-green-700 min-h-[24px] min-w-[24px]">✓</button>
+                            </form>
+                        </div>
+                        <p class="text-xs text-red-600 font-medium mb-1">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                        {% if reminder.notes %}
+                        <p class="text-xs text-gray-600 line-clamp-2">{{ reminder.notes }}</p>
+                        {% endif %}
+                        {% if reminder.created_by %}
+                        <p class="text-xs text-gray-500 mt-2">By: {{ reminder.created_by.get_full_name|default:reminder.created_by.username }}</p>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-gray-500 text-center py-4">No overdue reminders</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Today Column -->
+            <div class="flex-shrink-0 w-72 bg-yellow-50 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-yellow-800">Today</h3>
+                    <span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full text-xs font-semibold">{{ today.count }}</span>
+                </div>
+                <div class="space-y-3 max-h-[calc(100vh-16rem)] overflow-y-auto">
+                    {% for reminder in today %}
+                    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500" draggable="true" data-reminder-id="{{ reminder.id }}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1">
+                                <a href="{% url 'leads:detail' reminder.lead.id %}" class="font-semibold text-sm text-gray-900 hover:text-olive-primary">{{ reminder.lead.name }}</a>
+                                <p class="text-xs text-gray-600 mt-1">{{ reminder.lead.phone }}</p>
+                            </div>
+                            <form method="post" action="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}" 
+                                  hx-post="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}"
+                                  hx-target="closest div"
+                                  hx-swap="outerHTML">
+                                {% csrf_token %}
+                                <button type="submit" class="text-xs text-green-600 hover:text-green-700 min-h-[24px] min-w-[24px]">✓</button>
+                            </form>
+                        </div>
+                        <p class="text-xs text-yellow-600 font-medium mb-1">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                        {% if reminder.notes %}
+                        <p class="text-xs text-gray-600 line-clamp-2">{{ reminder.notes }}</p>
+                        {% endif %}
+                        {% if reminder.created_by %}
+                        <p class="text-xs text-gray-500 mt-2">By: {{ reminder.created_by.get_full_name|default:reminder.created_by.username }}</p>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-gray-500 text-center py-4">No reminders for today</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Upcoming Column -->
+            <div class="flex-shrink-0 w-72 bg-blue-50 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-blue-800">Upcoming</h3>
+                    <span class="px-2 py-1 bg-blue-200 text-blue-800 rounded-full text-xs font-semibold">{{ upcoming.count }}</span>
+                </div>
+                <div class="space-y-3 max-h-[calc(100vh-16rem)] overflow-y-auto">
+                    {% for reminder in upcoming %}
+                    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500" draggable="true" data-reminder-id="{{ reminder.id }}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1">
+                                <a href="{% url 'leads:detail' reminder.lead.id %}" class="font-semibold text-sm text-gray-900 hover:text-olive-primary">{{ reminder.lead.name }}</a>
+                                <p class="text-xs text-gray-600 mt-1">{{ reminder.lead.phone }}</p>
+                            </div>
+                            <form method="post" action="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}" 
+                                  hx-post="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}"
+                                  hx-target="closest div"
+                                  hx-swap="outerHTML">
+                                {% csrf_token %}
+                                <button type="submit" class="text-xs text-green-600 hover:text-green-700 min-h-[24px] min-w-[24px]">✓</button>
+                            </form>
+                        </div>
+                        <p class="text-xs text-blue-600 font-medium mb-1">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                        {% if reminder.notes %}
+                        <p class="text-xs text-gray-600 line-clamp-2">{{ reminder.notes }}</p>
+                        {% endif %}
+                        {% if reminder.created_by %}
+                        <p class="text-xs text-gray-500 mt-2">By: {{ reminder.created_by.get_full_name|default:reminder.created_by.username }}</p>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-gray-500 text-center py-4">No upcoming reminders</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Completed Column -->
+            <div class="flex-shrink-0 w-72 bg-green-50 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-green-800">Completed</h3>
+                    <span class="px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold">{{ completed.count }}</span>
+                </div>
+                <div class="space-y-3 max-h-[calc(100vh-16rem)] overflow-y-auto">
+                    {% for reminder in completed %}
+                    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500 opacity-75">
+                        <div class="flex-1 mb-2">
+                            <a href="{% url 'leads:detail' reminder.lead.id %}" class="font-semibold text-sm text-gray-900 hover:text-olive-primary">{{ reminder.lead.name }}</a>
+                            <p class="text-xs text-gray-600 mt-1">{{ reminder.lead.phone }}</p>
+                        </div>
+                        <p class="text-xs text-green-600 font-medium mb-1">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                        {% if reminder.completed_at %}
+                        <p class="text-xs text-gray-500">Completed: {{ reminder.completed_at|date:"d M Y, h:i A" }}</p>
+                        {% endif %}
+                        {% if reminder.notes %}
+                        <p class="text-xs text-gray-600 line-clamp-2 mt-1">{{ reminder.notes }}</p>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-gray-500 text-center py-4">No completed reminders</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile/Tablet List View (≤1024px) -->
+    <div class="lg:hidden">
+        <!-- Tabs -->
+        <div class="flex space-x-2 overflow-x-auto pb-2 mb-4 border-b border-gray-200">
+            <button onclick="showTab('overdue')" id="tab-overdue" class="tab-button px-4 py-2 rounded-t-lg font-medium text-sm whitespace-nowrap bg-red-100 text-red-800 border-b-2 border-red-500">
+                Overdue ({{ overdue.count }})
+            </button>
+            <button onclick="showTab('today')" id="tab-today" class="tab-button px-4 py-2 rounded-t-lg font-medium text-sm whitespace-nowrap text-gray-600 hover:bg-gray-100">
+                Today ({{ today.count }})
+            </button>
+            <button onclick="showTab('upcoming')" id="tab-upcoming" class="tab-button px-4 py-2 rounded-t-lg font-medium text-sm whitespace-nowrap text-gray-600 hover:bg-gray-100">
+                Upcoming ({{ upcoming.count }})
+            </button>
+            <button onclick="showTab('completed')" id="tab-completed" class="tab-button px-4 py-2 rounded-t-lg font-medium text-sm whitespace-nowrap text-gray-600 hover:bg-gray-100">
+                Completed ({{ completed.count }})
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="tab-content-overdue" class="tab-content space-y-3">
+            {% for reminder in overdue %}
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <a href="{% url 'leads:detail' reminder.lead.id %}" class="font-semibold text-base text-gray-900 hover:text-olive-primary">{{ reminder.lead.name }}</a>
+                        <p class="text-sm text-gray-600 mt-1">{{ reminder.lead.phone }}</p>
+                    </div>
+                    <form method="post" action="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}" 
+                          hx-post="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}"
+                          hx-target="closest div"
+                          hx-swap="outerHTML">
+                        {% csrf_token %}
+                        <button type="submit" class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium min-h-[48px] min-w-[48px]">✓</button>
+                    </form>
+                </div>
+                <p class="text-sm text-red-600 font-medium mb-1">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                {% if reminder.notes %}
+                <p class="text-sm text-gray-600 mt-2">{{ reminder.notes }}</p>
+                {% endif %}
+                {% if reminder.created_by %}
+                <p class="text-xs text-gray-500 mt-2">By: {{ reminder.created_by.get_full_name|default:reminder.created_by.username }}</p>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <p class="text-gray-500">No overdue reminders</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="tab-content-today" class="tab-content hidden space-y-3">
+            {% for reminder in today %}
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <a href="{% url 'leads:detail' reminder.lead.id %}" class="font-semibold text-base text-gray-900 hover:text-olive-primary">{{ reminder.lead.name }}</a>
+                        <p class="text-sm text-gray-600 mt-1">{{ reminder.lead.phone }}</p>
+                    </div>
+                    <form method="post" action="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}" 
+                          hx-post="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}"
+                          hx-target="closest div"
+                          hx-swap="outerHTML">
+                        {% csrf_token %}
+                        <button type="submit" class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium min-h-[48px] min-w-[48px]">✓</button>
+                    </form>
+                </div>
+                <p class="text-sm text-yellow-600 font-medium mb-1">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                {% if reminder.notes %}
+                <p class="text-sm text-gray-600 mt-2">{{ reminder.notes }}</p>
+                {% endif %}
+                {% if reminder.created_by %}
+                <p class="text-xs text-gray-500 mt-2">By: {{ reminder.created_by.get_full_name|default:reminder.created_by.username }}</p>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <p class="text-gray-500">No reminders for today</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="tab-content-upcoming" class="tab-content hidden space-y-3">
+            {% for reminder in upcoming %}
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <a href="{% url 'leads:detail' reminder.lead.id %}" class="font-semibold text-base text-gray-900 hover:text-olive-primary">{{ reminder.lead.name }}</a>
+                        <p class="text-sm text-gray-600 mt-1">{{ reminder.lead.phone }}</p>
+                    </div>
+                    <form method="post" action="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}" 
+                          hx-post="{% url 'leads:complete_reminder' reminder.lead.id reminder.id %}"
+                          hx-target="closest div"
+                          hx-swap="outerHTML">
+                        {% csrf_token %}
+                        <button type="submit" class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium min-h-[48px] min-w-[48px]">✓</button>
+                    </form>
+                </div>
+                <p class="text-sm text-blue-600 font-medium mb-1">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                {% if reminder.notes %}
+                <p class="text-sm text-gray-600 mt-2">{{ reminder.notes }}</p>
+                {% endif %}
+                {% if reminder.created_by %}
+                <p class="text-xs text-gray-500 mt-2">By: {{ reminder.created_by.get_full_name|default:reminder.created_by.username }}</p>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <p class="text-gray-500">No upcoming reminders</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="tab-content-completed" class="tab-content hidden space-y-3">
+            {% for reminder in completed %}
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500 opacity-75">
+                <div class="flex-1 mb-2">
+                    <a href="{% url 'leads:detail' reminder.lead.id %}" class="font-semibold text-base text-gray-900 hover:text-olive-primary">{{ reminder.lead.name }}</a>
+                    <p class="text-sm text-gray-600 mt-1">{{ reminder.lead.phone }}</p>
+                </div>
+                <p class="text-sm text-green-600 font-medium mb-1">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                {% if reminder.completed_at %}
+                <p class="text-xs text-gray-500">Completed: {{ reminder.completed_at|date:"d M Y, h:i A" }}</p>
+                {% endif %}
+                {% if reminder.notes %}
+                <p class="text-sm text-gray-600 mt-2">{{ reminder.notes }}</p>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <p class="text-gray-500">No completed reminders</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function showTab(tabName) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        
+        // Remove active state from all tabs
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('bg-red-100', 'text-red-800', 'border-b-2', 'border-red-500');
+            button.classList.remove('bg-yellow-100', 'text-yellow-800', 'border-b-2', 'border-yellow-500');
+            button.classList.remove('bg-blue-100', 'text-blue-800', 'border-b-2', 'border-blue-500');
+            button.classList.remove('bg-green-100', 'text-green-800', 'border-b-2', 'border-green-500');
+            button.classList.add('text-gray-600');
+        });
+        
+        // Show selected tab content
+        const content = document.getElementById(`tab-content-${tabName}`);
+        if (content) {
+            content.classList.remove('hidden');
+        }
+        
+        // Activate selected tab button
+        const button = document.getElementById(`tab-${tabName}`);
+        if (button) {
+            button.classList.remove('text-gray-600');
+            if (tabName === 'overdue') {
+                button.classList.add('bg-red-100', 'text-red-800', 'border-b-2', 'border-red-500');
+            } else if (tabName === 'today') {
+                button.classList.add('bg-yellow-100', 'text-yellow-800', 'border-b-2', 'border-yellow-500');
+            } else if (tabName === 'upcoming') {
+                button.classList.add('bg-blue-100', 'text-blue-800', 'border-b-2', 'border-blue-500');
+            } else if (tabName === 'completed') {
+                button.classList.add('bg-green-100', 'text-green-800', 'border-b-2', 'border-green-500');
+            }
+        }
+    }
+</script>
+{% endblock %}
+
