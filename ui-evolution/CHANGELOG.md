@@ -17,6 +17,31 @@ This file defines what is allowed to change. Only items listed in "Planned" or "
 
 ---
 
+## [0.5.0] – Follow-Ups UI Enhancement
+### Changed
+- Created dedicated follow-ups page with Kanban board (desktop) and list view (mobile/tablet)
+- Desktop: 4-column Kanban board (Overdue, Today, Upcoming, Completed)
+- Mobile/Tablet: Swipeable tabs for status views
+- Filter by assigned user and date range
+- HTMX integration for completing reminders
+- Touch-friendly buttons (48px+ tap targets)
+- Added Follow-Ups link to sidebar navigation
+
+### Scope
+- New page: `/leads/followups/`
+- Desktop: Kanban board layout (≥1025px)
+- Mobile/Tablet: List view with tabs (≤1024px)
+- No backend changes (uses existing reminder model)
+
+### Verified
+- Kanban board works on desktop
+- List view works on mobile/tablet
+- Status updates correctly via HTMX
+- Filtering works
+- Navigation link added
+
+---
+
 ## [0.4.0] – Tablet Split-View Navigation
 ### Changed
 - Implemented split-view layout for tablets (768px-1024px)

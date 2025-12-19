@@ -1,7 +1,7 @@
 # 005 - Follow-Ups UI Enhancement
 
 ## Status
-Planned
+Completed
 
 ## Goal
 Enhance follow-ups interface with Kanban board for desktop and mobile-optimized list for mobile/tablet.
