@@ -1324,6 +1324,7 @@ def verify_otp(request, pk):
         otp_log.save()
         
         # Update associations - mark phone as verified and update status
+        # Assign to the closing manager who verified the OTP
         for association in associations:
             association.phone_verified = True
             if association.is_pretagged:
@@ -1331,6 +1332,12 @@ def verify_otp(request, pk):
             # Update status to visit_completed when OTP is verified
             if association.status != 'booked' and association.status != 'lost':
                 association.status = 'visit_completed'
+            
+            # Assign to the closing manager who verified the OTP
+            # This ensures the lead appears in "My Visits" for that closer
+            if request.user.is_closing_manager():
+                association.assigned_to = request.user
+            
             association.save()
         
         # Create audit log
@@ -2678,20 +2685,92 @@ def whatsapp(request, pk):
     
     message = templates.get(template_key, templates['intro'])
     
-    # Replace placeholders if needed
+    # Get primary association for project details
+    primary_association = lead.project_associations.filter(is_archived=False).first()
+    project = primary_association.project if primary_association else None
+    
+    # Replace placeholders based on template type
     if template_key == 'booking_confirmation':
         # Try to get booking ID if exists
         try:
             booking = lead.bookings.first()  # Get first booking if multiple exist
             if booking:
-                message = message.format(booking_id=booking.id, name=lead.name, project_name=lead.project.name)
+                message = message.format(booking_id=booking.id, name=lead.name, project_name=booking.project.name if booking.project else 'N/A')
             else:
-                message = message.format(booking_id='N/A', name=lead.name, project_name=lead.project.name)
+                message = message.format(booking_id='N/A', name=lead.name, project_name=project.name if project else 'N/A')
         except:
-            message = message.format(booking_id='N/A', name=lead.name, project_name=lead.project.name)
+            message = message.format(booking_id='N/A', name=lead.name, project_name=project.name if project else 'N/A')
+    elif template_key == 'pretag' or template_key == 'at_site':
+        # Pretag and At Site templates for Sourcing Manager
+        from datetime import datetime
+        visit_date = primary_association.visit_scheduled_date.strftime('%d/%m/%Y') if primary_association and primary_association.visit_scheduled_date else datetime.now().strftime('%d/%m/%Y')
+        visit_time = primary_association.time_frame if primary_association and primary_association.time_frame else 'N/A'
+        
+        configs = ', '.join([c.display_name for c in lead.configurations.all()]) if lead.configurations.exists() else '—'
+        budget_display = f'₹{lead.budget/100000:.1f}L' if lead.budget else '—'
+        
+        cp_name = lead.channel_partner.cp_name if lead.channel_partner else (lead.cp_name or '—')
+        cp_firm = lead.channel_partner.firm_name if lead.channel_partner else (lead.cp_firm_name or '—')
+        
+        sm_name = lead.created_by.username if lead.created_by else '—'
+        
+        message = message.format(
+            sm_name=sm_name,
+            cp_firm=cp_firm,
+            project_name=project.name if project else '—',
+            visit_date=visit_date,
+            visit_time=visit_time,
+            client_name=lead.name,
+            client_phone=lead.phone if primary_association and primary_association.phone_verified else '—',
+            requirement=configs,
+            budget=budget_display,
+            residing_location=lead.locality or '—',
+            salaried='Yes' if lead.occupation == 'service' else 'No',
+            annual_income='N/D',
+            cp_name=cp_name
+        )
+    elif template_key == 'closing_manager':
+        # Closing Manager template
+        from datetime import datetime
+        visited_on = primary_association.last_visit_date.strftime('%d/%m/%Y') if primary_association and primary_association.last_visit_date else datetime.now().strftime('%d/%m/%Y')
+        
+        cm_name = primary_association.assigned_to.username if primary_association and primary_association.assigned_to else '—'
+        cp_firm = lead.channel_partner.firm_name if lead.channel_partner else (lead.cp_firm_name or '—')
+        sm_name = lead.created_by.username if lead.created_by else '—'
+        
+        configs = ', '.join([c.display_name for c in lead.configurations.all()]) if lead.configurations.exists() else '—'
+        budget_display = f'₹{lead.budget/100000:.1f}L – ₹{(lead.budget*1.1)/100000:.1f}L' if lead.budget else '—'
+        
+        # Get notes
+        notes = lead.notes or '—'
+        if notes and len(notes) > 200:
+            notes = notes[:200] + '...'
+        
+        message = message.format(
+            client_name=lead.name,
+            cm_name=cm_name,
+            cp_firm=cp_firm,
+            sm_name=sm_name,
+            visited_on=visited_on,
+            current_residence=lead.current_residence or '—',
+            residence_location=lead.locality or '—',
+            work_location=lead.locality or '—',
+            ethnicity='—',
+            typology=configs,
+            carpet_area='—',  # Would need to get from booking/unit
+            ocr='20%',
+            loan_requirement='Yes' if lead.budget else 'No',
+            loan_eligibility='N/A',
+            purpose=lead.purpose or '—',
+            budget=budget_display,
+            tco_offered='Offer cost sheet',
+            tco_expectation=budget_display,
+            remarks=notes,
+            senior_intervention='No'
+        )
     else:
         # Replace placeholders for other templates
-        message = message.format(name=lead.name, project_name=lead.project.name)
+        message = message.format(name=lead.name, project_name=project.name if project else 'N/A')
     
     whatsapp_link = get_whatsapp_link(lead.phone, message)
     

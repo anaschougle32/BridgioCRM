@@ -505,7 +505,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
                         <h3 class="font-heading font-bold mb-3 text-olive-primary">Client Information</h3>
-                        <p><strong>Phone:</strong> <span class="font-mono">{{ phone_display }}</span></p>
+                        {% if primary_association and primary_association.is_pretagged and not primary_association.phone_verified %}
+                            <p><strong>Phone:</strong> <span class="text-gray-400">Hidden (Pretagged - Verify OTP to view)</span></p>
+                        {% else %}
+                            <p><strong>Phone:</strong> <span class="font-mono">{{ phone_display }}</span></p>
+                        {% endif %}
                         <p><strong>Email:</strong> {{ lead.email|default:"-" }}</p>
                         <p><strong>Projects:</strong> 
                             {% if associations %}

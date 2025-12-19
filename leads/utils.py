@@ -163,6 +163,9 @@ def get_whatsapp_templates():
         'intro': 'Hello! Thank you for your interest in our project. I\'m calling from Bridgio CRM. How can I assist you today?',
         'project_details': 'Thank you for your interest! I\'d be happy to share project details with you. Would you like to schedule a site visit?',
         'booking_confirmation': 'Congratulations on your booking! Your booking ID is {booking_id}. We will send you further details shortly.',
+        'pretag': '*SM:* {sm_name}\n*CP firm :* {cp_firm}\n\n*Project Name:* {project_name}\n*Date of Visit:* {visit_date}\n*Timing:* {visit_time}\n\n*Client Name:* {client_name}\n*Client No:* {client_phone}\n\n*Requirement:* {requirement}\n*Budget:* {budget}\n*Residing Location:* {residing_location}\n\n*Salaried:* {salaried}\n*Approx Annual Income:* {annual_income}\n\n*Source:* CP – {cp_name}',
+        'at_site': '*SM:* {sm_name}\n*CP firm :* {cp_firm}\n\n*At site*\n\n*Project Name:* {project_name}\n*Date of Visit:* {visit_date}\n*Timing:* {visit_time}\n\n*Client Name:* {client_name}\n*Client No:* {client_phone}\n\n*Requirement:* {requirement}\n*Budget:* {budget}\n*Residing Location:* {residing_location}\n\n*Salaried:* {salaried}\n*Approx Annual Income:* {annual_income}\n\n*Source:* CP – {cp_name}',
+        'closing_manager': '*Client Name:* {client_name}\n*CM Name:* {cm_name}\n*CP Firm:* {cp_firm}\n*SM:* {sm_name}\n\n*Visited On:* {visited_on}\n\n*Current Residence:* {current_residence}\n*Residence Location:* {residence_location}\n*Work Location:* {work_location}\n*Ethnicity:* {ethnicity}\n\n*Typology:* {typology}\n*Carpet Area:* {carpet_area} sq.ft\n*OCR:* {ocr}\n\n*Loan Requirement:* {loan_requirement}\n*Loan Eligibility:* {loan_eligibility}\n\n*Purpose of Buying:* {purpose}\n*Budget:* {budget}\n\n*TCO Offered:* {tco_offered}\n*TCO Expectation:* {tco_expectation}\n\n*Detailed Remarks:*\n{remarks}\n\n*Senior Intervention:* {senior_intervention}',
     }
 
 
