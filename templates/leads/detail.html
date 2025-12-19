@@ -122,9 +122,9 @@
 </div>
 
 <!-- Mobile Panel View (≤768px) -->
-<div id="mobile-lead-detail" class="fixed top-0 left-0 right-0 bottom-0 bg-white z-[100] md:hidden flex flex-col transform transition-transform duration-300" style="height: 100vh; height: 100dvh;">
+<div id="mobile-lead-detail" class="fixed inset-0 bg-white z-[100] md:hidden flex flex-col transform transition-transform duration-300" style="height: 100vh; height: 100dvh; overflow: hidden;">
     <!-- Sticky Header -->
-    <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10 shadow-sm safe-area-top">
+    <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10 shadow-sm safe-area-top flex-shrink-0">
         <div class="flex items-center justify-between mb-2">
             <div class="flex-1 min-w-0">
                 <h1 class="text-xl font-heading font-bold text-olive-primary truncate">{{ lead.name }}</h1>
@@ -147,7 +147,7 @@
     </div>
     
     <!-- Scrollable Content -->
-    <div class="flex-1 overflow-y-auto p-4 pb-24">
+    <div class="flex-1 overflow-y-auto p-4 pb-24" style="overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;">
         <!-- Mobile Content -->
         <div class="space-y-4">
     
@@ -804,6 +804,35 @@
         const textarea = document.getElementById('notes-textarea-detail');
         if (modal) modal.classList.add('hidden');
         if (textarea) textarea.value = '';
+    });
+    
+    // Hide base header and prevent scrolling when mobile panel is active
+    const mobilePanel = document.getElementById('mobile-lead-detail');
+    const mainHeader = document.getElementById('main-header');
+    const mainContent = document.getElementById('main-content');
+    
+    if (mobilePanel && window.innerWidth < 768) {
+        // Hide base header and prevent main content scrolling
+        if (mainHeader) mainHeader.style.display = 'none';
+        if (mainContent) {
+            mainContent.style.overflow = 'hidden';
+            mainContent.style.height = '100vh';
+        }
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+    }
+    
+    // Cleanup on window resize
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 768) {
+            if (mainHeader) mainHeader.style.display = '';
+            if (mainContent) {
+                mainContent.style.overflow = '';
+                mainContent.style.height = '';
+            }
+            document.body.style.overflow = '';
+        }
     });
 </script>
 {% endblock %}
