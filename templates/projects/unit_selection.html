@@ -592,7 +592,49 @@
         max-height: 50vh;
         overflow-y: auto;
         margin-bottom: 0;
-        z-index: 40;
+        z-index: 60;
+        animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes slideUp {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    @media (min-width: 768px) {
+        #selected-unit-panel {
+            bottom: 0 !important;
+            z-index: 40;
+        }
+    }
+    
+    .selected-unit {
+        position: relative;
+    }
+    
+    .selected-unit::after {
+        content: '✓';
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        background: #4CAF50;
+        color: white;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        z-index: 10;
     }
     
     /* Prevent tooltip from being cut off */
