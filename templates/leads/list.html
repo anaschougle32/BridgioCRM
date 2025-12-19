@@ -6,7 +6,100 @@
 
 {% block page_title %}Leads{% endblock %}
 {% block content %}
-<div class="space-y-4 sm:space-y-6">
+<!-- Tablet Split-View Layout (md: 768px-1024px) -->
+<div class="hidden md:flex lg:hidden h-[calc(100vh-8rem)] -mx-4 sm:-mx-6">
+    <!-- Left Column: Leads List (40%) -->
+    <div class="w-2/5 border-r border-gray-200 overflow-y-auto flex flex-col">
+        <!-- Header with Filters -->
+        <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
+            <h1 class="text-xl font-heading font-bold text-olive-primary mb-3">Leads</h1>
+            
+            <!-- Compact Filters -->
+            <div class="space-y-2">
+                <input type="text" 
+                       name="search" 
+                       placeholder="Search..." 
+                       value="{{ search }}"
+                       hx-get="{% url 'leads:list' %}"
+                       hx-target="#leads-list-tablet"
+                       hx-trigger="keyup changed delay:500ms"
+                       hx-include="[name='status'], [name='project']"
+                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                <div class="flex gap-2">
+                    <select name="status" 
+                            hx-get="{% url 'leads:list' %}"
+                            hx-target="#leads-list-tablet"
+                            hx-trigger="change"
+                            hx-include="[name='search'], [name='project']"
+                            class="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Status</option>
+                        {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="project"
+                            hx-get="{% url 'leads:list' %}"
+                            hx-target="#leads-list-tablet"
+                            hx-trigger="change"
+                            hx-include="[name='search'], [name='status']"
+                            class="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Projects</option>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Leads List -->
+        <div id="leads-list-tablet" class="flex-1 overflow-y-auto">
+            {% for lead in leads %}
+            {% with notif=lead_notifications|get_item:lead.id %}
+            {% with primary_assoc=lead_primary_associations|get_item:lead.id %}
+            <div class="border-b border-gray-200 p-3 hover:bg-gray-50 cursor-pointer transition-colors tablet-lead-item min-h-[48px]"
+                 data-lead-id="{{ lead.id }}"
+                 onclick="loadLeadDetail({{ lead.id }})">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="font-semibold text-sm text-gray-900 truncate flex-1">{{ lead.name }}</h3>
+                    {% if notif.overdue_count > 0 %}
+                    <span class="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-red-100 text-red-800 flex-shrink-0">{{ notif.overdue_count }}</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-600">
+                    <span class="font-mono">{{ phone_display|default:lead.phone }}</span>
+                    {% if primary_assoc %}
+                    <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs">{{ primary_assoc.get_status_display|slice:":10" }}</span>
+                    {% endif %}
+                </div>
+                {% if lead.notes %}
+                {% load lead_filters %}
+                <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ lead.notes|get_last_note|truncatewords:8 }}</p>
+                {% endif %}
+            </div>
+            {% endwith %}
+            {% endwith %}
+            {% empty %}
+            <div class="p-8 text-center">
+                <p class="text-gray-500 text-sm">No leads found</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Right Column: Lead Detail (60%) -->
+    <div class="w-3/5 overflow-y-auto bg-gray-50" id="tablet-lead-detail">
+        <div class="p-6 text-center text-gray-500">
+            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            <p class="text-sm">Select a lead to view details</p>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile & Desktop View (≤767px and ≥1025px) -->
+<div class="md:hidden lg:block space-y-4 sm:space-y-6">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Leads</h1>
         <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
@@ -919,6 +1012,45 @@
     document.body.addEventListener('reloadPage', function() {
         window.location.reload();
     });
+    
+    // Tablet split-view: Load lead detail
+    function loadLeadDetail(leadId) {
+        // Update active state
+        document.querySelectorAll('.tablet-lead-item').forEach(item => {
+            item.classList.remove('bg-blue-50', 'border-l-4', 'border-blue-500');
+        });
+        const selectedItem = document.querySelector(`[data-lead-id="${leadId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('bg-blue-50', 'border-l-4', 'border-blue-500');
+        }
+        
+        // Load detail via HTMX
+        const detailPanel = document.getElementById('tablet-lead-detail');
+        if (detailPanel && typeof htmx !== 'undefined') {
+            htmx.ajax('GET', `/leads/${leadId}/`, {
+                target: '#tablet-lead-detail',
+                swap: 'innerHTML',
+                select: '.hidden.md\\:flex.lg\\:hidden',
+                headers: {'HX-Request': 'true'}
+            }).then(() => {
+                // Scroll to top of detail panel
+                detailPanel.scrollTop = 0;
+            });
+        } else if (detailPanel) {
+            // Fallback: direct fetch
+            fetch(`/leads/${leadId}/`)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const tabletView = doc.querySelector('.hidden.md\\:flex.lg\\:hidden');
+                    if (tabletView) {
+                        detailPanel.innerHTML = tabletView.outerHTML;
+                        detailPanel.scrollTop = 0;
+                    }
+                });
+        }
+    }
     
     // Handle HTMX before request to add headers
     document.body.addEventListener('htmx:configRequest', function(event) {
