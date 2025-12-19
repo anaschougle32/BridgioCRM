@@ -575,6 +575,77 @@ function resetBookingForm() {
     currentLeadIdForOTP = null;
 }
 
+// Listen for OTP verification success
+document.addEventListener('htmx:afterSwap', function(event) {
+    const target = event.detail.target;
+    if (target && (target.id === 'otp-booking-controls' || target.closest('#otp-booking-controls'))) {
+        // Check if OTP was verified by looking for success message
+        setTimeout(() => {
+            const responseText = event.detail.xhr ? event.detail.xhr.responseText : '';
+            const targetElement = typeof target === 'string' ? document.getElementById(target) : target;
+            const successMsg = targetElement ? targetElement.querySelector('.text-green-800, .bg-green-50, .text-green-600, .text-green-700') : null;
+            
+            // Check response text or success message
+            if (responseText && (responseText.includes('Phone verified') || responseText.includes('verified') || responseText.includes('✓'))) {
+                const verifiedIndicator = document.getElementById('otp-verified-indicator');
+                const createBtn = document.getElementById('create-booking-btn');
+                if (verifiedIndicator) {
+                    verifiedIndicator.classList.remove('hidden');
+                }
+                if (createBtn) {
+                    createBtn.disabled = false;
+                    createBtn.textContent = 'Create Booking';
+                }
+            } else if (successMsg && (successMsg.textContent.includes('verified') || successMsg.textContent.includes('Phone verified') || successMsg.textContent.includes('✓'))) {
+                const verifiedIndicator = document.getElementById('otp-verified-indicator');
+                const createBtn = document.getElementById('create-booking-btn');
+                if (verifiedIndicator) {
+                    verifiedIndicator.classList.remove('hidden');
+                }
+                if (createBtn) {
+                    createBtn.disabled = false;
+                    createBtn.textContent = 'Create Booking';
+                }
+            }
+        }, 300);
+    }
+});
+
+// Also listen for OTP verification response
+document.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.path && event.detail.path.includes('verify-otp')) {
+        setTimeout(() => {
+            const otpControls = document.getElementById('otp-booking-controls');
+            if (otpControls) {
+                const responseText = event.detail.xhr ? event.detail.xhr.responseText : '';
+                const successMsg = otpControls.querySelector('.text-green-800, .bg-green-50, .text-green-600, .text-green-700');
+                
+                if (responseText && (responseText.includes('Phone verified') || responseText.includes('verified') || responseText.includes('✓'))) {
+                    const verifiedIndicator = document.getElementById('otp-verified-indicator');
+                    const createBtn = document.getElementById('create-booking-btn');
+                    if (verifiedIndicator) {
+                        verifiedIndicator.classList.remove('hidden');
+                    }
+                    if (createBtn) {
+                        createBtn.disabled = false;
+                        createBtn.textContent = 'Create Booking';
+                    }
+                } else if (successMsg && (successMsg.textContent.includes('verified') || successMsg.textContent.includes('Phone verified') || successMsg.textContent.includes('✓'))) {
+                    const verifiedIndicator = document.getElementById('otp-verified-indicator');
+                    const createBtn = document.getElementById('create-booking-btn');
+                    if (verifiedIndicator) {
+                        verifiedIndicator.classList.remove('hidden');
+                    }
+                    if (createBtn) {
+                        createBtn.disabled = false;
+                        createBtn.textContent = 'Create Booking';
+                    }
+                }
+            }
+        }, 300);
+    }
+});
+
 // Notes functionality for booking
 let bookingNotes = [];
 
