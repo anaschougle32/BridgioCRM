@@ -5,7 +5,302 @@
 {% block title %}{{ lead.name }} - Bridgio CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+<!-- Mobile Panel View (≤768px) -->
+<div id="mobile-lead-detail" class="fixed inset-0 bg-white z-50 md:hidden flex flex-col transform transition-transform duration-300">
+    <!-- Sticky Header -->
+    <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl font-heading font-bold text-olive-primary truncate">{{ lead.name }}</h1>
+                <div class="flex items-center gap-2 mt-1">
+                    {% if primary_association %}
+                    <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full {% if primary_association.status == 'visit_completed' %}bg-green-100 text-green-800{% elif primary_association.status == 'visit_scheduled' %}bg-blue-100 text-blue-800{% elif primary_association.status == 'interested' %}bg-purple-100 text-purple-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ primary_association.get_status_display }}
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">New</span>
+                    {% endif %}
+                </div>
+            </div>
+            <button onclick="window.history.back()" class="ml-3 p-2 text-gray-600 hover:text-gray-800 min-h-[48px] min-w-[48px] flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Scrollable Content -->
+    <div class="flex-1 overflow-y-auto p-4 pb-24">
+        <!-- Mobile Content -->
+        <div class="space-y-4">
+    
+    <!-- Quick Actions Bar -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-3 sm:p-4">
+        <div class="flex flex-wrap gap-2 sm:gap-3 items-center">
+            <a href="{{ tel_link }}" 
+               class="inline-flex items-center px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm sm:text-base">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                </svg>
+                <span class="hidden sm:inline">Call Now</span>
+                <span class="sm:hidden">Call</span>
+            </a>
+            
+            <!-- WhatsApp Templates -->
+            <div class="relative inline-block">
+                <button onclick="document.getElementById('whatsapp-menu').classList.toggle('hidden')" 
+                        class="inline-flex items-center px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm sm:text-base">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                    <span class="hidden sm:inline">WhatsApp</span>
+                    <span class="sm:hidden">WA</span>
+                </button>
+                <div id="whatsapp-menu" class="hidden absolute left-0 mt-2 w-48 sm:w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                    <div class="p-2">
+                        <a href="{% url 'leads:whatsapp' lead.id %}?template=intro" 
+                           target="_blank"
+                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📝 Intro Message</a>
+                        <a href="{% url 'leads:whatsapp' lead.id %}?template=project_details" 
+                           target="_blank"
+                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">🏢 Project Details</a>
+                        <a href="{% url 'leads:whatsapp' lead.id %}?template=booking_confirmation" 
+                           target="_blank"
+                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">✅ Booking Confirmation</a>
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="document.getElementById('call-modal').classList.remove('hidden')" 
+                    class="inline-flex items-center px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm sm:text-base">
+                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                <span class="hidden sm:inline">Log Call</span>
+                <span class="sm:hidden">Call</span>
+            </button>
+            
+            <button onclick="document.getElementById('reminder-modal').classList.remove('hidden')" 
+                    class="inline-flex items-center px-3 sm:px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm sm:text-base">
+                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="hidden sm:inline">Set Reminder</span>
+                <span class="sm:hidden">Reminder</span>
+            </button>
+            
+            {% if user.is_closing_manager or user.is_super_admin %}
+                {% if primary_association %}
+                    {% if primary_association.status != 'lost' and primary_association.status != 'booked' %}
+                        {% if not primary_association.is_pretagged or primary_association.phone_verified %}
+                            <a href="{% url 'bookings:create' lead.id %}?project={{ primary_association.project_id }}" 
+                               class="inline-flex items-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base">
+                                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <span class="hidden sm:inline">Create Booking</span>
+                                <span class="sm:hidden">Booking</span>
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                {% endif %}
+                {% if lead.bookings.exists %}
+                    <a href="{% url 'bookings:list' %}?search={{ lead.name }}" 
+                       class="inline-flex items-center px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm sm:text-base">
+                        <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span class="hidden sm:inline">View Bookings ({{ lead.bookings.count }})</span>
+                        <span class="sm:hidden">Bookings</span>
+                    </a>
+                {% endif %}
+            {% endif %}
+                </div>
+            </div>
+            
+            <!-- Main Info (Mobile) -->
+            <div class="space-y-4">
+                <!-- Collapsible Section: Client Information -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                    <button onclick="toggleMobileSection('client-info')" class="w-full flex justify-between items-center p-4 text-left">
+                        <h3 class="font-heading font-bold text-olive-primary">Client Information</h3>
+                        <svg id="client-info-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="client-info-content" class="hidden px-4 pb-4">
+                        <div class="space-y-3">
+                            <p><strong>Phone:</strong> <span class="font-mono">{{ phone_display }}</span></p>
+                            <p><strong>Email:</strong> {{ lead.email|default:"-" }}</p>
+                            <p><strong>Projects:</strong> 
+                                {% if associations %}
+                                    {% for assoc in associations %}
+                                        <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs mr-1">{{ assoc.project.name }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-gray-400">No projects assigned</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Configurations:</strong> 
+                                {% if lead.configurations.all %}
+                                    {% for config in lead.configurations.all %}
+                                        <span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded text-xs mr-1">{{ config.display_name }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-gray-400">None selected</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Assigned To:</strong> 
+                                {% if primary_association and primary_association.assigned_to %}
+                                    {{ primary_association.assigned_to.username }}
+                                {% else %}
+                                    <span class="text-gray-400">Unassigned</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Created By:</strong> {{ lead.created_by.username|default:"-" }}</p>
+                            <p><strong>Created At:</strong> {{ lead.created_at|date:"d M Y, h:i A" }}</p>
+                            {% if primary_association and primary_association.is_pretagged %}
+                            <p><strong>Pretag Status:</strong> {{ primary_association.get_pretag_status_display|default:"-" }}</p>
+                            <p><strong>Phone Verified:</strong> {% if primary_association.phone_verified %}✓ Yes{% else %}✗ No{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Collapsible Section: Notes -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                    <button onclick="toggleMobileSection('notes')" class="w-full flex justify-between items-center p-4 text-left">
+                        <h3 class="font-heading font-bold text-olive-primary">Notes</h3>
+                        <svg id="notes-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="notes-content" class="hidden px-4 pb-4">
+                        <div class="mb-3">
+                            <button onclick="document.getElementById('notes-modal').classList.remove('hidden'); document.getElementById('notes-textarea-detail').value = '';" 
+                                    class="w-full px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm min-h-[48px]">
+                                + Add Note
+                            </button>
+                        </div>
+                        <div id="notes-section">
+                        {% if lead.notes %}
+                        <div class="space-y-3">
+                            {% for note in lead.notes|split_by_timestamp %}
+                            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                {% if note.timestamp %}
+                                <div class="text-xs text-gray-500 mb-2">--- {{ note.timestamp }} ({{ note.user }}) ---</div>
+                                {% endif %}
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ note.content }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                            {% else %}
+                            <p class="text-sm text-gray-500 mb-3">No notes added yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Collapsible Section: OTP -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                    <button onclick="toggleMobileSection('otp')" class="w-full flex justify-between items-center p-4 text-left">
+                        <h3 class="font-heading font-bold text-olive-primary">OTP Verification</h3>
+                        <svg id="otp-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="otp-content" class="hidden px-4 pb-4">
+                        {% include 'leads/otp_section.html' %}
+                    </div>
+                </div>
+                
+                <!-- Collapsible Section: Call History -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                    <button onclick="toggleMobileSection('call-history')" class="w-full flex justify-between items-center p-4 text-left">
+                        <h3 class="font-heading font-bold text-olive-primary">Call History</h3>
+                        <svg id="call-history-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="call-history-content" class="hidden px-4 pb-4">
+                        {% if call_logs %}
+                <div class="space-y-3">
+                    {% for call in call_logs %}
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium">{{ call.get_outcome_display }}</p>
+                                <p class="text-xs text-gray-600">{{ call.created_at|date:"d M Y, h:i A" }} by {{ call.called_by.username }}</p>
+                                {% if call.notes %}
+                                <p class="text-sm text-gray-700 mt-1">{{ call.notes }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                        {% else %}
+                        <p class="text-gray-500 text-sm">No call logs yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Collapsible Section: Reminders -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                    <button onclick="toggleMobileSection('reminders')" class="w-full flex justify-between items-center p-4 text-left">
+                        <h3 class="font-heading font-bold text-olive-primary">Upcoming Reminders</h3>
+                        <svg id="reminders-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="reminders-content" class="hidden px-4 pb-4">
+                {% if reminders %}
+                <div class="space-y-3">
+                    {% for reminder in reminders %}
+                    <div class="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium">{{ reminder.reminder_date|date:"d M Y, h:i A" }}</p>
+                                {% if reminder.notes %}
+                                <p class="text-sm text-gray-700 mt-1">{{ reminder.notes }}</p>
+                                {% endif %}
+                            </div>
+                            <form method="post" action="{% url 'leads:complete_reminder' lead.id reminder.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="text-xs text-green-600 hover:text-green-700">✓ Complete</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                        {% else %}
+                        <p class="text-gray-500 text-sm">No active reminders.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Fixed Action Buttons (Mobile) -->
+    <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4 z-10 shadow-lg">
+        <div class="flex gap-3">
+            <a href="{{ tel_link }}" 
+               target="_blank"
+               class="flex-1 inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-base font-medium min-h-[56px]">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                </svg>
+                Call
+            </a>
+            {% if lead.email %}
+            <a href="mailto:{{ lead.email }}" 
+               class="flex-1 inline-flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-base font-medium min-h-[56px]">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                Email
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Desktop View (≥769px) -->
+<div class="hidden md:block max-w-6xl mx-auto space-y-4 sm:space-y-6">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">{{ lead.name }}</h1>
         <a href="{% url 'leads:list' %}" class="text-sm sm:text-base text-olive-primary hover:text-olive-secondary">← Back to Leads</a>
@@ -140,7 +435,7 @@
                     </div>
                 </div>
                 
-                <!-- Notes Section - Critical for lead management -->
+                <!-- Notes Section -->
                 <div class="mt-6">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="font-heading font-bold text-olive-primary">Notes</h3>
@@ -167,7 +462,7 @@
                     </div>
                 </div>
                 
-                <!-- OTP Section - Available for all leads -->
+                <!-- OTP Section -->
                 <div class="mt-6">
                     {% include 'leads/otp_section.html' %}
                 </div>
