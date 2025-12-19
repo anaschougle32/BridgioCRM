@@ -919,26 +919,21 @@
                 // ?: Show Keyboard Shortcuts Help
                 if (e.key === '?' && !e.shiftKey) {
                     e.preventDefault();
-                    const helpModal = document.getElementById('keyboard-shortcuts-help');
-                    if (helpModal) {
-                        helpModal.classList.remove('hidden');
-                        // Auto-dismiss after 5 seconds
-                        clearTimeout(window.shortcutsHelpTimeout);
-                        window.shortcutsHelpTimeout = setTimeout(() => {
-                            helpModal.classList.add('hidden');
-                        }, 5000);
+                    if (window.showKeyboardShortcutsHelp) {
+                        window.showKeyboardShortcutsHelp();
                     }
                 }
                 
                 // Escape: Close modals and help
                 if (e.key === 'Escape') {
-                    const helpModal = document.getElementById('keyboard-shortcuts-help');
-                    if (helpModal && !helpModal.classList.contains('hidden')) {
-                        helpModal.classList.add('hidden');
-                        clearTimeout(window.shortcutsHelpTimeout);
+                    if (window.closeKeyboardShortcutsHelp) {
+                        window.closeKeyboardShortcutsHelp();
                     }
-                    document.querySelectorAll('.hidden[id*="modal"]').forEach(modal => {
-                        modal.classList.add('hidden');
+                    // Close other modals
+                    document.querySelectorAll('[id*="modal"]:not(.hidden)').forEach(modal => {
+                        if (modal.id !== 'keyboard-shortcuts-help') {
+                            modal.classList.add('hidden');
+                        }
                     });
                 }
             });
@@ -949,15 +944,55 @@
                     setTimeout(() => { quickSearchActive = false; }, 100);
                 }
             });
+            
+            // Function to close keyboard shortcuts modal
+            window.closeKeyboardShortcutsHelp = function() {
+                const helpModal = document.getElementById('keyboard-shortcuts-help');
+                if (helpModal) {
+                    helpModal.classList.add('hidden');
+                    if (window.shortcutsHelpTimeout) {
+                        clearTimeout(window.shortcutsHelpTimeout);
+                        window.shortcutsHelpTimeout = null;
+                    }
+                }
+            };
+            
+            // Function to show keyboard shortcuts modal
+            window.showKeyboardShortcutsHelp = function() {
+                const helpModal = document.getElementById('keyboard-shortcuts-help');
+                if (helpModal) {
+                    // Clear any existing timeout
+                    if (window.shortcutsHelpTimeout) {
+                        clearTimeout(window.shortcutsHelpTimeout);
+                    }
+                    // Show modal
+                    helpModal.classList.remove('hidden');
+                    // Auto-dismiss after 5 seconds
+                    window.shortcutsHelpTimeout = setTimeout(() => {
+                        window.closeKeyboardShortcutsHelp();
+                    }, 5000);
+                }
+            };
+            
+            // Set up backdrop click handler
+            const helpModal = document.getElementById('keyboard-shortcuts-help');
+            if (helpModal) {
+                helpModal.addEventListener('click', function(e) {
+                    // Close if clicking on the backdrop (not the modal content)
+                    if (e.target.id === 'keyboard-shortcuts-help') {
+                        window.closeKeyboardShortcutsHelp();
+                    }
+                });
+            }
         }
     </script>
     
     <!-- Keyboard Shortcuts Help Modal (Desktop Only) -->
-    <div id="keyboard-shortcuts-help" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center lg:block" onclick="if(event.target.id === 'keyboard-shortcuts-help') { document.getElementById('keyboard-shortcuts-help').classList.add('hidden'); clearTimeout(window.shortcutsHelpTimeout); }">
+    <div id="keyboard-shortcuts-help" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center lg:block">
         <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-heading font-bold text-olive-primary">Keyboard Shortcuts</h3>
-                <button onclick="document.getElementById('keyboard-shortcuts-help').classList.add('hidden'); clearTimeout(window.shortcutsHelpTimeout);" class="text-gray-500 hover:text-gray-700 transition-colors p-1">
+                <button onclick="window.closeKeyboardShortcutsHelp()" class="text-gray-500 hover:text-gray-700 transition-colors p-1 min-h-[32px] min-w-[32px] flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
