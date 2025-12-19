@@ -494,60 +494,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    function toggleHighriseFields() {
-        const enabled = document.getElementById('highrise_enabled').checked;
-        const fields = document.getElementById('highrise-fields');
-        if (enabled) {
-            fields.classList.remove('hidden');
-            // Make required fields actually required
-            document.getElementById('highrise_floor_threshold').required = true;
-        } else {
-            fields.classList.add('hidden');
-            // Remove required attribute
-            document.getElementById('highrise_floor_threshold').required = false;
-        }
-    }
-    
-    function togglePricingTypeFields() {
-        const pricingType = document.getElementById('highrise_pricing_type').value;
-        const fixedField = document.getElementById('fixed-price-field');
-        const perSqftField = document.getElementById('per-sqft-field');
-        
-        if (pricingType === 'fixed') {
-            fixedField.classList.remove('hidden');
-            perSqftField.classList.add('hidden');
-            document.getElementById('highrise_fixed_price_increment').required = true;
-            document.getElementById('highrise_per_sqft_increment').required = false;
-        } else {
-            fixedField.classList.add('hidden');
-            perSqftField.classList.remove('hidden');
-            document.getElementById('highrise_fixed_price_increment').required = false;
-            document.getElementById('highrise_per_sqft_increment').required = true;
-        }
-    }
-    
-    function toggleDevChargesFields() {
-        const devChargesType = document.getElementById('highrise_dev_charges_type').value;
-        const fixedField = document.getElementById('dev-charges-fixed-field');
-        const perSqftField = document.getElementById('dev-charges-per-sqft-field');
-        
-        if (devChargesType === 'fixed') {
-            fixedField.classList.remove('hidden');
-            perSqftField.classList.add('hidden');
-        } else {
-            fixedField.classList.add('hidden');
-            perSqftField.classList.remove('hidden');
-        }
-    }
-    
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        togglePricingTypeFields();
-        toggleDevChargesFields();
-    });
-</script>
-{% block extra_js %}
 <script id="commercial-floors-data" type="application/json">{{ commercial_floors_data|safe }}</script>
 <script>
     function toggleHighriseFields() {
