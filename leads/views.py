@@ -1105,11 +1105,25 @@ def send_otp(request, pk):
     
     # Check for verified OTP first (for pretagged leads that are already verified)
     # BUT: Skip this check if it's for booking conversion - always generate new OTP for bookings
+    # ALSO: For pretagged leads, OTP verification is project-specific
+    # If verifying for a different project, don't show previous verified OTP
     verified_otp = None
     if is_pretagged and not is_booking_context:
-        verified_otp = lead.otp_logs.filter(
-            is_verified=True
-        ).order_by('-verified_at').first()
+        # For pretagged leads, check if there's a verified OTP for THIS specific project
+        # We check by looking at the association's phone_verified status for this project
+        if project_id:
+            project_association = associations.filter(project_id=project_id, is_archived=False).first()
+            if project_association and project_association.phone_verified:
+                # This project is already verified, show verified status
+                verified_otp = lead.otp_logs.filter(
+                    is_verified=True
+                ).order_by('-verified_at').first()
+        else:
+            # No specific project, check if any project is verified
+            if associations.filter(phone_verified=True).exists():
+                verified_otp = lead.otp_logs.filter(
+                    is_verified=True
+                ).order_by('-verified_at').first()
     
     # Check for active unverified OTP
     active_otp = lead.otp_logs.filter(
