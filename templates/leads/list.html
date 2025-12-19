@@ -421,24 +421,60 @@
     
     <!-- Leads Table - Desktop View (≥769px) -->
     <div class="hidden md:block bg-white rounded-custom shadow-md overflow-hidden">
+        <!-- Desktop Bulk Actions Bar (≥1025px) -->
+        <div class="hidden lg:flex items-center justify-between px-6 py-3 bg-gray-50 border-b border-gray-200">
+            <div class="flex items-center space-x-4">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" id="bulk-select-all" class="w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary">
+                    <span class="text-sm text-gray-700">Select All</span>
+                </label>
+                <span id="bulk-selected-count" class="text-sm text-gray-600 hidden">0 selected</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <select id="bulk-action-select" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary" disabled>
+                    <option value="">Bulk Actions</option>
+                    <option value="assign">Assign To...</option>
+                    <option value="status">Change Status...</option>
+                    <option value="export">Export Selected</option>
+                </select>
+                <button id="bulk-action-apply" class="px-4 py-1.5 text-sm bg-olive-primary text-white rounded-lg hover:bg-olive-secondary disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Apply
+                </button>
+            </div>
+        </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase lg:w-12">
+                            <input type="checkbox" class="bulk-select-all-checkbox w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary hidden lg:block">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none sortable-column" data-column="name">
+                            Name
+                            <span class="sort-icon inline-block ml-1 text-gray-400">⇅</span>
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Budget</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none sortable-column" data-column="budget">
+                            Budget
+                            <span class="sort-icon inline-block ml-1 text-gray-400">⇅</span>
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Configuration</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CP ID</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none sortable-column" data-column="status">
+                            Status
+                            <span class="sort-icon inline-block ml-1 text-gray-400">⇅</span>
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                 {% for lead in leads %}
                 {% with notif=lead_notifications|get_item:lead.id %}
-                <tr class="hover:bg-gray-50" id="lead-row-{{ lead.id }}">
+                <tr class="hover:bg-gray-50 {% cycle 'bg-white' 'bg-gray-50' %}" id="lead-row-{{ lead.id }}">
+                    <td class="px-6 py-3 lg:w-12">
+                        <input type="checkbox" class="bulk-select-checkbox w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary hidden lg:block" value="{{ lead.id }}" data-lead-id="{{ lead.id }}">
+                    </td>
                     <td class="px-3 sm:px-6 py-3 sm:py-4">
                         <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                             <span class="font-medium text-sm sm:text-base">{{ lead.name }}</span>

@@ -865,7 +865,121 @@
                 });
             }
         });
+        
+        // Desktop Keyboard Shortcuts (≥1025px only)
+        if (window.innerWidth >= 1025) {
+            let quickSearchActive = false;
+            
+            document.addEventListener('keydown', function(e) {
+                // Don't trigger shortcuts when typing in inputs, textareas, or contenteditable
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                    // Allow / for quick search even in inputs
+                    if (e.key === '/' && !quickSearchActive) {
+                        e.preventDefault();
+                        const searchInput = document.querySelector('input[name="search"]');
+                        if (searchInput) {
+                            searchInput.focus();
+                            searchInput.select();
+                            quickSearchActive = true;
+                        }
+                    }
+                    return;
+                }
+                
+                // Ctrl+N: New Lead
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    const newLeadLink = document.querySelector('a[href*="create"]');
+                    if (newLeadLink) {
+                        window.location.href = newLeadLink.href;
+                    }
+                }
+                
+                // Ctrl+F: Focus Search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                    e.preventDefault();
+                    const searchInput = document.querySelector('input[name="search"]');
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                }
+                
+                // /: Quick Search
+                if (e.key === '/' && !quickSearchActive) {
+                    e.preventDefault();
+                    const searchInput = document.querySelector('input[name="search"]');
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                        quickSearchActive = true;
+                    }
+                }
+                
+                // ?: Show Keyboard Shortcuts Help
+                if (e.key === '?' && !e.shiftKey) {
+                    e.preventDefault();
+                    const helpModal = document.getElementById('keyboard-shortcuts-help');
+                    if (helpModal) {
+                        helpModal.classList.remove('hidden');
+                    }
+                }
+                
+                // Escape: Close modals and help
+                if (e.key === 'Escape') {
+                    document.querySelectorAll('.hidden[id*="modal"], .hidden[id*="help"]').forEach(modal => {
+                        modal.classList.add('hidden');
+                    });
+                }
+            });
+            
+            // Reset quick search flag when search input loses focus
+            document.addEventListener('focusout', function(e) {
+                if (e.target.name === 'search') {
+                    setTimeout(() => { quickSearchActive = false; }, 100);
+                }
+            });
+        }
     </script>
+    
+    <!-- Keyboard Shortcuts Help Modal (Desktop Only) -->
+    <div id="keyboard-shortcuts-help" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center lg:block">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-heading font-bold text-olive-primary">Keyboard Shortcuts</h3>
+                <button onclick="document.getElementById('keyboard-shortcuts-help').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span class="text-sm text-gray-700">New Lead</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">Ctrl+N</kbd>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span class="text-sm text-gray-700">Focus Search</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">Ctrl+F</kbd>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span class="text-sm text-gray-700">Quick Search</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">/</kbd>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span class="text-sm text-gray-700">Show Shortcuts</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">?</kbd>
+                </div>
+                <div class="flex justify-between items-center py-2">
+                    <span class="text-sm text-gray-700">Close Modal</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">Esc</kbd>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <p class="text-xs text-gray-500">Press <kbd class="px-1 py-0.5 bg-gray-100 rounded text-xs font-mono">?</kbd> anytime to see this help</p>
+            </div>
+        </div>
+    </div>
     {% else %}
     <!-- Login Page (No Sidebar) -->
     {% block login_content %}{% endblock %}
