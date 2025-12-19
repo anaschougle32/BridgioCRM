@@ -226,6 +226,10 @@
                     <button id="book-units-btn" onclick="bookSelectedUnits()" class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition font-medium">
                         Book Selected Units
                     </button>
+                    {% else %}
+                    <button id="calculate-units-btn" onclick="calculateSelectedUnits()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">
+                        Calculate Selected Units
+                    </button>
                     {% endif %}
                     <button onclick="closeUnitPanel()" class="text-gray-500 hover:text-gray-700">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -306,9 +310,16 @@
         
         panel.classList.remove('hidden');
         if (countSpan) countSpan.textContent = selectedUnits.size;
+        
+        const bookBtn = document.getElementById('book-units-btn');
+        const calcBtn = document.getElementById('calculate-units-btn');
         if (bookBtn) {
             bookBtn.disabled = false;
             bookBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        if (calcBtn) {
+            calcBtn.disabled = false;
+            calcBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
         
         // Fetch unit details via AJAX or use data attributes
@@ -347,6 +358,21 @@
         // Redirect to booking create with selected unit IDs
         window.location.href = `/bookings/create/${leadId}/?project_id=${projectId}&unit_ids=${unitIds}&from_unit=1`;
         {% endif %}
+    }
+    
+    function calculateSelectedUnits() {
+        if (selectedUnits.size === 0) {
+            alert('Please select at least one unit');
+            return;
+        }
+        
+        // For now, calculate the first selected unit
+        // In future, we can add a multi-unit calculation view
+        const firstUnitId = Array.from(selectedUnits)[0];
+        const projectId = {{ project.id }};
+        
+        // Redirect to unit calculation page for the first selected unit
+        window.location.href = `/projects/${projectId}/units/${firstUnitId}/calculate/`;
     }
     
     function closeUnitPanel() {

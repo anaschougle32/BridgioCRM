@@ -122,9 +122,9 @@
 </div>
 
 <!-- Mobile Panel View (≤768px) -->
-<div id="mobile-lead-detail" class="fixed inset-0 bg-white z-50 md:hidden flex flex-col transform transition-transform duration-300">
+<div id="mobile-lead-detail" class="fixed top-0 left-0 right-0 bottom-0 bg-white z-[100] md:hidden flex flex-col transform transition-transform duration-300" style="height: 100vh; height: 100dvh;">
     <!-- Sticky Header -->
-    <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10 shadow-sm">
+    <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10 shadow-sm safe-area-top">
         <div class="flex items-center justify-between mb-2">
             <div class="flex-1 min-w-0">
                 <h1 class="text-xl font-heading font-bold text-olive-primary truncate">{{ lead.name }}</h1>
