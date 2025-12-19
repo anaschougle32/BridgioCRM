@@ -175,15 +175,28 @@
                 </button>
                 <div id="whatsapp-menu" class="hidden absolute left-0 mt-2 w-48 sm:w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                     <div class="p-2">
-                        <a href="{% url 'leads:whatsapp' lead.id %}?template=intro" 
-                           target="_blank"
-                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📝 Intro Message</a>
-                        <a href="{% url 'leads:whatsapp' lead.id %}?template=project_details" 
-                           target="_blank"
-                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">🏢 Project Details</a>
-                        <a href="{% url 'leads:whatsapp' lead.id %}?template=booking_confirmation" 
-                           target="_blank"
-                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">✅ Booking Confirmation</a>
+                        {% if user.is_sourcing_manager %}
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=pretag" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">🏷️ Pretag Message</a>
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=at_site" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📍 At Site Message</a>
+                        {% elif user.is_closing_manager or user.is_super_admin %}
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=closing_manager" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📋 Closing Manager Template</a>
+                        {% else %}
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=intro" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📝 Intro Message</a>
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=project_details" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">🏢 Project Details</a>
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=booking_confirmation" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">✅ Booking Confirmation</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -446,15 +459,28 @@
                 </button>
                 <div id="whatsapp-menu" class="hidden absolute left-0 mt-2 w-48 sm:w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                     <div class="p-2">
-                        <a href="{% url 'leads:whatsapp' lead.id %}?template=intro" 
-                           target="_blank"
-                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📝 Intro Message</a>
-                        <a href="{% url 'leads:whatsapp' lead.id %}?template=project_details" 
-                           target="_blank"
-                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">🏢 Project Details</a>
-                        <a href="{% url 'leads:whatsapp' lead.id %}?template=booking_confirmation" 
-                           target="_blank"
-                           class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">✅ Booking Confirmation</a>
+                        {% if user.is_sourcing_manager %}
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=pretag" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">🏷️ Pretag Message</a>
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=at_site" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📍 At Site Message</a>
+                        {% elif user.is_closing_manager or user.is_super_admin %}
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=closing_manager" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📋 Closing Manager Template</a>
+                        {% else %}
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=intro" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">📝 Intro Message</a>
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=project_details" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">🏢 Project Details</a>
+                            <a href="{% url 'leads:whatsapp' lead.id %}?template=booking_confirmation" 
+                               target="_blank"
+                               class="block px-3 sm:px-4 py-2 hover:bg-gray-100 rounded text-xs sm:text-sm">✅ Booking Confirmation</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
