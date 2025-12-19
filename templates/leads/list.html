@@ -146,83 +146,106 @@
     {% endif %}
     
     <!-- Filters -->
-    <div class="bg-white rounded-custom shadow-md p-3 sm:p-4">
-        <form method="get" class="space-y-3">
-            <!-- First Row: Search and Basic Filters -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <input type="text" name="search" placeholder="Search by name, phone, email, notes... (Press / to focus)" 
-                       value="{{ search }}"
-                       id="search-input"
-                       class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                <select name="status" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    <option value="">All Status</option>
-                    {% for value, label in status_choices %}
-                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <select name="project" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    <option value="">All Projects</option>
-                    {% for project in projects %}
-                    <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
-                    {% endfor %}
-                </select>
-                <select name="pretag_status" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    <option value="">All Pretags</option>
-                    {% for value, label in pretag_status_choices %}
-                    <option value="{{ value }}" {% if selected_pretag_status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <!-- Second Row: Advanced Filters -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                <select name="configuration" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    <option value="">All Configurations</option>
-                    {% for config in configurations %}
-                    <option value="{{ config.id }}" {% if selected_configuration == config.id|stringformat:"s" %}selected{% endif %}>{{ config.display_name }}</option>
-                    {% endfor %}
-                </select>
-                <select name="budget" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    <option value="">All Budgets</option>
-                    <option value="no_budget" {% if selected_budget == 'no_budget' %}selected{% endif %}>No Budget</option>
-                    <option value="under_50l" {% if selected_budget == 'under_50l' %}selected{% endif %}>Under ₹50L</option>
-                    <option value="50l_to_1cr" {% if selected_budget == '50l_to_1cr' %}selected{% endif %}>₹50L - ₹1Cr</option>
-                    <option value="1cr_to_2cr" {% if selected_budget == '1cr_to_2cr' %}selected{% endif %}>₹1Cr - ₹2Cr</option>
-                    <option value="over_2cr" {% if selected_budget == 'over_2cr' %}selected{% endif %}>Over ₹2Cr</option>
-                </select>
-                <select name="assigned_to" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    <option value="">All Assignees</option>
-                    {% for assignee in assignees %}
-                    <option value="{{ assignee.id }}" {% if selected_assigned_to == assignee.id|stringformat:"s" %}selected{% endif %}>{{ assignee.username }}</option>
-                    {% endfor %}
-                </select>
-                <select name="channel_partner" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-                    <option value="">All Channel Partners</option>
-                    {% for cp in channel_partners %}
-                    <option value="{{ cp.id }}" {% if selected_channel_partner == cp.id|stringformat:"s" %}selected{% endif %}>{{ cp.cp_name }} ({{ cp.cp_unique_id }})</option>
-                    {% endfor %}
-                </select>
-                <div class="flex gap-2">
-                    <input type="date" name="date_from" value="{{ date_from }}" placeholder="From Date"
-                           class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary flex-1">
-                    <input type="date" name="date_to" value="{{ date_to }}" placeholder="To Date"
-                           class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary flex-1">
+    <div class="bg-white rounded-custom shadow-md overflow-hidden">
+        <form method="get" class="space-y-0">
+            <!-- Filter Header (Always Visible) -->
+            <div class="p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <button type="button" 
+                                id="filter-toggle"
+                                onclick="toggleFilters()"
+                                class="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-olive-primary transition-colors">
+                            <svg id="filter-chevron" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                            <span>Filters</span>
+                            <span id="active-filter-count" class="ml-2 px-2 py-0.5 text-xs bg-olive-primary text-white rounded-full hidden">0</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" name="search" placeholder="Search by name, phone, email, notes... (Press / to focus)" 
+                               value="{{ search }}"
+                               id="search-input"
+                               class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary w-48 sm:w-64">
+                    </div>
                 </div>
             </div>
-            <!-- Third Row: Action Buttons -->
-            <div class="flex flex-wrap gap-3">
-                <button type="submit" class="bg-olive-primary text-white px-4 py-2 rounded-custom hover:bg-olive-secondary transition">
-                    Filter
-                </button>
-                <a href="{% url 'leads:list' %}" class="px-4 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition">
-                    Clear
-                </a>
-                {% if user.is_super_admin or user.is_mandate_owner or user.is_site_head %}
-                <a href="{% url 'leads:download' %}?{{ request.GET.urlencode }}" 
-                   class="bg-green-600 text-white px-4 py-2 rounded-custom hover:bg-green-700 transition flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    Download
-                </a>
-                {% endif %}
+            
+            <!-- Collapsible Filter Content -->
+            <div id="filter-content" class="hidden p-3 sm:p-4 space-y-3">
+                <!-- First Row: Basic Filters -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <select name="status" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Status</option>
+                        {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="project" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Projects</option>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="pretag_status" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Pretags</option>
+                        {% for value, label in pretag_status_choices %}
+                        <option value="{{ value }}" {% if selected_pretag_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="configuration" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Configurations</option>
+                        {% for config in configurations %}
+                        <option value="{{ config.id }}" {% if selected_configuration == config.id|stringformat:"s" %}selected{% endif %}>{{ config.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Second Row: Advanced Filters -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <select name="budget" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Budgets</option>
+                        <option value="no_budget" {% if selected_budget == 'no_budget' %}selected{% endif %}>No Budget</option>
+                        <option value="under_50l" {% if selected_budget == 'under_50l' %}selected{% endif %}>Under ₹50L</option>
+                        <option value="50l_to_1cr" {% if selected_budget == '50l_to_1cr' %}selected{% endif %}>₹50L - ₹1Cr</option>
+                        <option value="1cr_to_2cr" {% if selected_budget == '1cr_to_2cr' %}selected{% endif %}>₹1Cr - ₹2Cr</option>
+                        <option value="over_2cr" {% if selected_budget == 'over_2cr' %}selected{% endif %}>Over ₹2Cr</option>
+                    </select>
+                    <select name="assigned_to" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Assignees</option>
+                        {% for assignee in assignees %}
+                        <option value="{{ assignee.id }}" {% if selected_assigned_to == assignee.id|stringformat:"s" %}selected{% endif %}>{{ assignee.username }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="channel_partner" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                        <option value="">All Channel Partners</option>
+                        {% for cp in channel_partners %}
+                        <option value="{{ cp.id }}" {% if selected_channel_partner == cp.id|stringformat:"s" %}selected{% endif %}>{{ cp.cp_name }} ({{ cp.cp_unique_id }})</option>
+                        {% endfor %}
+                    </select>
+                    <div class="flex gap-2">
+                        <input type="date" name="date_from" value="{{ date_from }}" placeholder="From Date"
+                               class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary flex-1">
+                        <input type="date" name="date_to" value="{{ date_to }}" placeholder="To Date"
+                               class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary flex-1">
+                    </div>
+                </div>
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-3 pt-2 border-t border-gray-200">
+                    <button type="submit" class="bg-olive-primary text-white px-4 py-2 rounded-custom hover:bg-olive-secondary transition">
+                        Filter
+                    </button>
+                    <a href="{% url 'leads:list' %}" class="px-4 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition">
+                        Clear
+                    </a>
+                    {% if user.is_super_admin or user.is_mandate_owner or user.is_site_head %}
+                    <a href="{% url 'leads:download' %}?{{ request.GET.urlencode }}" 
+                       class="bg-green-600 text-white px-4 py-2 rounded-custom hover:bg-green-700 transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Download
+                    </a>
+                    {% endif %}
+                </div>
             </div>
         </form>
     </div>
@@ -819,6 +842,69 @@
 </div>
 
 <script>
+    // Collapsible Filters
+    function toggleFilters() {
+        const filterContent = document.getElementById('filter-content');
+        const chevron = document.getElementById('filter-chevron');
+        const isHidden = filterContent.classList.contains('hidden');
+        
+        if (isHidden) {
+            filterContent.classList.remove('hidden');
+            chevron.style.transform = 'rotate(180deg)';
+            localStorage.setItem('leadsFiltersExpanded', 'true');
+        } else {
+            filterContent.classList.add('hidden');
+            chevron.style.transform = 'rotate(0deg)';
+            localStorage.setItem('leadsFiltersExpanded', 'false');
+        }
+        updateActiveFilterCount();
+    }
+    
+    function updateActiveFilterCount() {
+        const form = document.querySelector('form[method="get"]');
+        if (!form) return;
+        
+        const formData = new FormData(form);
+        let activeCount = 0;
+        
+        // Count non-empty filter values (excluding search and page)
+        for (const [key, value] of formData.entries()) {
+            if (key !== 'search' && key !== 'page' && value && value.trim() !== '') {
+                activeCount++;
+            }
+        }
+        
+        const countBadge = document.getElementById('active-filter-count');
+        if (countBadge) {
+            if (activeCount > 0) {
+                countBadge.textContent = activeCount;
+                countBadge.classList.remove('hidden');
+            } else {
+                countBadge.classList.add('hidden');
+            }
+        }
+    }
+    
+    // Initialize filter state from localStorage
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedState = localStorage.getItem('leadsFiltersExpanded');
+        const filterContent = document.getElementById('filter-content');
+        const chevron = document.getElementById('filter-chevron');
+        
+        if (savedState === 'true' && filterContent) {
+            filterContent.classList.remove('hidden');
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        }
+        
+        updateActiveFilterCount();
+        
+        // Update count when filters change
+        const filterInputs = document.querySelectorAll('#filter-content select, #filter-content input[type="date"]');
+        filterInputs.forEach(input => {
+            input.addEventListener('change', updateActiveFilterCount);
+        });
+    });
+    
     function toggleStatusMenu(leadId) {
         const menu = document.getElementById('status-menu-' + leadId);
         const mobileMenu = document.getElementById('status-menu-mobile-' + leadId);

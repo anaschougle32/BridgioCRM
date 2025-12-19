@@ -42,26 +42,54 @@
     </div>
 
     <!-- Filters -->
-    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-4 sm:p-6">
-        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <input type="text" name="search" placeholder="Search by name, phone, email..." 
-                   value="{{ search_query }}"
-                   class="px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
-            <select name="project" class="px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
-                <option value="">All Projects</option>
-                {% for project in projects %}
-                <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
-                {% endfor %}
-            </select>
-            <select name="visit_source" class="px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
-                <option value="">All Sources</option>
-                <option value="call" {% if selected_visit_source == "call" %}selected{% endif %}>Call Generated</option>
-                <option value="cp" {% if selected_visit_source == "cp" %}selected{% endif %}>Channel Partner</option>
-                <option value="walkin" {% if selected_visit_source == "walkin" %}selected{% endif %}>Direct Walk-in</option>
-            </select>
-            <button type="submit" class="bg-olive-primary text-white px-6 py-2.5 rounded-lg hover:bg-olive-secondary transition font-semibold">
-                Filter
-            </button>
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light overflow-hidden">
+        <form method="get" class="space-y-0">
+            <!-- Filter Header (Always Visible) -->
+            <div class="p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
+                <div class="flex items-center justify-between">
+                    <button type="button" 
+                            id="visits-filter-toggle"
+                            onclick="toggleVisitsFilters()"
+                            class="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-olive-primary transition-colors">
+                            <svg id="visits-filter-chevron" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                            <span>Filters</span>
+                            <span id="visits-active-filter-count" class="ml-2 px-2 py-0.5 text-xs bg-olive-primary text-white rounded-full hidden">0</span>
+                        </button>
+                    <div class="flex items-center gap-2">
+                        <input type="text" name="search" placeholder="Search by name, phone, email..." 
+                               value="{{ search_query }}"
+                               class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary w-48 sm:w-64">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Collapsible Filter Content -->
+            <div id="visits-filter-content" class="hidden p-3 sm:p-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <select name="project" class="px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        <option value="">All Projects</option>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="visit_source" class="px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        <option value="">All Sources</option>
+                        <option value="call" {% if selected_visit_source == "call" %}selected{% endif %}>Call Generated</option>
+                        <option value="cp" {% if selected_visit_source == "cp" %}selected{% endif %}>Channel Partner</option>
+                        <option value="walkin" {% if selected_visit_source == "walkin" %}selected{% endif %}>Direct Walk-in</option>
+                    </select>
+                    <div class="flex gap-2">
+                        <button type="submit" class="bg-olive-primary text-white px-6 py-2.5 rounded-lg hover:bg-olive-secondary transition font-semibold flex-1">
+                            Filter
+                        </button>
+                        <a href="{% url 'leads:visits_list' %}" class="px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                            Clear
+                        </a>
+                    </div>
+                </div>
+            </div>
         </form>
     </div>
 
@@ -156,5 +184,68 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+    // Collapsible Filters for Visits
+    function toggleVisitsFilters() {
+        const filterContent = document.getElementById('visits-filter-content');
+        const chevron = document.getElementById('visits-filter-chevron');
+        const isHidden = filterContent.classList.contains('hidden');
+        
+        if (isHidden) {
+            filterContent.classList.remove('hidden');
+            chevron.style.transform = 'rotate(180deg)';
+            localStorage.setItem('visitsFiltersExpanded', 'true');
+        } else {
+            filterContent.classList.add('hidden');
+            chevron.style.transform = 'rotate(0deg)';
+            localStorage.setItem('visitsFiltersExpanded', 'false');
+        }
+        updateVisitsActiveFilterCount();
+    }
+    
+    function updateVisitsActiveFilterCount() {
+        const form = document.querySelector('form[method="get"]');
+        if (!form) return;
+        
+        const formData = new FormData(form);
+        let activeCount = 0;
+        
+        for (const [key, value] of formData.entries()) {
+            if (key !== 'search' && key !== 'page' && value && value.trim() !== '') {
+                activeCount++;
+            }
+        }
+        
+        const countBadge = document.getElementById('visits-active-filter-count');
+        if (countBadge) {
+            if (activeCount > 0) {
+                countBadge.textContent = activeCount;
+                countBadge.classList.remove('hidden');
+            } else {
+                countBadge.classList.add('hidden');
+            }
+        }
+    }
+    
+    // Initialize filter state
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedState = localStorage.getItem('visitsFiltersExpanded');
+        const filterContent = document.getElementById('visits-filter-content');
+        const chevron = document.getElementById('visits-filter-chevron');
+        
+        if (savedState === 'true' && filterContent) {
+            filterContent.classList.remove('hidden');
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        }
+        
+        updateVisitsActiveFilterCount();
+        
+        const filterInputs = document.querySelectorAll('#visits-filter-content select');
+        filterInputs.forEach(input => {
+            input.addEventListener('change', updateVisitsActiveFilterCount);
+        });
+    });
+</script>
 {% endblock %}
 
