@@ -26,7 +26,7 @@
     {% if units_data %}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Left Column: Individual Unit Calculations -->
-        <div class="lg:col-span-2 space-y-4">
+        <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Unit Details</h2>
                 <div class="space-y-4">
@@ -170,77 +170,14 @@
                 </div>
             </div>
             
-            <!-- Total Summary -->
-            <div class="bg-white rounded-lg shadow-md p-6 sticky top-4">
-                <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Total Summary</h2>
-                
-                <div class="space-y-3 mb-4">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Total Units:</span>
-                        <span class="font-medium">{{ units_data|length }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Total Carpet Area:</span>
-                        <span class="font-medium">{{ total_carpet_area|floatformat:0 }} sqft</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Total Buildup Area:</span>
-                        <span class="font-medium">{{ total_buildup_area|floatformat:0 }} sqft</span>
-                    </div>
-                    <div class="flex justify-between text-sm pt-2 border-t">
-                        <span class="text-gray-600">Avg. Price/sqft:</span>
-                        <span class="font-bold text-olive-primary">₹{{ avg_price_per_sqft|floatformat:0 }}</span>
-                    </div>
-                </div>
-                
-                <div class="border-t pt-4 space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Total Agreement Value:</span>
-                        <span class="font-medium">{{ total_agreement_value|format_price_simple }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">+ Total Stamp Duty:</span>
-                        <span class="font-medium">{{ total_stamp_duty|format_price_simple }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">+ Total GST:</span>
-                        <span class="font-medium">{{ total_gst|format_price_simple }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">+ Total Registration:</span>
-                        <span class="font-medium">{{ total_registration|format_price_simple }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">+ Total Legal:</span>
-                        <span class="font-medium">{{ total_legal|format_price_simple }}</span>
-                    </div>
-                    {% if total_development > 0 %}
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">+ Total Development:</span>
-                        <span class="font-medium">{{ total_development|format_price_simple }}</span>
-                    </div>
-                    {% endif %}
-                    {% if total_parking > 0 %}
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">+ Total Parking:</span>
-                        <span class="font-medium">{{ total_parking|format_price_simple }}</span>
-                    </div>
-                    {% endif %}
-                    <div class="flex justify-between pt-3 border-t font-bold text-lg">
-                        <span>Grand Total:</span>
-                        <span class="text-blue-600">{{ total_cost|format_price_simple }}</span>
-                    </div>
-                </div>
-            </div>
-            
             <!-- Booking Conversion -->
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-lg shadow-md p-6 sticky top-4">
                 <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Booking Conversion</h2>
                 
                 <!-- Lead Search -->
                 <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Search Lead</label>
-                    <input type="text" id="lead-search" placeholder="Search by name, phone, email..." 
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search and Select Visited Lead</label>
+                    <input type="text" id="lead-search" placeholder="Search by name, phone..." 
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
                            oninput="searchLeads()">
                     <div id="lead-results" class="hidden mt-2 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -250,7 +187,7 @@
                 
                 <!-- OTP Verification Section -->
                 <div id="otp-booking-section" class="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200 hidden">
-                    <h3 class="font-semibold text-gray-800 mb-2">OTP Verification Required</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">OTP Verification Required</h3>
                     <p class="text-sm text-gray-600 mb-4">Please verify OTP before creating booking. Click "Generate OTP" to send OTP to the selected lead.</p>
                     <div id="otp-booking-controls">
                         <button onclick="loadOTPControlsForBooking()" 
@@ -286,6 +223,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Total Negotiated Price *</label>
+                            <input type="hidden" id="final-negotiated-price" name="final_negotiated_price" value="0">
                             <input type="text" id="total-price-display" readonly
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 font-semibold text-lg">
                             <p class="text-xs text-gray-500 mt-1">This is the final negotiated total price for all units</p>
@@ -295,6 +233,7 @@
                             <input type="number" id="downpayment" name="downpayment" step="0.01" min="0" required
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
                                    oninput="calculateRemainingAmount()">
+                            <p class="text-xs text-gray-500 mt-1">Enter the down payment amount already paid by the client</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Down Payment Mode</label>
@@ -313,14 +252,22 @@
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Down Payment Reference</label>
+                            <input type="text" name="downpayment_reference" 
+                                   placeholder="Cheque/Transaction number"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Remaining Amount</label>
                             <input type="text" id="remaining-amount" readonly
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 font-semibold">
+                            <p class="text-xs text-gray-500 mt-1">Total Price - Down Payment</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Token Amount (First Installment) *</label>
                             <input type="number" id="token-amount" name="token_amount" step="0.01" min="0" required
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
+                            <p class="text-xs text-gray-500 mt-1">This will be recorded as the first payment entry</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Self Funding %</label>
@@ -335,6 +282,16 @@
                                    oninput="calculateFunding()">
                         </div>
                         <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Self Funding Amount</label>
+                            <input type="text" id="self-funding-amount" readonly
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Loan Amount</label>
+                            <input type="text" id="loan-amount" readonly
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                        </div>
+                        <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Channel Partner (Optional)</label>
                             <select name="channel_partner" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">
                                 <option value="">None</option>
@@ -342,6 +299,19 @@
                                 <option value="{{ cp.id }}">{{ cp.cp_name }} ({{ cp.firm_name }})</option>
                                 {% endfor %}
                             </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Notes</label>
+                                <button type="button" onclick="document.getElementById('booking-notes-modal').classList.remove('hidden')" 
+                                        class="px-3 py-1 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm">
+                                    + Add Note
+                                </button>
+                            </div>
+                            <div id="booking-notes-section" class="space-y-2 max-h-32 overflow-y-auto">
+                                <!-- Notes will appear here -->
+                            </div>
+                            <textarea name="notes" id="booking-notes-textarea" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary hidden" placeholder="Add notes about this booking..."></textarea>
                         </div>
                     </div>
                     
@@ -357,6 +327,34 @@
                         </button>
                     </div>
                 </form>
+                
+                <!-- Notes Modal -->
+                <div id="booking-notes-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-heading font-bold text-olive-primary">Add Note</h3>
+                            <button onclick="document.getElementById('booking-notes-modal').classList.add('hidden')" 
+                                    class="text-gray-500 hover:text-gray-700">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <textarea id="booking-note-input" rows="5" 
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary mb-4"
+                                  placeholder="Enter your note here..."></textarea>
+                        <div class="flex justify-end space-x-3">
+                            <button onclick="document.getElementById('booking-notes-modal').classList.add('hidden')" 
+                                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                Cancel
+                            </button>
+                            <button onclick="addBookingNote()" 
+                                    class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">
+                                Add Note
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -591,6 +589,40 @@ function resetBookingForm() {
     document.getElementById('selected-lead-id').value = '';
 }
 
+function addBookingNote() {
+    const noteInput = document.getElementById('booking-note-input');
+    const noteText = noteInput.value.trim();
+    if (!noteText) return;
+    
+    const notesSection = document.getElementById('booking-notes-section');
+    const notesTextarea = document.getElementById('booking-notes-textarea');
+    
+    const noteDiv = document.createElement('div');
+    noteDiv.className = 'p-3 bg-gray-50 rounded-lg border border-gray-200 flex justify-between items-start';
+    noteDiv.innerHTML = `
+        <p class="text-sm text-gray-700 flex-1">${noteText.replace(/\n/g, '<br>')}</p>
+        <button onclick="this.parentElement.remove(); updateNotesTextarea();" class="ml-2 text-red-600 hover:text-red-800">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    `;
+    
+    notesSection.appendChild(noteDiv);
+    noteInput.value = '';
+    document.getElementById('booking-notes-modal').classList.add('hidden');
+    updateNotesTextarea();
+}
+
+function updateNotesTextarea() {
+    const notesSection = document.getElementById('booking-notes-section');
+    const notesTextarea = document.getElementById('booking-notes-textarea');
+    const notes = Array.from(notesSection.children).map(div => {
+        return div.querySelector('p').textContent;
+    });
+    notesTextarea.value = notes.join('\n\n');
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize funding displays
@@ -606,6 +638,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('total-price-display').value = formatPrice(baseTotal);
         document.getElementById('final-negotiated-price').value = baseTotal.toFixed(2);
     }
+    
+    // Close notes modal when clicking outside
+    document.getElementById('booking-notes-modal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.add('hidden');
+        }
+    });
 });
 </script>
 {% endblock %}
