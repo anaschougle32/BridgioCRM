@@ -288,75 +288,171 @@ def booking_create(request, lead_id):
                     if visit_creator:
                         credited_to_telecaller = visit_creator
                 
-                # Create booking
-                booking = Booking.objects.create(
-                    lead=lead,
-                    project=project,
-                    tower_wing=request.POST.get('tower_wing', ''),
-                    unit_number=request.POST.get('unit_number', ''),
-                    carpet_area=float(request.POST.get('carpet_area')) if request.POST.get('carpet_area') else None,
-                    floor=int(request.POST.get('floor')) if request.POST.get('floor') else None,
-                    final_negotiated_price=final_negotiated_price,
-                    token_amount=token_amount,
-                    channel_partner=channel_partner,
-                    cp_commission_percent=cp_commission_percent,
-                    credited_to_closing_manager=credited_to_closing,
-                    credited_to_sourcing_manager=credited_to_sourcing,
-                    credited_to_telecaller=credited_to_telecaller,
-                    created_by=request.user,
-                )
+                # Handle multiple unit booking
+                unit_ids_param = request.POST.get('unit_ids', '')
+                if unit_ids_param:
+                    selected_unit_ids = [int(uid) for uid in unit_ids_param.split(',') if uid.strip().isdigit()]
+                else:
+                    selected_unit_ids = []
                 
-                # Update lead notes with funding information if provided
-                if funding_notes:
-                    if lead.notes:
-                        lead.notes += f'\n\n{funding_notes}'
+                # If multiple units selected, create booking for each unit
+                if selected_unit_ids:
+                    from projects.models import UnitConfiguration
+                    created_bookings = []
+                    total_price = final_negotiated_price
+                    price_per_unit = total_price / len(selected_unit_ids) if len(selected_unit_ids) > 0 else total_price
+                    token_per_unit = token_amount / len(selected_unit_ids) if len(selected_unit_ids) > 0 else token_amount
+                    downpayment_per_unit = downpayment / len(selected_unit_ids) if len(selected_unit_ids) > 0 else downpayment
+                    
+                    for unit_id in selected_unit_ids:
+                        try:
+                            unit_config = UnitConfiguration.objects.get(id=unit_id, project=project)
+                            tower_wing = f"Tower {unit_config.tower_number}" if unit_config.tower_number else ''
+                            unit_number = str(unit_config.unit_number) if unit_config.unit_number else ''
+                            
+                            booking = Booking.objects.create(
+                                lead=lead,
+                                project=project,
+                                tower_wing=tower_wing,
+                                unit_number=unit_number,
+                                carpet_area=unit_config.area_type.carpet_area if unit_config.area_type else None,
+                                floor=unit_config.floor_number,
+                                final_negotiated_price=price_per_unit,
+                                token_amount=token_per_unit,
+                                channel_partner=channel_partner,
+                                cp_commission_percent=cp_commission_percent,
+                                credited_to_closing_manager=credited_to_closing,
+                                credited_to_sourcing_manager=credited_to_sourcing,
+                                credited_to_telecaller=credited_to_telecaller,
+                                created_by=request.user,
+                            )
+                            created_bookings.append(booking)
+                            
+                            # Create downpayment entry for this unit if downpayment > 0
+                            if downpayment_per_unit > 0:
+                                Payment.objects.create(
+                                    booking=booking,
+                                    amount=downpayment_per_unit,
+                                    payment_mode=request.POST.get('downpayment_mode', 'cash'),
+                                    payment_date=request.POST.get('downpayment_date') or timezone.now().date(),
+                                    reference_number=request.POST.get('downpayment_reference', ''),
+                                    notes=f'Down payment made at booking - ₹{downpayment_per_unit:,.2f}',
+                                    created_by=request.user,
+                                )
+                            
+                            # Create initial payment if token amount > 0 (and not already recorded as downpayment)
+                            if token_per_unit > 0 and token_per_unit != downpayment_per_unit:
+                                Payment.objects.create(
+                                    booking=booking,
+                                    amount=token_per_unit,
+                                    payment_mode=request.POST.get('payment_mode', 'cash'),
+                                    payment_date=request.POST.get('payment_date') or timezone.now().date(),
+                                    reference_number=request.POST.get('reference_number', ''),
+                                    notes=f'Initial token payment for booking {booking.id}',
+                                    created_by=request.user,
+                                )
+                            
+                            # Create audit log
+                            from accounts.models import AuditLog
+                            AuditLog.objects.create(
+                                user=request.user,
+                                action='booking_created',
+                                model_name='Booking',
+                                object_id=str(booking.id),
+                                changes={'message': f'Booking created for lead {lead.name} - Unit {booking.unit_number}'},
+                            )
+                        except UnitConfiguration.DoesNotExist:
+                            continue
+                    
+                    # Update lead notes with funding information if provided
+                    if funding_notes:
+                        if lead.notes:
+                            lead.notes += f'\n\n{funding_notes}'
+                        else:
+                            lead.notes = funding_notes
+                        lead.save()
+                    
+                    # Update association status
+                    association.status = 'booked'
+                    association.save()
+                    
+                    if created_bookings:
+                        messages.success(request, f'{len(created_bookings)} booking(s) created successfully!')
+                        request.session['show_confetti'] = True
+                        request.session.modified = True
+                        return redirect('bookings:detail', pk=created_bookings[0].id)
                     else:
-                        lead.notes = funding_notes
-                    lead.save()
-                
-                # Create downpayment entry if downpayment > 0
-                if downpayment > 0:
-                    Payment.objects.create(
-                        booking=booking,
-                        amount=downpayment,
-                        payment_mode=request.POST.get('downpayment_mode', 'cash'),
-                        payment_date=request.POST.get('downpayment_date') or timezone.now().date(),
-                        reference_number=request.POST.get('downpayment_reference', ''),
-                        notes=f'Down payment made at booking - ₹{downpayment:,.2f}',
+                        messages.error(request, 'No bookings were created. Please check unit selection.')
+                else:
+                    # Single unit booking (existing logic)
+                    booking = Booking.objects.create(
+                        lead=lead,
+                        project=project,
+                        tower_wing=request.POST.get('tower_wing', ''),
+                        unit_number=request.POST.get('unit_number', ''),
+                        carpet_area=float(request.POST.get('carpet_area')) if request.POST.get('carpet_area') else None,
+                        floor=int(request.POST.get('floor')) if request.POST.get('floor') else None,
+                        final_negotiated_price=final_negotiated_price,
+                        token_amount=token_amount,
+                        channel_partner=channel_partner,
+                        cp_commission_percent=cp_commission_percent,
+                        credited_to_closing_manager=credited_to_closing,
+                        credited_to_sourcing_manager=credited_to_sourcing,
+                        credited_to_telecaller=credited_to_telecaller,
                         created_by=request.user,
                     )
-                
-                # Create initial payment if token amount > 0 (and not already recorded as downpayment)
-                if token_amount > 0 and token_amount != downpayment:
-                    Payment.objects.create(
-                        booking=booking,
-                        amount=token_amount,
-                        payment_mode=request.POST.get('payment_mode', 'cash'),
-                        payment_date=request.POST.get('payment_date') or timezone.now().date(),
-                        reference_number=request.POST.get('reference_number', ''),
-                        notes=f'Initial token payment for booking {booking.id}',
-                        created_by=request.user,
+                    
+                    # Update lead notes with funding information if provided
+                    if funding_notes:
+                        if lead.notes:
+                            lead.notes += f'\n\n{funding_notes}'
+                        else:
+                            lead.notes = funding_notes
+                        lead.save()
+                    
+                    # Create downpayment entry if downpayment > 0
+                    if downpayment > 0:
+                        Payment.objects.create(
+                            booking=booking,
+                            amount=downpayment,
+                            payment_mode=request.POST.get('downpayment_mode', 'cash'),
+                            payment_date=request.POST.get('downpayment_date') or timezone.now().date(),
+                            reference_number=request.POST.get('downpayment_reference', ''),
+                            notes=f'Down payment made at booking - ₹{downpayment:,.2f}',
+                            created_by=request.user,
+                        )
+                    
+                    # Create initial payment if token amount > 0 (and not already recorded as downpayment)
+                    if token_amount > 0 and token_amount != downpayment:
+                        Payment.objects.create(
+                            booking=booking,
+                            amount=token_amount,
+                            payment_mode=request.POST.get('payment_mode', 'cash'),
+                            payment_date=request.POST.get('payment_date') or timezone.now().date(),
+                            reference_number=request.POST.get('reference_number', ''),
+                            notes=f'Initial token payment for booking {booking.id}',
+                            created_by=request.user,
+                        )
+                    
+                    # Update association status
+                    association.status = 'booked'
+                    association.save()
+                    
+                    # Create audit log
+                    from accounts.models import AuditLog
+                    AuditLog.objects.create(
+                        user=request.user,
+                        action='booking_created',
+                        model_name='Booking',
+                        object_id=str(booking.id),
+                        changes={'message': f'Booking created for lead {lead.name} - Unit {booking.unit_number}'},
                     )
                 
-                # Update association status
-                association.status = 'booked'
-                association.save()
-                
-                # Create audit log
-                from accounts.models import AuditLog
-                AuditLog.objects.create(
-                    user=request.user,
-                    action='booking_created',
-                    model_name='Booking',
-                    object_id=str(booking.id),
-                    changes={'message': f'Booking created for lead {lead.name} - Unit {booking.unit_number}'},
-                )
-            
-            messages.success(request, f'Booking created successfully! Booking #{booking.id}')
-            # Add confetti flag to session for display on detail page
-            request.session['show_confetti'] = True
-            request.session.modified = True
-            return redirect('bookings:detail', pk=booking.id)
+                    messages.success(request, f'Booking created successfully! Booking #{booking.id}')
+                    # Add confetti flag to session for display on detail page
+                    request.session['show_confetti'] = True
+                    request.session.modified = True
+                    return redirect('bookings:detail', pk=booking.id)
             
         except Exception as e:
             messages.error(request, f'Error creating booking: {str(e)}')

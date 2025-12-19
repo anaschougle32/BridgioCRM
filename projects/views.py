@@ -1323,6 +1323,7 @@ def unit_selection(request, pk):
         'units_by_tower': units_by_tower,
         'configurations': configurations,
         'booked_units': booked_units,
+        'lead_id': lead_id,  # Pass lead_id to template for booking flow
     }
     return render(request, 'projects/unit_selection.html', context)
 
