@@ -24,154 +24,155 @@
     </div>
     
     {% if units_data %}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left Column: Individual Unit Calculations -->
-        <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Unit Details</h2>
-                <div class="space-y-4">
-                    {% for unit in units_data %}
-                    <div class="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition">
-                        <div class="flex justify-between items-start mb-3">
-                            <div>
-                                <h3 class="font-bold text-lg text-olive-primary">
-                                    Tower {{ unit.unit_config.tower_number }} • Floor {{ unit.unit_config.floor_number }} • Unit {{ unit.unit_config.unit_number }}
-                                </h3>
-                                <p class="text-sm text-gray-600 mt-1">{{ unit.configuration_name }} - {{ unit.area_display }}</p>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-sm text-gray-600">Price/sqft</div>
-                                <div class="font-bold text-olive-primary">₹{{ unit.price_per_sqft|floatformat:0 }}</div>
-                            </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Left Column: Unit Details -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Unit Details</h2>
+            <div class="space-y-4">
+                {% for unit in units_data %}
+                <div class="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h3 class="font-bold text-lg text-olive-primary">
+                                Tower {{ unit.unit_config.tower_number }} • Floor {{ unit.unit_config.floor_number }} • Unit {{ unit.unit_config.unit_number }}
+                            </h3>
+                            <p class="text-sm text-gray-600 mt-1">{{ unit.configuration_name }} - {{ unit.area_display }}</p>
                         </div>
-                        
-                        <div class="grid grid-cols-2 gap-3 text-sm mb-3">
-                            <div>
-                                <span class="text-gray-600">Carpet Area:</span>
-                                <span class="font-medium ml-2">{{ unit.carpet_area|floatformat:0 }} sqft</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-600">Buildup Area:</span>
-                                <span class="font-medium ml-2">{{ unit.buildup_area|floatformat:0 }} sqft</span>
-                            </div>
-                            {% if unit.rera_area %}
-                            <div>
-                                <span class="text-gray-600">RERA Area:</span>
-                                <span class="font-medium ml-2">{{ unit.rera_area|floatformat:0 }} sqft</span>
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="border-t pt-3 space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Agreement Value:</span>
-                                <span class="font-medium">{{ unit.agreement_value|format_price_simple }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">+ Stamp Duty ({{ unit.stamp_duty_percent }}%):</span>
-                                <span class="font-medium">{{ unit.stamp_duty|format_price_simple }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">+ GST ({{ unit.gst_percent }}%):</span>
-                                <span class="font-medium">{{ unit.gst|format_price_simple }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">+ Registration:</span>
-                                <span class="font-medium">{{ unit.registration_charges|format_price_simple }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">+ Legal Charges:</span>
-                                <span class="font-medium">{{ unit.legal_charges|format_price_simple }}</span>
-                            </div>
-                            {% if unit.development_charges > 0 %}
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">+ Development:</span>
-                                <span class="font-medium">{{ unit.development_charges|format_price_simple }}</span>
-                            </div>
-                            {% endif %}
-                            {% if unit.parking_price > 0 %}
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">+ Parking:</span>
-                                <span class="font-medium">{{ unit.parking_price|format_price_simple }}</span>
-                            </div>
-                            {% endif %}
-                            <div class="flex justify-between pt-2 border-t font-bold text-base">
-                                <span>Unit Total:</span>
-                                <span class="text-blue-600">{{ unit.total|format_price_simple }}</span>
-                            </div>
+                        <div class="text-right">
+                            <div class="text-sm text-gray-600">Price/sqft</div>
+                            <div class="font-bold text-olive-primary">₹{{ unit.price_per_sqft|floatformat:0 }}</div>
                         </div>
                     </div>
-                    {% endfor %}
+                    
+                    <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                        <div>
+                            <span class="text-gray-600">Carpet Area:</span>
+                            <span class="font-medium ml-2">{{ unit.carpet_area|floatformat:0 }} sqft</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Buildup Area:</span>
+                            <span class="font-medium ml-2">{{ unit.buildup_area|floatformat:0 }} sqft</span>
+                        </div>
+                        {% if unit.rera_area %}
+                        <div>
+                            <span class="text-gray-600">RERA Area:</span>
+                            <span class="font-medium ml-2">{{ unit.rera_area|floatformat:0 }} sqft</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="border-t pt-3 space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Agreement Value:</span>
+                            <span class="font-medium">{{ unit.agreement_value|format_price_simple }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">+ Stamp Duty ({{ unit.stamp_duty_percent }}%):</span>
+                            <span class="font-medium">{{ unit.stamp_duty|format_price_simple }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">+ GST ({{ unit.gst_percent }}%):</span>
+                            <span class="font-medium">{{ unit.gst|format_price_simple }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">+ Registration:</span>
+                            <span class="font-medium">{{ unit.registration_charges|format_price_simple }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">+ Legal Charges:</span>
+                            <span class="font-medium">{{ unit.legal_charges|format_price_simple }}</span>
+                        </div>
+                        {% if unit.development_charges > 0 %}
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">+ Development:</span>
+                            <span class="font-medium">{{ unit.development_charges|format_price_simple }}</span>
+                        </div>
+                        {% endif %}
+                        {% if unit.parking_price > 0 %}
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">+ Parking:</span>
+                            <span class="font-medium">{{ unit.parking_price|format_price_simple }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between pt-2 border-t font-bold text-base">
+                            <span>Unit Total:</span>
+                            <span class="text-blue-600">{{ unit.total|format_price_simple }}</span>
+                        </div>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
         </div>
         
-        <!-- Right Column: Summary -->
-        <div class="space-y-6">
-            <!-- Negotiated Price Calculation -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Negotiated Price Calculation</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Negotiated Price/sqft *</label>
-                        <input type="number" id="negotiated-price-sqft" step="0.01" min="0" 
-                               value="{{ avg_price_per_sqft|floatformat:0 }}"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
-                               oninput="calculateMultiUnitNegotiatedPrice()">
-                        <p class="text-xs text-gray-500 mt-1">Enter negotiated price per sqft for all units</p>
-                    </div>
-                    
-                    <div id="negotiated-results" class="space-y-3 hidden">
-                        <div class="border-t pt-3">
-                            <div class="flex justify-between items-center mb-3">
-                                <span class="text-gray-600 font-semibold">Negotiated Agreement Value:</span>
-                                <span class="font-bold text-lg" id="negotiated-agreement-value">—</span>
+        <!-- Right Column: Negotiated Price Calculation -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Negotiated Price Calculation</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Negotiated Price/sqft *</label>
+                    <input type="number" id="negotiated-price-sqft" step="0.01" min="0" 
+                           value="{{ avg_price_per_sqft|floatformat:0 }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
+                           oninput="calculateMultiUnitNegotiatedPrice()">
+                    <p class="text-xs text-gray-500 mt-1">Enter negotiated price per sqft for all units</p>
+                </div>
+                
+                <div id="negotiated-results" class="space-y-3 hidden">
+                    <div class="border-t pt-3">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600 font-semibold">Negotiated Agreement Value:</span>
+                            <span class="font-bold text-lg" id="negotiated-agreement-value">—</span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Stamp Duty ({{ stamp_duty_percent }}%):</span>
+                                <span id="negotiated-stamp-duty">—</span>
                             </div>
-                            <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ GST ({{ gst_percent }}%):</span>
+                                <span id="negotiated-gst">—</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Registration:</span>
+                                <span>{{ total_registration|format_price_simple }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Legal Charges:</span>
+                                <span>{{ total_legal|format_price_simple }}</span>
+                            </div>
+                            {% if total_development > 0 %}
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Development:</span>
+                                <span>{{ total_development|format_price_simple }}</span>
+                            </div>
+                            {% endif %}
+                            {% if total_parking > 0 %}
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Parking:</span>
+                                <span>{{ total_parking|format_price_simple }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="border-t pt-2 mt-2">
                                 <div class="flex justify-between">
-                                    <span class="text-gray-600">+ Negotiated Stamp Duty:</span>
-                                    <span id="negotiated-stamp-duty">—</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">+ Negotiated GST:</span>
-                                    <span id="negotiated-gst">—</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">+ Registration:</span>
-                                    <span>{{ total_registration|format_price_simple }}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">+ Legal Charges:</span>
-                                    <span>{{ total_legal|format_price_simple }}</span>
-                                </div>
-                                {% if total_development > 0 %}
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">+ Development:</span>
-                                    <span>{{ total_development|format_price_simple }}</span>
-                                </div>
-                                {% endif %}
-                                {% if total_parking > 0 %}
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">+ Parking:</span>
-                                    <span>{{ total_parking|format_price_simple }}</span>
-                                </div>
-                                {% endif %}
-                                <div class="flex justify-between pt-2 border-t font-bold">
-                                    <span>Negotiated Total:</span>
-                                    <span class="text-xl text-green-600" id="negotiated-total">—</span>
-                                </div>
-                                <div class="flex justify-between pt-2 border-t">
-                                    <span class="text-gray-600">Total Discount:</span>
-                                    <span class="font-bold text-red-600" id="total-discount">—</span>
+                                    <span class="font-bold">Negotiated Total:</span>
+                                    <span class="font-bold text-xl text-green-600" id="negotiated-total">—</span>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    <div class="border-t pt-3 mt-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Total Discount:</span>
+                            <span class="font-bold text-red-600" id="total-discount">—</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Booking Conversion -->
-            <div class="bg-white rounded-lg shadow-md p-6 sticky top-4">
+        </div>
+    </div>
+    
+    <!-- Booking Conversion -->
+    <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Booking Conversion</h2>
                 <div class="space-y-4">
                     <div>
