@@ -507,85 +507,48 @@ function loadOTPControls(leadId) {
 }
 
 function loadOTPControlsForBooking() {
-    if (!currentLeadIdForOTP) return;
-    
-    const controlsDiv = document.getElementById('otp-booking-controls');
-    controlsDiv.innerHTML = `
-        <div class="space-y-3">
-            <button onclick="sendOTP(${currentLeadIdForOTP})" 
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                Send OTP
-            </button>
-            <div class="flex gap-2">
-                <input type="text" id="otp-input" placeholder="Enter OTP" 
-                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary"
-                       maxlength="6">
-                <button onclick="verifyOTP(${currentLeadIdForOTP})" 
-                        class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
-                    Verify
-                </button>
-            </div>
-            <div id="otp-message" class="text-sm"></div>
-        </div>
-    `;
-}
-
-function sendOTP(leadId) {
-    fetch(`/leads/${leadId}/send-otp/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            'Content-Type': 'application/json',
+    if (!currentLeadIdForOTP) {
+        const selectedLeadId = document.getElementById('selected-lead-id').value;
+        if (!selectedLeadId) {
+            alert('Please select a lead first');
+            return;
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        const messageDiv = document.getElementById('otp-message');
-        if (data.success) {
-            messageDiv.textContent = 'OTP sent successfully!';
-            messageDiv.className = 'text-sm text-green-600';
-        } else {
-            messageDiv.textContent = data.error || 'Failed to send OTP';
-            messageDiv.className = 'text-sm text-red-600';
-        }
-    })
-    .catch(error => {
-        document.getElementById('otp-message').textContent = 'Error sending OTP';
-        document.getElementById('otp-message').className = 'text-sm text-red-600';
-    });
-}
-
-function verifyOTP(leadId) {
-    const otp = document.getElementById('otp-input').value;
-    if (!otp) {
-        alert('Please enter OTP');
-        return;
+        currentLeadIdForOTP = selectedLeadId;
     }
     
-    fetch(`/leads/${leadId}/verify-otp/`, {
+    const otpControls = document.getElementById('otp-booking-controls');
+    otpControls.innerHTML = '<div class="text-sm text-gray-600">Loading...</div>';
+    
+    // Use fetch to load OTP controls
+    fetch(`/leads/${currentLeadIdForOTP}/send-otp/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({ otp: otp })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('otp-verified-indicator').classList.remove('hidden');
-            document.getElementById('create-booking-btn').disabled = false;
-            document.getElementById('create-booking-btn').textContent = 'Create Booking';
-            document.getElementById('otp-message').textContent = 'OTP verified successfully!';
-            document.getElementById('otp-message').className = 'text-sm text-green-600';
-        } else {
-            document.getElementById('otp-message').textContent = data.error || 'Invalid OTP';
-            document.getElementById('otp-message').className = 'text-sm text-red-600';
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    })
+    .then(html => {
+        otpControls.innerHTML = html;
+        // Update verify OTP form to target the correct element for booking form
+        const verifyForm = otpControls.querySelector('form[hx-post]');
+        if (verifyForm) {
+            verifyForm.setAttribute('hx-target', '#otp-booking-controls');
+            verifyForm.setAttribute('hx-swap', 'innerHTML');
+        }
+        // Re-initialize HTMX if available
+        if (window.htmx) {
+            htmx.process(otpControls);
         }
     })
     .catch(error => {
-        document.getElementById('otp-message').textContent = 'Error verifying OTP';
-        document.getElementById('otp-message').className = 'text-sm text-red-600';
+        console.error('Error loading OTP controls:', error);
+        otpControls.innerHTML = '<div class="text-sm text-red-600">Error loading OTP. Please try again.</div>';
     });
 }
 
