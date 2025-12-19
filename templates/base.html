@@ -916,24 +916,11 @@
                     }
                 }
                 
-                // ?: Show Keyboard Shortcuts Help
-                if (e.key === '?' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (window.showKeyboardShortcutsHelp) {
-                        window.showKeyboardShortcutsHelp();
-                    }
-                }
-                
-                // Escape: Close modals and help
+                // Escape: Close modals
                 if (e.key === 'Escape') {
-                    if (window.closeKeyboardShortcutsHelp) {
-                        window.closeKeyboardShortcutsHelp();
-                    }
-                    // Close other modals
+                    // Close modals
                     document.querySelectorAll('[id*="modal"]:not(.hidden)').forEach(modal => {
-                        if (modal.id !== 'keyboard-shortcuts-help') {
-                            modal.classList.add('hidden');
-                        }
+                        modal.classList.add('hidden');
                     });
                 }
             });
