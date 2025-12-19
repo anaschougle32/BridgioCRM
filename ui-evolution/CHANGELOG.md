@@ -17,6 +17,31 @@ This file defines what is allowed to change. Only items listed in "Planned" or "
 
 ---
 
+## [0.4.0] – Tablet Split-View Navigation
+### Changed
+- Implemented split-view layout for tablets (768px-1024px)
+- Left column (40%): Leads list with compact filters
+- Right column (60%): Lead detail panel
+- Sidebar visible by default on tablets
+- HTMX integration for dynamic detail loading
+- Tapping list item updates detail panel
+- Active state highlighting for selected lead
+
+### Scope
+- Tablet only (768px-1024px breakpoint using `md:flex lg:hidden`)
+- Desktop and mobile remain unchanged
+- No backend changes
+
+### Verified
+- Split-view appears on tablet
+- List and detail side-by-side
+- Tapping list item updates detail
+- Navigation drawer functional
+- Filter pane works
+- Tested in tablet viewport
+
+---
+
 ## [0.3.0] – Mobile Lead Detail Slide Panel
 ### Changed
 - Implemented full-screen slide panel for lead detail on mobile (≤768px)

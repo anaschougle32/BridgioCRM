@@ -1,7 +1,7 @@
 # 004 - Tablet Split-View Navigation
 
 ## Status
-Planned
+Completed
 
 ## Goal
 Implement split-view layout for tablets (769px-1024px) with list on left and details on right.
