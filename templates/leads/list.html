@@ -1044,6 +1044,111 @@
         alert('Error: ' + errorMsg);
     });
     
+    // Desktop Bulk Selection (≥1025px only)
+    if (window.innerWidth >= 1025) {
+        const bulkSelectAll = document.getElementById('bulk-select-all');
+        const bulkSelectAllCheckbox = document.querySelector('.bulk-select-all-checkbox');
+        const bulkSelectCheckboxes = document.querySelectorAll('.bulk-select-checkbox');
+        const bulkActionSelect = document.getElementById('bulk-action-select');
+        const bulkActionApply = document.getElementById('bulk-action-apply');
+        const bulkSelectedCount = document.getElementById('bulk-selected-count');
+        
+        function updateBulkActions() {
+            const selected = document.querySelectorAll('.bulk-select-checkbox:checked');
+            const count = selected.length;
+            
+            if (bulkSelectedCount) {
+                if (count > 0) {
+                    bulkSelectedCount.textContent = count + ' selected';
+                    bulkSelectedCount.classList.remove('hidden');
+                } else {
+                    bulkSelectedCount.classList.add('hidden');
+                }
+            }
+            
+            if (bulkActionSelect && bulkActionApply) {
+                bulkActionSelect.disabled = count === 0;
+                bulkActionApply.disabled = count === 0;
+            }
+            
+            // Update select all checkbox
+            if (bulkSelectAll && bulkSelectAllCheckbox) {
+                const allChecked = bulkSelectCheckboxes.length > 0 && selected.length === bulkSelectCheckboxes.length;
+                bulkSelectAll.checked = allChecked;
+                bulkSelectAllCheckbox.checked = allChecked;
+            }
+        }
+        
+        // Select all functionality
+        if (bulkSelectAll) {
+            bulkSelectAll.addEventListener('change', function() {
+                bulkSelectCheckboxes.forEach(cb => {
+                    cb.checked = this.checked;
+                });
+                if (bulkSelectAllCheckbox) {
+                    bulkSelectAllCheckbox.checked = this.checked;
+                }
+                updateBulkActions();
+            });
+        }
+        
+        if (bulkSelectAllCheckbox) {
+            bulkSelectAllCheckbox.addEventListener('change', function() {
+                bulkSelectCheckboxes.forEach(cb => {
+                    cb.checked = this.checked;
+                });
+                if (bulkSelectAll) {
+                    bulkSelectAll.checked = this.checked;
+                }
+                updateBulkActions();
+            });
+        }
+        
+        // Individual checkbox changes
+        bulkSelectCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateBulkActions);
+        });
+        
+        // Bulk action apply
+        if (bulkActionApply) {
+            bulkActionApply.addEventListener('click', function() {
+                const action = bulkActionSelect?.value;
+                const selected = Array.from(document.querySelectorAll('.bulk-select-checkbox:checked')).map(cb => cb.value);
+                
+                if (!action || selected.length === 0) return;
+                
+                if (action === 'export') {
+                    // Export selected leads
+                    const params = new URLSearchParams();
+                    selected.forEach(id => params.append('ids', id));
+                    window.location.href = '{% url "leads:download" %}?' + params.toString();
+                } else if (action === 'assign' || action === 'status') {
+                    // Show modal for assign/status change
+                    alert('Bulk ' + action + ' feature - to be implemented with backend support');
+                }
+            });
+        }
+        
+        // Column sorting
+        document.querySelectorAll('.sortable-column').forEach(header => {
+            header.addEventListener('click', function() {
+                const column = this.dataset.column;
+                const currentUrl = new URL(window.location);
+                const currentSort = currentUrl.searchParams.get('sort');
+                const currentOrder = currentUrl.searchParams.get('order');
+                
+                let newOrder = 'asc';
+                if (currentSort === column && currentOrder === 'asc') {
+                    newOrder = 'desc';
+                }
+                
+                currentUrl.searchParams.set('sort', column);
+                currentUrl.searchParams.set('order', newOrder);
+                window.location.href = currentUrl.toString();
+            });
+        });
+    }
+    
     // Handle page reload trigger from server
     document.body.addEventListener('reloadPage', function() {
         window.location.reload();
