@@ -191,11 +191,17 @@
                                                         {{ pricing.total_cost|format_price_simple }}
                                                     </span>
                                                 </div>
+                                                {% if not is_booked %}
                                                 <a href="{% url 'projects:unit_calculation' project.pk unit.id %}" 
                                                         class="w-full bg-olive-primary text-white px-3 py-2 rounded-lg hover:bg-olive-secondary transition text-sm font-medium text-center block calculate-further-btn"
                                                         onclick="event.stopPropagation();">
                                                     Calculate Further
                                                 </a>
+                                                {% else %}
+                                                <div class="w-full bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm font-medium text-center">
+                                                    Booked
+                                                </div>
+                                                {% endif %}
                                             </div>
                                             {% endif %}
                                         </div>
@@ -379,13 +385,12 @@
             return;
         }
         
-        // For now, calculate the first selected unit
-        // In future, we can add a multi-unit calculation view
-        const firstUnitId = Array.from(selectedUnits)[0];
+        // Build unit IDs string for multi-unit calculation
+        const unitIds = Array.from(selectedUnits).join(',');
         const projectId = {{ project.id }};
         
-        // Redirect to unit calculation page for the first selected unit
-        window.location.href = `/projects/${projectId}/units/${firstUnitId}/calculate/`;
+        // Redirect to multi-unit calculation page
+        window.location.href = `/projects/${projectId}/units/calculate/?unit_ids=${unitIds}`;
     }
     
     function closeUnitPanel() {

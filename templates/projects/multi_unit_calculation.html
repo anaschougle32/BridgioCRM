@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load price_filters %}
+
+{% block title %}Multi-Unit Calculation - {{ project.name }} - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary mb-2">
+                    Multi-Unit Calculation
+                </h1>
+                <p class="text-gray-600">
+                    {{ units_data|length }} Unit{{ units_data|length|pluralize }} Selected • {{ project.name }}
+                </p>
+            </div>
+            <a href="{% url 'projects:unit_selection' project.pk %}" 
+               class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                ← Back to Units
+            </a>
+        </div>
+    </div>
+    
+    {% if units_data %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Individual Unit Calculations -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Unit Details</h2>
+                <div class="space-y-4">
+                    {% for unit in units_data %}
+                    <div class="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 class="font-bold text-lg text-olive-primary">
+                                    Tower {{ unit.unit_config.tower_number }} • Floor {{ unit.unit_config.floor_number }} • Unit {{ unit.unit_config.unit_number }}
+                                </h3>
+                                <p class="text-sm text-gray-600 mt-1">{{ unit.configuration_name }} - {{ unit.area_display }}</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm text-gray-600">Price/sqft</div>
+                                <div class="font-bold text-olive-primary">₹{{ unit.price_per_sqft|floatformat:0 }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                            <div>
+                                <span class="text-gray-600">Carpet Area:</span>
+                                <span class="font-medium ml-2">{{ unit.carpet_area|floatformat:0 }} sqft</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Buildup Area:</span>
+                                <span class="font-medium ml-2">{{ unit.buildup_area|floatformat:0 }} sqft</span>
+                            </div>
+                            {% if unit.rera_area %}
+                            <div>
+                                <span class="text-gray-600">RERA Area:</span>
+                                <span class="font-medium ml-2">{{ unit.rera_area|floatformat:0 }} sqft</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="border-t pt-3 space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Agreement Value:</span>
+                                <span class="font-medium">{{ unit.agreement_value|format_price_simple }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">+ Stamp Duty ({{ unit.stamp_duty_percent }}%):</span>
+                                <span class="font-medium">{{ unit.stamp_duty|format_price_simple }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">+ GST ({{ unit.gst_percent }}%):</span>
+                                <span class="font-medium">{{ unit.gst|format_price_simple }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">+ Registration:</span>
+                                <span class="font-medium">{{ unit.registration_charges|format_price_simple }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">+ Legal Charges:</span>
+                                <span class="font-medium">{{ unit.legal_charges|format_price_simple }}</span>
+                            </div>
+                            {% if unit.development_charges > 0 %}
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">+ Development:</span>
+                                <span class="font-medium">{{ unit.development_charges|format_price_simple }}</span>
+                            </div>
+                            {% endif %}
+                            {% if unit.parking_price > 0 %}
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">+ Parking:</span>
+                                <span class="font-medium">{{ unit.parking_price|format_price_simple }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="flex justify-between pt-2 border-t font-bold text-base">
+                                <span>Unit Total:</span>
+                                <span class="text-blue-600">{{ unit.total|format_price_simple }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Summary -->
+        <div class="space-y-6">
+            <!-- Total Summary -->
+            <div class="bg-white rounded-lg shadow-md p-6 sticky top-4">
+                <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Total Summary</h2>
+                
+                <div class="space-y-3 mb-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Total Units:</span>
+                        <span class="font-medium">{{ units_data|length }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Total Carpet Area:</span>
+                        <span class="font-medium">{{ total_carpet_area|floatformat:0 }} sqft</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Total Buildup Area:</span>
+                        <span class="font-medium">{{ total_buildup_area|floatformat:0 }} sqft</span>
+                    </div>
+                    <div class="flex justify-between text-sm pt-2 border-t">
+                        <span class="text-gray-600">Avg. Price/sqft:</span>
+                        <span class="font-bold text-olive-primary">₹{{ avg_price_per_sqft|floatformat:0 }}</span>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4 space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total Agreement Value:</span>
+                        <span class="font-medium">{{ total_agreement_value|format_price_simple }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">+ Total Stamp Duty:</span>
+                        <span class="font-medium">{{ total_stamp_duty|format_price_simple }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">+ Total GST:</span>
+                        <span class="font-medium">{{ total_gst|format_price_simple }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">+ Total Registration:</span>
+                        <span class="font-medium">{{ total_registration|format_price_simple }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">+ Total Legal:</span>
+                        <span class="font-medium">{{ total_legal|format_price_simple }}</span>
+                    </div>
+                    {% if total_development > 0 %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">+ Total Development:</span>
+                        <span class="font-medium">{{ total_development|format_price_simple }}</span>
+                    </div>
+                    {% endif %}
+                    {% if total_parking > 0 %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">+ Total Parking:</span>
+                        <span class="font-medium">{{ total_parking|format_price_simple }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between pt-3 border-t font-bold text-lg">
+                        <span>Grand Total:</span>
+                        <span class="text-blue-600">{{ total_cost|format_price_simple }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+        <p class="text-gray-500">No pricing information available for selected units.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

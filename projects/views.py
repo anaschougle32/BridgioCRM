@@ -1677,6 +1677,169 @@ def unit_calculation(request, pk, unit_id):
 
 
 @login_required
+def multi_unit_calculation(request, pk):
+    """Multi-unit calculation page with dynamic pricing for multiple units"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Permission check
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
+        pass
+    elif request.user.is_site_head():
+        if project.site_head != request.user:
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
+    elif request.user.is_closing_manager() or request.user.is_sourcing_manager():
+        if project not in request.user.assigned_projects.all():
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
+    elif request.user.is_telecaller():
+        if project not in request.user.assigned_projects.all():
+            messages.error(request, 'You do not have permission to view this project.')
+            return redirect('projects:list')
+    else:
+        messages.error(request, 'You do not have permission to view this project.')
+        return redirect('projects:list')
+    
+    # Get unit IDs from query string
+    unit_ids_param = request.GET.get('unit_ids', '')
+    if not unit_ids_param:
+        messages.error(request, 'No units selected for calculation.')
+        return redirect('projects:unit_selection', pk=project.pk)
+    
+    unit_ids = [int(uid) for uid in unit_ids_param.split(',') if uid.strip().isdigit()]
+    if not unit_ids:
+        messages.error(request, 'Invalid unit selection.')
+        return redirect('projects:unit_selection', pk=project.pk)
+    
+    # Get unit configurations
+    unit_configs = UnitConfiguration.objects.filter(
+        id__in=unit_ids,
+        project=project
+    ).select_related('area_type', 'area_type__configuration').order_by('tower_number', 'floor_number', 'unit_number')
+    
+    if not unit_configs.exists():
+        messages.error(request, 'Selected units not found.')
+        return redirect('projects:unit_selection', pk=project.pk)
+    
+    # Check if highrise pricing is enabled
+    from projects.models import HighrisePricing
+    highrise_pricing = None
+    try:
+        highrise_pricing = project.highrise_pricing
+    except HighrisePricing.DoesNotExist:
+        pass
+    
+    # Calculate pricing for each unit
+    units_data = []
+    total_agreement_value = Decimal('0')
+    total_stamp_duty = Decimal('0')
+    total_gst = Decimal('0')
+    total_registration = Decimal('0')
+    total_legal = Decimal('0')
+    total_development = Decimal('0')
+    total_parking = Decimal('0')
+    total_cost = Decimal('0')
+    total_carpet_area = Decimal('0')
+    total_buildup_area = Decimal('0')
+    
+    for unit_config in unit_configs:
+        if not unit_config.area_type or not unit_config.area_type.configuration:
+            continue
+            
+        config = unit_config.area_type.configuration
+        area_type = unit_config.area_type
+        
+        # Calculate price per sqft - use highrise pricing if enabled
+        base_price_per_sqft = config.price_per_sqft or Decimal('0')
+        if highrise_pricing and highrise_pricing.is_enabled:
+            price_per_sqft = highrise_pricing.calculate_price_per_sqft(
+                floor_number=unit_config.floor_number,
+                base_price_per_sqft=base_price_per_sqft
+            )
+        else:
+            price_per_sqft = base_price_per_sqft
+        
+        # Calculate agreement value
+        if price_per_sqft and area_type.buildup_area:
+            agreement_value = price_per_sqft * area_type.buildup_area
+        else:
+            agreement_value = Decimal('0')
+        
+        # Calculate cost breakdown
+        stamp_duty = agreement_value * (config.stamp_duty_percent / 100)
+        gst = agreement_value * (config.gst_percent / 100)
+        
+        # Get development charges
+        if highrise_pricing and highrise_pricing.is_enabled:
+            development_charges = highrise_pricing.calculate_development_charges(
+                buildup_area=area_type.buildup_area
+            )
+        else:
+            development_charges = config.development_charges or Decimal('0')
+        
+        # Get parking price
+        parking_price = Decimal('0')
+        if highrise_pricing and highrise_pricing.is_enabled:
+            parking_price = highrise_pricing.get_parking_price()
+        
+        unit_total = agreement_value + stamp_duty + gst + config.registration_charges + config.legal_charges + development_charges + parking_price
+        
+        # Accumulate totals
+        total_agreement_value += agreement_value
+        total_stamp_duty += stamp_duty
+        total_gst += gst
+        total_registration += config.registration_charges
+        total_legal += config.legal_charges
+        total_development += development_charges
+        total_parking += parking_price
+        total_cost += unit_total
+        total_carpet_area += area_type.carpet_area
+        total_buildup_area += area_type.buildup_area
+        
+        units_data.append({
+            'unit_config': unit_config,
+            'configuration_name': config.name,
+            'area_display': area_type.get_display_name(),
+            'carpet_area': area_type.carpet_area,
+            'buildup_area': area_type.buildup_area,
+            'rera_area': area_type.rera_area,
+            'price_per_sqft': price_per_sqft,
+            'base_price_per_sqft': base_price_per_sqft,
+            'agreement_value': agreement_value,
+            'stamp_duty': stamp_duty,
+            'gst': gst,
+            'registration_charges': config.registration_charges,
+            'legal_charges': config.legal_charges,
+            'development_charges': development_charges,
+            'parking_price': parking_price,
+            'total': unit_total,
+            'stamp_duty_percent': config.stamp_duty_percent,
+            'gst_percent': config.gst_percent,
+        })
+    
+    # Calculate average price per sqft
+    avg_price_per_sqft = total_agreement_value / total_buildup_area if total_buildup_area > 0 else Decimal('0')
+    
+    context = {
+        'project': project,
+        'units_data': units_data,
+        'total_agreement_value': total_agreement_value,
+        'total_stamp_duty': total_stamp_duty,
+        'total_gst': total_gst,
+        'total_registration': total_registration,
+        'total_legal': total_legal,
+        'total_development': total_development,
+        'total_parking': total_parking,
+        'total_cost': total_cost,
+        'total_carpet_area': total_carpet_area,
+        'total_buildup_area': total_buildup_area,
+        'avg_price_per_sqft': avg_price_per_sqft,
+        'highrise_pricing': highrise_pricing,
+    }
+    return render(request, 'projects/multi_unit_calculation.html', context)
+
+
+@login_required
 def search_visited_leads(request, pk):
     """API endpoint to search visited leads for booking conversion"""
     project = get_object_or_404(Project, pk=pk)
