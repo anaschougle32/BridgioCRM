@@ -1,6 +1,13 @@
 {% load tz %}
 <div id="otp-controls">
-    {% if latest_otp and not latest_otp.is_verified %}
+    {% if is_verified and latest_otp.is_verified %}
+        <div class="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <p class="text-sm text-green-800 mb-2">
+                <strong>✓ OTP Verified:</strong> Verified at {{ latest_otp.verified_at|date:"h:i A" }} on {{ latest_otp.verified_at|date:"M d, Y" }}.
+                <br>This OTP is permanently verified and will not expire.
+            </p>
+        </div>
+    {% elif latest_otp and not latest_otp.is_verified %}
         {% if latest_otp.expires_at > now %}
             <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <p class="text-sm text-blue-800 mb-2">
@@ -77,4 +84,3 @@ if (window.htmx) {
     htmx.process(document.getElementById('otp-controls'));
 }
 </script>
-

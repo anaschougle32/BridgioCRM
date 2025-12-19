@@ -1085,13 +1085,50 @@ def send_otp(request, pk):
     else:
         primary_project = lead.primary_project
     
-    # Check if there's an active OTP that hasn't expired
+    # Check if there's an active OTP that hasn't expired OR if there's a verified OTP for pretagged leads
     now = timezone.now()
+    
+    # For pretagged leads, also check for verified OTPs (they don't expire)
+    is_pretagged = False
+    if request.user.is_closing_manager():
+        user_projects = request.user.assigned_projects.all()
+        associations = lead.project_associations.filter(project__in=user_projects, is_archived=False)
+        is_pretagged = associations.filter(is_pretagged=True).exists()
+    elif request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner():
+        associations = lead.project_associations.filter(is_archived=False)
+        is_pretagged = associations.filter(is_pretagged=True).exists()
+    
+    # Check for verified OTP first (for pretagged leads that are already verified)
+    verified_otp = None
+    if is_pretagged:
+        verified_otp = lead.otp_logs.filter(
+            is_verified=True
+        ).order_by('-verified_at').first()
+    
+    # Check for active unverified OTP
     active_otp = lead.otp_logs.filter(
         is_verified=False,
         expires_at__gt=now,
         attempts__lt=3
     ).order_by('-created_at').first()
+    
+    # If there's a verified OTP for pretagged lead, show it as verified (no expiry)
+    if verified_otp and is_pretagged:
+        from .utils import get_sms_deep_link, normalize_phone
+        normalized_phone = normalize_phone(lead.phone)
+        project_name = primary_project.name if primary_project else ''
+        sms_link = get_sms_deep_link(normalized_phone, "XXXXXX", project_name=project_name)
+        
+        # Return HTML showing verified status (no need to verify again)
+        context = {
+            'lead': lead,
+            'latest_otp': verified_otp,
+            'now': now,
+            'sms_link': sms_link,
+            'is_verified': True,
+        }
+        html = render_to_string('leads/otp_controls.html', context, request=request)
+        return HttpResponse(html)
     
     if active_otp:
         # Generate WhatsApp link for existing OTP
