@@ -1303,9 +1303,12 @@ def verify_otp(request, pk):
         otp_log.is_verified = True
         otp_log.verified_at = now
         
-        # For pretagged leads, set expires_at to far future so it never expires
-        # Check if this is a pretagged lead
+        # Get project_id from request to update specific project association
         project_id = request.POST.get('project_id') or request.GET.get('project_id')
+        
+        # For pretagged leads, set expires_at to far future so it never expires
+        # BUT: OTP verification is project-specific for pretagged leads
+        # If same lead goes to another project, they need to verify OTP again
         if project_id:
             associations = lead.project_associations.filter(project_id=project_id, is_archived=False)
         else:
@@ -1316,8 +1319,9 @@ def verify_otp(request, pk):
                 associations = lead.project_associations.filter(is_archived=False)
         
         is_pretagged = associations.filter(is_pretagged=True).exists()
-        if is_pretagged:
-            # Set expires_at to far future (100 years from now) so it never expires
+        if is_pretagged and project_id:
+            # For pretagged leads, OTP verification is project-specific
+            # Set expires_at to far future (100 years from now) so it never expires for THIS project
             from datetime import timedelta
             otp_log.expires_at = now + timedelta(days=36500)  # ~100 years
         
@@ -1326,6 +1330,13 @@ def verify_otp(request, pk):
         # Update associations - mark phone as verified and update status
         # Assign to the closing manager who verified the OTP
         for association in associations:
+            # For pretagged leads, phone_verified is project-specific
+            # Only mark as verified for the specific project being verified
+            if association.is_pretagged and project_id:
+                # Only verify for the specific project
+                if str(association.project_id) != str(project_id):
+                    continue
+            
             association.phone_verified = True
             if association.is_pretagged:
                 association.pretag_status = 'verified'
@@ -1339,6 +1350,9 @@ def verify_otp(request, pk):
                 association.assigned_to = request.user
             
             association.save()
+        
+        # For scheduled visits, update visit count for the caller who scheduled it
+        # The status change to 'visit_completed' automatically counts towards visit statistics
         
         # Create audit log
         from accounts.models import AuditLog
