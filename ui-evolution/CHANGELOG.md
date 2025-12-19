@@ -17,6 +17,31 @@ This file defines what is allowed to change. Only items listed in "Planned" or "
 
 ---
 
+## [0.6.0] – Dashboard UI Enhancement
+### Changed
+- Enhanced dashboard templates with platform-specific layouts
+- Desktop: Improved grid layout with 2-column sections, better card design
+- Mobile/Tablet: Added sticky header, "My Today" card with key metrics
+- Mobile: Added FAB (Floating Action Button) for quick actions
+- Improved card styling with hover effects and transitions
+- Touch-friendly buttons (48px+ tap targets) on mobile
+- Better responsive breakpoints for all screen sizes
+
+### Scope
+- Updated `dashboard_telecaller.html` and `dashboard_closing_manager.html`
+- Desktop: Enhanced grid layout (≥1025px)
+- Mobile/Tablet: Vertical stack with sticky header (≤1024px)
+- No backend changes
+
+### Verified
+- Desktop grid layout works
+- Mobile stack layout works
+- Cards display correctly
+- FAB functional (mobile)
+- Tested responsive breakpoints
+
+---
+
 ## [0.5.0] – Follow-Ups UI Enhancement
 ### Changed
 - Created dedicated follow-ups page with Kanban board (desktop) and list view (mobile/tablet)
