@@ -284,6 +284,9 @@
                             {% if primary_association and primary_association.is_pretagged %}
                             <p><strong>Pretag Status:</strong> {{ primary_association.get_pretag_status_display|default:"-" }}</p>
                             <p><strong>Phone Verified:</strong> {% if primary_association.phone_verified %}✓ Yes{% else %}✗ No{% endif %}</p>
+                            {% if primary_association.phone_verified and primary_association.assigned_to %}
+                            <p><strong>Verified By:</strong> {{ primary_association.assigned_to.username }} ({{ primary_association.project.name }})</p>
+                            {% endif %}
                             {% endif %}
                         </div>
                     </div>
