@@ -6,7 +6,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponse
 from django.urls import reverse
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.template.loader import render_to_string
 try:
     import openpyxl
@@ -178,17 +178,67 @@ def lead_list(request):
     channel_partners = ChannelPartner.objects.filter(status='active').order_by('cp_name')
     
     # Get call metrics for current user
-    # Use call_date instead of created_at for accurate date-based filtering
+    # Count calls based on: CallLog entries, Notes updates, Status updates
     now = timezone.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
     
+    # Count CallLog entries
+    call_logs_today = CallLog.objects.filter(user=request.user, call_date__gte=today_start).count()
+    call_logs_week = CallLog.objects.filter(user=request.user, call_date__gte=week_start).count()
+    call_logs_month = CallLog.objects.filter(user=request.user, call_date__gte=month_start).count()
+    call_logs_total = CallLog.objects.filter(user=request.user).count()
+    
+    # Count notes updates (from AuditLog)
+    from accounts.models import AuditLog
+    notes_updates_today = AuditLog.objects.filter(
+        user=request.user, 
+        action='notes_updated',
+        created_at__gte=today_start
+    ).count()
+    notes_updates_week = AuditLog.objects.filter(
+        user=request.user, 
+        action='notes_updated',
+        created_at__gte=week_start
+    ).count()
+    notes_updates_month = AuditLog.objects.filter(
+        user=request.user, 
+        action='notes_updated',
+        created_at__gte=month_start
+    ).count()
+    notes_updates_total = AuditLog.objects.filter(
+        user=request.user, 
+        action='notes_updated'
+    ).count()
+    
+    # Count status updates (from AuditLog)
+    status_updates_today = AuditLog.objects.filter(
+        user=request.user, 
+        action='status_updated',
+        created_at__gte=today_start
+    ).count()
+    status_updates_week = AuditLog.objects.filter(
+        user=request.user, 
+        action='status_updated',
+        created_at__gte=week_start
+    ).count()
+    status_updates_month = AuditLog.objects.filter(
+        user=request.user, 
+        action='status_updated',
+        created_at__gte=month_start
+    ).count()
+    status_updates_total = AuditLog.objects.filter(
+        user=request.user, 
+        action='status_updated'
+    ).count()
+    
+    # Combine all call activities
     call_metrics = {
-        'today': CallLog.objects.filter(user=request.user, call_date__gte=today_start).count(),
-        'this_week': CallLog.objects.filter(user=request.user, call_date__gte=week_start).count(),
-        'this_month': CallLog.objects.filter(user=request.user, call_date__gte=month_start).count(),
-        'total': CallLog.objects.filter(user=request.user).count(),
+        'today': call_logs_today + notes_updates_today + status_updates_today,
+        'this_week': call_logs_week + notes_updates_week + status_updates_week,
+        'this_month': call_logs_month + notes_updates_month + status_updates_month,
+        'total': call_logs_total + notes_updates_total + status_updates_total,
     }
     
     # Generate budget choices for dropdown (common budget ranges)
@@ -814,22 +864,34 @@ def lead_pretag(request):
                 configs = GlobalConfiguration.objects.filter(id__in=config_ids, is_active=True)
                 lead.configurations.set(configs)
             
+            # Get date and time from form
+            time_frame = request.POST.get('time_frame', '')
+            visit_scheduled_date_str = request.POST.get('visit_scheduled_date', '')
+            visit_scheduled_time_str = request.POST.get('visit_scheduled_time', '')
+            
+            # Parse date and time
+            visit_scheduled_date = None
+            if visit_scheduled_date_str and visit_scheduled_time_str:
+                try:
+                    datetime_str = f"{visit_scheduled_date_str} {visit_scheduled_time_str}"
+                    visit_scheduled_date = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+                    visit_scheduled_date = timezone.make_aware(visit_scheduled_date)
+                except (ValueError, TypeError):
+                    visit_scheduled_date = None
+            
             # Create associations for all selected projects
+            # Create ONE association per lead+project (due to unique_together constraint)
+            # ALL closing managers assigned to the project will see it in their Pretagged Visits
+            # The lead is assigned to the PROJECT, not to a specific closing manager
             for project_id in project_ids:
                 try:
                     project = Project.objects.get(id=project_id, is_active=True)
                     
-                    # Auto-assign to closing manager for this project
-                    project_closing_manager = None
-                    project_closing_managers = User.objects.filter(
-                        role='closing_manager',
-                        is_active=True,
-                        assigned_projects=project
-                    )
-                    if project_closing_managers.exists():
-                        project_closing_manager = project_closing_managers.first()
-                    
-                    # Create or get association for this project
+                    # Create or get ONE association for this lead+project
+                    # For single project: ALL closers in that project see it
+                    # For multiple projects (universal tag): ALL closers in those projects see it
+                    # Each project association has independent OTP verification and visit counting
+                    # assigned_to is set to None - visibility is based on project assignment only
                     association, assoc_created = LeadProjectAssociation.objects.get_or_create(
                         lead=lead,
                         project=project,
@@ -838,21 +900,33 @@ def lead_pretag(request):
                             'is_pretagged': True,
                             'pretag_status': 'pending_verification',
                             'phone_verified': False,
-                            'assigned_to': project_closing_manager,
-                            'assigned_at': timezone.now() if project_closing_manager else None,
-                            'assigned_by': request.user if project_closing_manager else None,
+                            'assigned_to': None,  # Not assigned to specific closer - visible to all closers in project
+                            'assigned_at': None,
+                            'assigned_by': None,
                             'created_by': request.user,
+                            'time_frame': time_frame if time_frame else None,
+                            'visit_scheduled_date': visit_scheduled_date,
                         }
                     )
                     
-                    # Update association if it already existed
+                    # Only update if this is a NEW pretagging action
+                    # Don't modify existing associations that weren't pretagged
                     if not assoc_created:
-                        association.is_pretagged = True
-                        association.pretag_status = 'pending_verification'
-                        if project_closing_manager and not association.assigned_to:
-                            association.assigned_to = project_closing_manager
-                            association.assigned_at = timezone.now()
-                            association.assigned_by = request.user
+                        # Only set pretagged if it wasn't already pretagged (to avoid overwriting)
+                        # This ensures we don't accidentally pretag existing non-pretagged associations
+                        if not association.is_pretagged:
+                            association.is_pretagged = True
+                            association.pretag_status = 'pending_verification'
+                            association.phone_verified = False
+                            # Clear assigned_to to make it visible to all closers in project
+                            association.assigned_to = None
+                            association.assigned_at = None
+                            association.assigned_by = None
+                        # Update time frame and date if provided
+                        if time_frame:
+                            association.time_frame = time_frame
+                        if visit_scheduled_date:
+                            association.visit_scheduled_date = visit_scheduled_date
                         association.save()
                 except Project.DoesNotExist:
                     continue
@@ -889,9 +963,10 @@ def lead_detail(request, pk):
         )
         has_permission = associations.exists()
     elif request.user.is_closing_manager():
-        # Closing managers can view assigned leads OR visited leads (for booking creation)
+        # Closing managers can view assigned leads, scheduled visits, or visited leads (for booking creation)
         associations = lead.project_associations.filter(
             Q(assigned_to=request.user) | 
+            Q(status='visit_scheduled') |
             Q(status='visit_completed') | 
             Q(phone_verified=True),
             project__in=request.user.assigned_projects.all(),
@@ -1241,12 +1316,25 @@ def verify_otp(request, pk):
             return HttpResponse(html)
         else:
             # Return full OTP section for lead detail page
+            # Get primary association for the template
+            primary_association = lead.project_associations.filter(is_archived=False).first()
+            if not primary_association and request.user.is_closing_manager():
+                # Try to get association from user's projects
+                user_projects = request.user.assigned_projects.all()
+                primary_association = lead.project_associations.filter(
+                    project__in=user_projects,
+                    is_archived=False
+                ).first()
+            
             context = {
                 'lead': lead,
+                'primary_association': primary_association,
                 'latest_otp': None,
                 'now': now,
             }
             html = render_to_string('leads/otp_section.html', context, request=request)
+            # Add script to reload page after a short delay to update all status displays
+            html += '<script>setTimeout(function(){ window.location.reload(); }, 1500);</script>'
             return HttpResponse(html)
     else:
         otp_log.save()
@@ -1379,14 +1467,18 @@ def upcoming_visits(request):
             Q(status='visit_scheduled')
         ).select_related('lead', 'project', 'assigned_to')
     else:  # Closing Manager
+        # Show pretagged leads in projects assigned to this closing manager
+        # Single project pretag: ALL closers in that project see it (filtered by assigned_projects)
+        # Universal tag (multiple projects): ALL closers in those projects see it
+        # Each project association has independent OTP verification and visit counting
+        # Pretagged leads are assigned to the PROJECT, not to a specific closing manager
+        # So we only check if the project is in their assigned_projects
         associations = LeadProjectAssociation.objects.filter(
             project__in=assigned_projects,
-            assigned_to=request.user,
-            is_archived=False
-        ).filter(
-            Q(is_pretagged=True, pretag_status='pending_verification') |
-            Q(status='visit_scheduled')
-        ).select_related('lead', 'project')
+            is_archived=False,
+            is_pretagged=True,
+            pretag_status='pending_verification'
+        ).select_related('lead', 'project', 'assigned_to', 'created_by')
     
     # Search
     search = request.GET.get('search', '')
@@ -1402,61 +1494,104 @@ def upcoming_visits(request):
     if project_id:
         associations = associations.filter(project_id=project_id)
     
-    # Get unique lead IDs
-    lead_ids = associations.values_list('lead_id', flat=True).distinct()
-    leads = Lead.objects.filter(id__in=lead_ids, is_archived=False).order_by('-created_at')
+    # Filter by time frame
+    time_frame = request.GET.get('time_frame', '')
+    if time_frame:
+        associations = associations.filter(time_frame=time_frame)
     
-    # Pagination
-    paginator = Paginator(leads, 25)
-    page = request.GET.get('page', 1)
-    leads_page = paginator.get_page(page)
+    # Group associations by lead_id for efficient lookup
+    # This ensures we use the exact same associations we filtered, avoiding re-query mismatches
+    # IMPORTANT: Evaluate the queryset here to avoid lazy evaluation issues
+    all_lead_associations_dict = {}
+    associations_list = list(associations.select_related('lead', 'project', 'assigned_to', 'created_by'))
+    for assoc in associations_list:
+        if assoc.lead_id not in all_lead_associations_dict:
+            all_lead_associations_dict[assoc.lead_id] = []
+        all_lead_associations_dict[assoc.lead_id].append(assoc)
     
-    # Get associations for each lead
-    lead_associations_dict = {}
-    for lead in leads_page:
-        if request.user.is_super_admin() or request.user.is_mandate_owner() or request.user.is_site_head():
-            lead_associations_dict[lead.id] = lead.project_associations.filter(
-                project__in=assigned_projects,
-                is_archived=False
-            ).filter(
-                Q(is_pretagged=True, pretag_status='pending_verification') |
-                Q(status='visit_scheduled')
-            ).select_related('project', 'assigned_to')
-        else:  # Closing Manager
-            lead_associations_dict[lead.id] = lead.project_associations.filter(
-                project__in=assigned_projects,
-                assigned_to=request.user,
-                is_archived=False
-            ).filter(
-                Q(is_pretagged=True, pretag_status='pending_verification') |
-                Q(status='visit_scheduled')
-            ).select_related('project', 'assigned_to')
+    # Get unique lead IDs from the associations we already have
+    lead_ids = list(all_lead_associations_dict.keys())
+    if not lead_ids:
+        # No associations found, return empty result
+        leads = Lead.objects.none()
+        leads_page = Paginator(leads, 25).get_page(1)
+        lead_associations_dict = {}
+    else:
+        leads = Lead.objects.filter(id__in=lead_ids, is_archived=False).order_by('-created_at')
+        
+        # Pagination
+        paginator = Paginator(leads, 25)
+        try:
+            page = int(request.GET.get('page', 1))
+        except (ValueError, TypeError):
+            page = 1
+        leads_page = paginator.get_page(page)
+        
+        # Build associations dict only for leads on the current page
+        # Templates can iterate over lists, so we keep them as lists
+        lead_associations_dict = {}
+        for lead in leads_page.object_list:  # Use object_list to ensure we iterate over actual objects
+            if lead.id in all_lead_associations_dict:
+                lead_associations_dict[lead.id] = all_lead_associations_dict[lead.id]
     
+    # Debug output (can be removed later)
+    if not lead_associations_dict and associations_list:
+        # This shouldn't happen, but if it does, log it
+        print(f"DEBUG: Found {len(associations_list)} associations but lead_associations_dict is empty. Lead IDs: {lead_ids[:10]}")
+        # Check if leads are archived
+        archived_count = Lead.objects.filter(id__in=lead_ids, is_archived=True).count()
+        print(f"DEBUG: {archived_count} out of {len(lead_ids)} leads are archived")
+    
+    # Debug: Print what we're sending to template
+    leads_count = len(leads_page.object_list) if hasattr(leads_page, 'object_list') else 0
+    print(f"DEBUG upcoming_visits: associations_list={len(associations_list)}, lead_ids={len(lead_ids)}, leads_page.objects={leads_count}, lead_associations_dict={len(lead_associations_dict)}")
+    if leads_page and hasattr(leads_page, 'object_list') and leads_page.object_list:
+        print(f"DEBUG: First lead ID: {leads_page.object_list[0].id}, in dict: {leads_page.object_list[0].id in lead_associations_dict}")
+        print(f"DEBUG: First lead associations count: {len(lead_associations_dict.get(leads_page.object_list[0].id, []))}")
+    
+    # Ensure we always have a valid leads_page object, even if empty
+    if not leads_page:
+        leads = Lead.objects.none()
+        paginator = Paginator(leads, 25)
+        leads_page = paginator.get_page(1)
+    
+    # CRITICAL FIX: Use the same pattern as pretagged_leads view which works
+    # The template iterates over leads_page, so we need to ensure it's always a valid Page object
     context = {
-        'leads': leads_page,
+        'leads_page': leads_page,
         'lead_associations': lead_associations_dict,
         'projects': assigned_projects,
         'search': search,
         'selected_project': project_id,
+        'selected_time_frame': time_frame,
         'is_mandate_owner': request.user.is_mandate_owner(),
         'is_site_head': request.user.is_site_head(),
     }
+    print(f"DEBUG FINAL: Context keys: {list(context.keys())}")
+    print(f"DEBUG FINAL: leads_page exists: {'leads_page' in context}")
+    print(f"DEBUG FINAL: leads_page type: {type(context.get('leads_page')).__name__ if context.get('leads_page') else 'None'}")
+    print(f"DEBUG FINAL: leads_page.object_list length: {len(context['leads_page'].object_list) if context.get('leads_page') and hasattr(context['leads_page'], 'object_list') else 'N/A'}")
+    print(f"DEBUG FINAL: lead_associations dict size: {len(context.get('lead_associations', {}))}")
     return render(request, 'leads/upcoming_visits.html', context)
 
 
 @login_required
 def pretagged_leads(request):
-    """Pretagged Leads view for Sourcing Managers - shows all pretagged leads with visit status"""
+    """Pretagged Leads view for Sourcing Managers - shows all pretagged leads in their assigned projects"""
     if not request.user.is_sourcing_manager():
         messages.error(request, 'Only Sourcing Managers can view pretagged leads.')
         return redirect('dashboard')
     
-    # Get associations for pretagged leads created by this sourcing manager
+    # Get projects assigned to this sourcing manager
+    assigned_projects = request.user.assigned_projects.filter(is_active=True)
+    
+    # Get associations for pretagged leads in projects assigned to this sourcing manager
+    # This shows ALL pretagged leads in their projects, not just ones they created
     associations = LeadProjectAssociation.objects.filter(
         is_pretagged=True,
-        created_by=request.user,
+        project__in=assigned_projects,
         is_archived=False
-    ).select_related('lead', 'project', 'assigned_to')
+    ).select_related('lead', 'project', 'assigned_to', 'created_by')
     
     # Search
     search = request.GET.get('search', '')
@@ -1485,19 +1620,8 @@ def pretagged_leads(request):
     lead_ids = associations.values_list('lead_id', flat=True).distinct()
     leads = Lead.objects.filter(id__in=lead_ids, is_archived=False).order_by('-created_at')
     
-    # Get projects for filter - projects where user has created pretagged associations
-    projects_with_pretagged = Project.objects.filter(
-        is_active=True,
-        lead_associations__created_by=request.user,
-        lead_associations__is_pretagged=True
-    ).distinct()
-    
-    # Also include projects assigned to this user
-    user_assigned_projects = request.user.assigned_projects.filter(is_active=True)
-    
-    # Combine using union - order_by must be applied after union, not in subqueries
-    projects = projects_with_pretagged.union(user_assigned_projects)
-    projects = projects.order_by('name')
+    # Get projects for filter - use assigned projects
+    projects = assigned_projects.order_by('name')
     
     # Pagination
     paginator = Paginator(leads, 25)
@@ -1509,26 +1633,26 @@ def pretagged_leads(request):
     for lead in leads_page:
         lead_associations_dict[lead.id] = lead.project_associations.filter(
             is_pretagged=True,
-            created_by=request.user,
+            project__in=assigned_projects,
             is_archived=False
-        ).select_related('project', 'assigned_to')
+        ).select_related('project', 'assigned_to', 'created_by')
     
-    # Stats - count associations
+    # Stats - count associations in assigned projects
     total_pretagged = LeadProjectAssociation.objects.filter(
         is_pretagged=True,
-        created_by=request.user,
+        project__in=assigned_projects,
         is_archived=False
     ).count()
     pending_visits = LeadProjectAssociation.objects.filter(
         is_pretagged=True,
-        created_by=request.user,
+        project__in=assigned_projects,
         pretag_status='pending_verification',
         phone_verified=False,
         is_archived=False
     ).count()
     completed_visits = LeadProjectAssociation.objects.filter(
         is_pretagged=True,
-        created_by=request.user,
+        project__in=assigned_projects,
         is_archived=False
     ).filter(Q(pretag_status='verified') | Q(status='visit_completed')).count()
     
@@ -1637,6 +1761,26 @@ def schedule_visit(request):
                     if project_closing_managers.exists():
                         project_closing_manager = project_closing_managers.first()
                     
+                    # Get time_frame and visit_scheduled_date from form
+                    time_frame = request.POST.get('time_frame', '')
+                    visit_scheduled_date_str = request.POST.get('visit_scheduled_date', '')
+                    visit_scheduled_time_str = request.POST.get('visit_scheduled_time', '')
+                    
+                    visit_scheduled_date = None
+                    if visit_scheduled_date_str and visit_scheduled_time_str:
+                        try:
+                            datetime_str = f"{visit_scheduled_date_str} {visit_scheduled_time_str}"
+                            visit_scheduled_date = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M')
+                            visit_scheduled_date = timezone.make_aware(visit_scheduled_date)
+                        except ValueError:
+                            pass
+                    elif visit_scheduled_date_str:
+                        try:
+                            date_obj = datetime.strptime(visit_scheduled_date_str, '%Y-%m-%d').date()
+                            visit_scheduled_date = timezone.make_aware(datetime.combine(date_obj, datetime.min.time()))
+                        except ValueError:
+                            pass
+                    
                     # Create or get association for this project
                     association, assoc_created = LeadProjectAssociation.objects.get_or_create(
                         lead=lead,
@@ -1649,6 +1793,8 @@ def schedule_visit(request):
                             'assigned_at': timezone.now() if project_closing_manager else None,
                             'assigned_by': request.user if project_closing_manager else None,
                             'created_by': request.user,
+                            'time_frame': time_frame if time_frame else None,
+                            'visit_scheduled_date': visit_scheduled_date,
                         }
                     )
                     
@@ -1660,6 +1806,10 @@ def schedule_visit(request):
                             association.assigned_to = project_closing_manager
                             association.assigned_at = timezone.now()
                             association.assigned_by = request.user
+                        if time_frame:
+                            association.time_frame = time_frame
+                        if visit_scheduled_date:
+                            association.visit_scheduled_date = visit_scheduled_date
                         association.save()
                 except Project.DoesNotExist:
                     continue
@@ -1695,12 +1845,14 @@ def scheduled_visits(request):
             Q(assigned_to=request.user) | Q(created_by=request.user)
         ).select_related('lead', 'project')
     else:  # Closing Manager
+        # Show visits in projects assigned to this closing manager
+        # This includes visits scheduled by callers for the closer to see
+        assigned_projects = request.user.assigned_projects.filter(is_active=True)
         associations = LeadProjectAssociation.objects.filter(
             status='visit_scheduled',
+            project__in=assigned_projects,
             is_archived=False
-        ).filter(
-            Q(assigned_to=request.user) | Q(created_by=request.user)
-        ).select_related('lead', 'project')
+        ).select_related('lead', 'project', 'assigned_to', 'created_by')
     
     # Search
     search = request.GET.get('search', '')
@@ -1715,6 +1867,20 @@ def scheduled_visits(request):
     project_id = request.GET.get('project', '')
     if project_id:
         associations = associations.filter(project_id=project_id)
+    
+    # Filter by time frame
+    time_frame = request.GET.get('time_frame', '')
+    if time_frame:
+        associations = associations.filter(time_frame=time_frame)
+    
+    # Filter by visit scheduled date
+    visit_scheduled_date = request.GET.get('visit_scheduled_date', '')
+    if visit_scheduled_date:
+        try:
+            date_obj = datetime.strptime(visit_scheduled_date, '%Y-%m-%d').date()
+            associations = associations.filter(visit_scheduled_date__date=date_obj)
+        except ValueError:
+            pass
     
     # Filter by status
     visit_status = request.GET.get('visit_status', '')
@@ -1772,7 +1938,9 @@ def scheduled_visits(request):
         'projects': projects,
         'search': search,
         'selected_project': project_id,
+        'selected_time_frame': time_frame,
         'selected_visit_status': visit_status,
+        'selected_visit_scheduled_date': visit_scheduled_date,
         'total_scheduled': total_scheduled,
         'pending_otp': pending_otp,
         'verified': verified,
@@ -1783,19 +1951,29 @@ def scheduled_visits(request):
 
 @login_required
 def closing_manager_visits(request):
-    """Visits performed by Closing Manager - only their own visits"""
+    """My Visits for Closing Manager - shows visits assigned to them AND visits scheduled by callers in their projects"""
     if not request.user.is_closing_manager():
         messages.error(request, 'Only Closing Managers can view their visits.')
         return redirect('dashboard')
     
-    # Get associations for visits performed by this closing manager ONLY
-    # This ensures they only see their own visits, not other closers' visits
+    # Get projects assigned to this closing manager
+    assigned_projects = request.user.assigned_projects.filter(is_active=True)
+    
+    # Get associations for visits in projects assigned to this closing manager
+    # This includes:
+    # 1. Direct visits (visit_completed or phone_verified)
+    # 2. Pretagged visits (is_pretagged=True)
+    # 3. Scheduled visits (status='visit_scheduled') - scheduled by callers or directly
+    # This allows closers to see all visits they handle
     associations = LeadProjectAssociation.objects.filter(
-        assigned_to=request.user,  # Only associations assigned to this closing manager
+        project__in=assigned_projects,
         is_archived=False
     ).filter(
-        Q(status='visit_completed') | Q(phone_verified=True) | Q(status='visit_scheduled')
-    ).select_related('lead', 'project')
+        Q(status='visit_completed') | 
+        Q(phone_verified=True) | 
+        Q(status='visit_scheduled') |
+        Q(is_pretagged=True)
+    ).select_related('lead', 'project', 'assigned_to', 'created_by')
     
     # Search
     search = request.GET.get('search', '')
@@ -1812,7 +1990,7 @@ def closing_manager_visits(request):
         associations = associations.filter(project_id=project_id)
     
     # Get projects for filter
-    projects = request.user.assigned_projects.filter(is_active=True).order_by('name')
+    projects = assigned_projects.order_by('name')
     
     # Get unique lead IDs
     lead_ids = associations.values_list('lead_id', flat=True).distinct()
@@ -1827,18 +2005,21 @@ def closing_manager_visits(request):
     lead_associations_dict = {}
     for lead in leads_page:
         lead_associations_dict[lead.id] = lead.project_associations.filter(
-            assigned_to=request.user,
+            project__in=assigned_projects,
             is_archived=False
         ).filter(
-            Q(status='visit_completed') | Q(phone_verified=True) | Q(status='visit_scheduled')
-        ).select_related('project', 'assigned_to')
+            Q(status='visit_completed') | 
+            Q(phone_verified=True) | 
+            Q(status='visit_scheduled') |
+            Q(is_pretagged=True)
+        ).select_related('project', 'assigned_to', 'created_by')
     
     # Stats - count associations
     total_visits = associations.count()
     # Count visits with bookings (check if lead has booking)
     visits_with_bookings = 0
     for assoc in associations:
-        if hasattr(assoc.lead, 'booking') and assoc.lead.booking:
+        if assoc.lead.bookings.exists():
             visits_with_bookings += 1
     visits_without_bookings = total_visits - visits_with_bookings
     
@@ -1950,8 +2131,23 @@ def log_call(request, pk):
             association.status = 'lost'
             association.save()
     
-    # Return HTML to close modal and show success
-    return HttpResponse('<div class="p-3 bg-green-50 text-green-800 rounded-lg mb-4">Call logged successfully!</div><script>setTimeout(() => { const modal = document.getElementById("log-call-modal"); if (modal) modal.classList.add("hidden"); location.reload(); }, 1500);</script>')
+    # Return success response
+    # For HTMX requests, return HTML that will be swapped into the target
+    if request.headers.get('HX-Request'):
+        success_html = (
+            '<div class="p-4 bg-green-50 border border-green-200 rounded-lg">'
+            '<div class="flex items-center">'
+            '<svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>'
+            '</svg>'
+            '<p class="text-green-800 font-medium">Call logged successfully!</p>'
+            '</div>'
+            '<p class="text-green-600 text-sm mt-2">Reloading page to update metrics...</p>'
+            '</div>'
+        )
+        return HttpResponse(success_html)
+    # For regular requests, return JSON
+    return JsonResponse({'success': True, 'message': 'Call logged successfully!'})
 
 
 @login_required
@@ -1988,36 +2184,90 @@ def create_reminder(request, pk):
 
 @login_required
 def update_status(request, pk):
-    """Update lead status"""
+    """Update lead status - updates status on LeadProjectAssociation"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check
+    # Get project_id from request (required for association-based status update)
+    project_id = request.POST.get('project_id') or request.GET.get('project_id')
+    if not project_id:
+        # Try to get primary project
+        primary_project = lead.primary_project
+        if not primary_project:
+            return JsonResponse({'success': False, 'error': 'Project is required to update status.'}, status=400)
+        project_id = primary_project.id
+    
+    project = get_object_or_404(Project, pk=project_id, is_active=True)
+    
+    # Get association for this project
+    association = LeadProjectAssociation.objects.filter(
+        lead=lead,
+        project=project,
+        is_archived=False
+    ).first()
+    
+    if not association:
+        return JsonResponse({'success': False, 'error': 'Lead is not associated with this project.'}, status=404)
+    
+    # Permission check - use associations for assigned_to
+    has_permission = False
+    
     if request.user.is_telecaller() or request.user.is_closing_manager():
-        if lead.assigned_to != request.user:
-            return JsonResponse({'success': False, 'error': 'You do not have permission to update this lead.'}, status=403)
+        # Check if user is assigned to this lead in this project OR any project
+        # Also allow if association has no assigned_to (unassigned leads)
+        if association.assigned_to == request.user:
+            has_permission = True
+        else:
+            # Check if user is assigned to this lead in any project
+            other_associations = lead.project_associations.filter(
+                assigned_to=request.user,
+                is_archived=False
+            )
+            if other_associations.exists():
+                has_permission = True
+    elif request.user.is_mandate_owner():
+        # Mandate owners can update status for leads in their projects
+        has_permission = project in request.user.assigned_projects.all()
+    elif request.user.is_site_head():
+        # Site heads can update status for leads in their projects
+        has_permission = project in request.user.assigned_projects.all()
+    elif request.user.is_super_admin() or request.user.is_sourcing_manager():
+        # Super admins and sourcing managers can update any lead
+        has_permission = True
+    else:
+        has_permission = False
+    
+    if not has_permission:
+        return JsonResponse({'success': False, 'error': 'You do not have permission to update this lead.'}, status=403)
     
     new_status = request.POST.get('status', '')
-    if new_status not in dict(Lead.LEAD_STATUS_CHOICES):
+    if new_status not in dict(LeadProjectAssociation.LEAD_STATUS_CHOICES):
         return JsonResponse({'success': False, 'error': 'Invalid status.'}, status=400)
     
-    lead.status = new_status
-    lead.save()
+    # Update status on association
+    old_status = association.status
+    association.status = new_status
+    association.save()
     
     # Create audit log
     from accounts.models import AuditLog
     AuditLog.objects.create(
         user=request.user,
         action='status_updated',
-        model_name='Lead',
-        object_id=str(lead.id),
-        changes={'status': new_status, 'status_display': lead.get_status_display()},
+        model_name='LeadProjectAssociation',
+        object_id=str(association.id),
+        changes={'status': new_status, 'old_status': old_status, 'status_display': association.get_status_display()},
     )
     
-    messages.success(request, f'Lead status updated to {lead.get_status_display()}.')
-    return redirect('leads:list')
+    messages.success(request, f'Lead status updated to {association.get_status_display()}.')
+    
+    # Return JSON for AJAX requests, redirect for regular form submissions
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Content-Type') == 'application/json':
+        return JsonResponse({'success': True, 'message': f'Lead status updated to {association.get_status_display()}.'})
+    
+    return redirect('leads:detail', pk=lead.id)
 
 
 @login_required
@@ -2037,21 +2287,55 @@ def update_notes(request, pk):
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
     # Permission check - use associations for assigned_to
+    has_permission = False
+    
     if request.user.is_telecaller() or request.user.is_closing_manager():
+        # Check if user is assigned to this lead in any project
         has_permission = lead.project_associations.filter(
             assigned_to=request.user,
             is_archived=False
         ).exists()
-        if not has_permission:
-            return JsonResponse({'success': False, 'error': 'You do not have permission to update notes for this lead.'}, status=403)
+    elif request.user.is_mandate_owner() or request.user.is_site_head():
+        # Mandate owners and site heads can update notes for leads in their projects
+        user_projects = request.user.assigned_projects.all()
+        has_permission = lead.project_associations.filter(
+            project__in=user_projects,
+            is_archived=False
+        ).exists()
+    elif request.user.is_super_admin() or request.user.is_sourcing_manager():
+        # Super admins and sourcing managers can update any lead
+        has_permission = True
+    else:
+        has_permission = False
+    
+    if not has_permission:
+        # Return error for HTMX
+        is_htmx = request.headers.get('HX-Request') or request.headers.get('hx-request')
+        if is_htmx:
+            error_html = (
+                '<div class="p-4 bg-red-50 border border-red-200 rounded-lg">'
+                '<p class="text-red-800 font-medium">Error: You do not have permission to update notes for this lead.</p>'
+                '</div>'
+            )
+            return HttpResponse(error_html, status=403)
+        return JsonResponse({'success': False, 'error': 'You do not have permission to update notes for this lead.'}, status=403)
     
     if request.method == 'GET':
-        # Return current notes for editing
-        return JsonResponse({'success': True, 'notes': lead.notes or ''})
+        # Don't return notes - we're adding new notes, not editing existing ones
+        return JsonResponse({'success': True, 'notes': ''})
     
     if request.method == 'POST':
         new_note = request.POST.get('notes', '').strip()
         if not new_note:
+            # Return error for HTMX
+            is_htmx = request.headers.get('HX-Request') or request.headers.get('hx-request')
+            if is_htmx:
+                error_html = (
+                    '<div class="p-4 bg-red-50 border border-red-200 rounded-lg">'
+                    '<p class="text-red-800 font-medium">Error: Note cannot be empty.</p>'
+                    '</div>'
+                )
+                return HttpResponse(error_html, status=400)
             return JsonResponse({'success': False, 'error': 'Note cannot be empty.'}, status=400)
         
         # Append new note with timestamp
@@ -2078,46 +2362,44 @@ def update_notes(request, pk):
             changes={'notes': new_note},
         )
         
-        # Return success response with updated notes for htmx - refresh notes section
-        if request.headers.get('HX-Request'):
-            # Parse notes and display as list
-            notes_html = '<div class="space-y-3">'
-            if lead.notes:
-                # Split notes by timestamp markers
-                import re
-                note_blocks = re.split(r'\n\n--- (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \((.+?)\) ---\n', lead.notes)
-                if len(note_blocks) > 1:
-                    # First element is empty or initial content, then pairs of (timestamp, user, content)
-                    for i in range(1, len(note_blocks), 3):
-                        if i + 2 < len(note_blocks):
-                            timestamp = note_blocks[i]
-                            user = note_blocks[i + 1]
-                            content = note_blocks[i + 2]
-                            notes_html += f'''
-                            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                <div class="text-xs text-gray-500 mb-2">--- {timestamp} ({user}) ---</div>
-                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{content.strip()}</p>
-                            </div>
-                            '''
-                else:
-                    # Single note without timestamp (legacy)
-                    notes_html += f'<div class="p-4 bg-gray-50 rounded-lg border border-gray-200"><p class="text-sm text-gray-700 whitespace-pre-wrap">{lead.notes}</p></div>'
-            else:
-                notes_html += '<p class="text-sm text-gray-500 mb-3">No notes added yet.</p>'
-            notes_html += '</div>'
+        # Return success response for HTMX
+        # Check for HTMX request header (case-insensitive)
+        is_htmx = request.headers.get('HX-Request') or request.headers.get('hx-request')
+        if is_htmx:
+            # Check if this is for lead detail page (target is #notes-section) or lead list (target is #notes-result)
+            # HTMX sends the target in HX-Target header
+            hx_target = request.headers.get('HX-Target', '') or request.headers.get('Hx-Target', '')
             
-            return HttpResponse(
-                notes_html +
-                '<div id="notes-result" class="text-green-600 mb-3 mt-3">Note added successfully!</div>'
-                '<script>'
-                'setTimeout(function() { '
-                '  document.getElementById("notes-modal").classList.add("hidden"); '
-                '  document.getElementById("notes-textarea").value = ""; '
-                '  document.getElementById("notes-result").remove(); '
-                '}, 1500);'
-                '</script>'
-            )
-        return JsonResponse({'success': True, 'message': 'Notes updated successfully'})
+            # If target is notes-section, it's from detail page
+            # If target is notes-result or empty, it's from list page
+            if 'notes-section' in hx_target:
+                # For lead detail page - return updated notes section
+                from django.template.loader import render_to_string
+                notes_html = render_to_string('leads/notes_section.html', {
+                    'lead': lead,
+                }, request=request)
+                response = HttpResponse(notes_html)
+                response['HX-Trigger'] = 'closeNotesModal'
+                return response
+            else:
+                # For lead list page - return success message and trigger reload
+                success_html = (
+                    '<div class="p-4 bg-green-50 border border-green-200 rounded-lg">'
+                    '<div class="flex items-center">'
+                    '<svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>'
+                    '</svg>'
+                    '<p class="text-green-800 font-medium">Note added successfully!</p>'
+                    '</div>'
+                    '<p class="text-green-600 text-sm mt-2">Reloading page...</p>'
+                    '</div>'
+                )
+                response = HttpResponse(success_html)
+                response['HX-Trigger'] = 'reloadPage'
+                return response
+        
+        # Fallback: if not HTMX, return JSON (shouldn't happen but handle it)
+        return JsonResponse({'success': True, 'message': 'Note added successfully'})
 
 
 @login_required
@@ -2220,17 +2502,36 @@ def update_configuration(request, pk):
 
 @login_required
 def track_call_click(request, pk):
-    """Track when user clicks call button (for metrics)"""
+    """Track when user clicks call button (for metrics) - creates a CallLog entry"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # This is just for tracking - actual call logging happens in log_call
-    # We could add a separate "call_clicked" log if needed, but for now just return success
-    return JsonResponse({'success': True})
+    # Permission check
+    has_permission = False
+    if request.user.is_telecaller() or request.user.is_closing_manager():
+        has_permission = lead.project_associations.filter(
+            assigned_to=request.user,
+            is_archived=False
+        ).exists()
+    else:
+        has_permission = True
     
-    return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    if not has_permission:
+        return JsonResponse({'success': False, 'error': 'You do not have permission to track calls for this lead.'}, status=403)
+    
+    # Create a CallLog entry for tracking call button clicks
+    from django.utils import timezone
+    CallLog.objects.create(
+        lead=lead,
+        user=request.user,
+        call_date=timezone.now(),
+        outcome='call_initiated',  # Special outcome for call button clicks
+        notes='Call button clicked',
+    )
+    
+    return JsonResponse({'success': True})
 
 
 @login_required
@@ -2247,7 +2548,7 @@ def whatsapp(request, pk):
     if template_key == 'booking_confirmation':
         # Try to get booking ID if exists
         try:
-            booking = lead.booking
+            booking = lead.bookings.first()  # Get first booking if multiple exist
             if booking:
                 message = message.format(booking_id=booking.id, name=lead.name, project_name=lead.project.name)
             else:

@@ -240,6 +240,115 @@
                     </div>
                 </div>
                 
+                <!-- Highrise Pricing Section -->
+                <div class="mt-8 pt-6 border-t border-border-light">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-heading font-semibold text-text-primary">Highrise Pricing (Optional)</h3>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" name="highrise_enabled" id="highrise_enabled" 
+                                   onchange="toggleHighriseFields()"
+                                   class="mr-2 w-5 h-5 text-olive-primary focus:ring-olive-primary border-gray-300 rounded">
+                            <span class="text-sm font-medium text-text-primary">Enable Highrise Pricing</span>
+                        </label>
+                    </div>
+                    
+                    <div id="highrise-fields" class="hidden space-y-6 mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Floor Threshold *</label>
+                                <input type="number" name="highrise_floor_threshold" id="highrise_floor_threshold" 
+                                       value="10" min="1"
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <p class="text-xs text-gray-500 mt-1">Floors up to this number use base price (e.g., 10 = floors 1-10)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Base Price per Sqft (₹) *</label>
+                                <input type="number" name="highrise_base_price_per_sqft" id="highrise_base_price_per_sqft" 
+                                       step="0.01" min="0"
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Pricing Type *</label>
+                                <select name="highrise_pricing_type" id="highrise_pricing_type" 
+                                        onchange="togglePricingTypeFields()"
+                                        class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                    <option value="fixed">Fixed Price Addition</option>
+                                    <option value="per_sqft" selected>Per Sqft Addition</option>
+                                </select>
+                            </div>
+                            <div id="fixed-price-field" class="hidden">
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Fixed Price Increment (₹) *</label>
+                                <input type="number" name="highrise_fixed_price_increment" id="highrise_fixed_price_increment" 
+                                       value="0" step="0.01" min="0"
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <p class="text-xs text-gray-500 mt-1">Amount added per floor above threshold</p>
+                            </div>
+                            <div id="per-sqft-field">
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Per Sqft Increment (₹) *</label>
+                                <input type="number" name="highrise_per_sqft_increment" id="highrise_per_sqft_increment" 
+                                       value="20" step="0.01" min="0"
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <p class="text-xs text-gray-500 mt-1">Amount added per sqft per floor above threshold (e.g., 20 = ₹20/sqft per floor)</p>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t border-gray-300 pt-4">
+                            <h4 class="text-md font-semibold text-text-primary mb-4">Development Charges</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-semibold text-text-primary mb-2">Development Charges Type *</label>
+                                    <select name="highrise_dev_charges_type" id="highrise_dev_charges_type" 
+                                            onchange="toggleDevChargesFields()"
+                                            class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                        <option value="fixed" selected>Fixed Amount</option>
+                                        <option value="per_sqft">Per Sqft</option>
+                                    </select>
+                                </div>
+                                <div id="dev-charges-fixed-field">
+                                    <label class="block text-sm font-semibold text-text-primary mb-2">Development Charges Fixed (₹)</label>
+                                    <input type="number" name="highrise_dev_charges_fixed" id="highrise_dev_charges_fixed" 
+                                           value="0" step="0.01" min="0"
+                                           class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                </div>
+                                <div id="dev-charges-per-sqft-field" class="hidden">
+                                    <label class="block text-sm font-semibold text-text-primary mb-2">Development Charges per Sqft (₹)</label>
+                                    <input type="number" name="highrise_dev_charges_per_sqft" id="highrise_dev_charges_per_sqft" 
+                                           value="0" step="0.01" min="0"
+                                           class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t border-gray-300 pt-4">
+                            <h4 class="text-md font-semibold text-text-primary mb-4">Parking</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-semibold text-text-primary mb-2">Parking Price (₹)</label>
+                                    <input type="number" name="highrise_parking_price" id="highrise_parking_price" 
+                                           value="0" step="0.01" min="0"
+                                           class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="checkbox" name="highrise_parking_negotiable" id="highrise_parking_negotiable" 
+                                               class="mr-2 w-5 h-5 text-olive-primary focus:ring-olive-primary border-gray-300 rounded">
+                                        <span class="text-sm font-medium text-text-primary">Negotiable</span>
+                                    </label>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="checkbox" name="highrise_include_parking" id="highrise_include_parking" 
+                                               checked
+                                               class="mr-2 w-5 h-5 text-olive-primary focus:ring-olive-primary border-gray-300 rounded">
+                                        <span class="text-sm font-medium text-text-primary">Include in Calculation</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="flex justify-end space-x-4 mt-6 pt-4 border-t border-border-light">
                     <button type="button" onclick="previousStep(5)" class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition">Previous</button>
                     <button type="button" onclick="submitFinalForm()" class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">Create Project</button>
@@ -812,5 +921,44 @@
     // Initialize
     updateStepIndicators(1);
     generateTowerConfigs(); // Generate initial tower configs
+    
+    // Highrise pricing functions
+    function toggleHighriseFields() {
+        const enabled = document.getElementById('highrise_enabled').checked;
+        const fields = document.getElementById('highrise-fields');
+        if (enabled) {
+            fields.classList.remove('hidden');
+        } else {
+            fields.classList.add('hidden');
+        }
+    }
+    
+    function togglePricingTypeFields() {
+        const pricingType = document.getElementById('highrise_pricing_type').value;
+        const fixedField = document.getElementById('fixed-price-field');
+        const perSqftField = document.getElementById('per-sqft-field');
+        
+        if (pricingType === 'fixed') {
+            fixedField.classList.remove('hidden');
+            perSqftField.classList.add('hidden');
+        } else {
+            fixedField.classList.add('hidden');
+            perSqftField.classList.remove('hidden');
+        }
+    }
+    
+    function toggleDevChargesFields() {
+        const devChargesType = document.getElementById('highrise_dev_charges_type').value;
+        const fixedField = document.getElementById('dev-charges-fixed-field');
+        const perSqftField = document.getElementById('dev-charges-per-sqft-field');
+        
+        if (devChargesType === 'fixed') {
+            fixedField.classList.remove('hidden');
+            perSqftField.classList.add('hidden');
+        } else {
+            fixedField.classList.add('hidden');
+            perSqftField.classList.remove('hidden');
+        }
+    }
 </script>
 {% endblock %}

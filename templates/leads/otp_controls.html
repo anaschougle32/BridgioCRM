@@ -21,7 +21,7 @@
                 </div>
                 {% endif %}
                 <form hx-post="{% url 'leads:verify_otp' lead.id %}" 
-                      hx-target="#otp-controls" 
+                      hx-target="#otp-section" 
                       hx-swap="innerHTML"
                       hx-indicator="#otp-loading"
                       class="flex gap-2">

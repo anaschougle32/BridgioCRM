@@ -153,10 +153,8 @@ def booking_create(request, lead_id):
         messages.error(request, 'You can only create bookings for leads in your projects.')
         return redirect('leads:detail', pk=lead_id)
     
-    # Check if booking already exists
-    if hasattr(lead, 'booking'):
-        messages.info(request, 'This lead already has a booking.')
-        return redirect('bookings:detail', pk=lead.booking.id)
+    # Note: Multiple bookings are now allowed per lead (for investors booking multiple units)
+    # No need to check if booking exists - lead can have multiple bookings
     
     # Check if lead is verified (for pretagged leads)
     if association.is_pretagged and not association.phone_verified:

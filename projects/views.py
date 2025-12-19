@@ -277,6 +277,46 @@ def project_create(request):
                 project.image = request.FILES['image']
                 project.save()
             
+            # Create/Update Highrise Pricing
+            from projects.models import HighrisePricing
+            highrise_enabled = request.POST.get('highrise_enabled') == 'on'
+            if highrise_enabled:
+                highrise_pricing, created = HighrisePricing.objects.get_or_create(
+                    project=project,
+                    defaults={
+                        'is_enabled': True,
+                        'floor_threshold': int(request.POST.get('highrise_floor_threshold', 10)),
+                        'base_price_per_sqft': Decimal(request.POST.get('highrise_base_price_per_sqft', 0)) if request.POST.get('highrise_base_price_per_sqft') else None,
+                        'pricing_type': request.POST.get('highrise_pricing_type', 'per_sqft'),
+                        'fixed_price_increment': Decimal(request.POST.get('highrise_fixed_price_increment', 0)) if request.POST.get('highrise_fixed_price_increment') else Decimal('0'),
+                        'per_sqft_increment': Decimal(request.POST.get('highrise_per_sqft_increment', 20)) if request.POST.get('highrise_per_sqft_increment') else Decimal('20'),
+                        'development_charges_type': request.POST.get('highrise_dev_charges_type', 'fixed'),
+                        'development_charges_fixed': Decimal(request.POST.get('highrise_dev_charges_fixed', 0)) if request.POST.get('highrise_dev_charges_fixed') else Decimal('0'),
+                        'development_charges_per_sqft': Decimal(request.POST.get('highrise_dev_charges_per_sqft', 0)) if request.POST.get('highrise_dev_charges_per_sqft') else Decimal('0'),
+                        'parking_price': Decimal(request.POST.get('highrise_parking_price', 0)) if request.POST.get('highrise_parking_price') else Decimal('0'),
+                        'parking_negotiable': request.POST.get('highrise_parking_negotiable') == 'on',
+                        'include_parking_in_calculation': request.POST.get('highrise_include_parking') == 'on',
+                    }
+                )
+                if not created:
+                    # Update existing
+                    highrise_pricing.is_enabled = True
+                    highrise_pricing.floor_threshold = int(request.POST.get('highrise_floor_threshold', 10))
+                    highrise_pricing.base_price_per_sqft = Decimal(request.POST.get('highrise_base_price_per_sqft', 0)) if request.POST.get('highrise_base_price_per_sqft') else None
+                    highrise_pricing.pricing_type = request.POST.get('highrise_pricing_type', 'per_sqft')
+                    highrise_pricing.fixed_price_increment = Decimal(request.POST.get('highrise_fixed_price_increment', 0)) if request.POST.get('highrise_fixed_price_increment') else Decimal('0')
+                    highrise_pricing.per_sqft_increment = Decimal(request.POST.get('highrise_per_sqft_increment', 20)) if request.POST.get('highrise_per_sqft_increment') else Decimal('20')
+                    highrise_pricing.development_charges_type = request.POST.get('highrise_dev_charges_type', 'fixed')
+                    highrise_pricing.development_charges_fixed = Decimal(request.POST.get('highrise_dev_charges_fixed', 0)) if request.POST.get('highrise_dev_charges_fixed') else Decimal('0')
+                    highrise_pricing.development_charges_per_sqft = Decimal(request.POST.get('highrise_dev_charges_per_sqft', 0)) if request.POST.get('highrise_dev_charges_per_sqft') else Decimal('0')
+                    highrise_pricing.parking_price = Decimal(request.POST.get('highrise_parking_price', 0)) if request.POST.get('highrise_parking_price') else Decimal('0')
+                    highrise_pricing.parking_negotiable = request.POST.get('highrise_parking_negotiable') == 'on'
+                    highrise_pricing.include_parking_in_calculation = request.POST.get('highrise_include_parking') == 'on'
+                    highrise_pricing.save()
+            else:
+                # Disable highrise pricing if checkbox is unchecked
+                HighrisePricing.objects.filter(project=project).update(is_enabled=False)
+            
             # Create flexible tower/floor configurations
             from projects.models import TowerFloorConfig
             tower_configs = project_data.get('tower_configs', [])
@@ -1020,6 +1060,46 @@ def project_edit(request, pk):
             project.site_head_id = site_head_id
             project.save()
             
+            # Create/Update Highrise Pricing
+            from projects.models import HighrisePricing
+            highrise_enabled = request.POST.get('highrise_enabled') == 'on'
+            if highrise_enabled:
+                highrise_pricing, created = HighrisePricing.objects.get_or_create(
+                    project=project,
+                    defaults={
+                        'is_enabled': True,
+                        'floor_threshold': int(request.POST.get('highrise_floor_threshold', 10)),
+                        'base_price_per_sqft': Decimal(request.POST.get('highrise_base_price_per_sqft', 0)) if request.POST.get('highrise_base_price_per_sqft') else None,
+                        'pricing_type': request.POST.get('highrise_pricing_type', 'per_sqft'),
+                        'fixed_price_increment': Decimal(request.POST.get('highrise_fixed_price_increment', 0)) if request.POST.get('highrise_fixed_price_increment') else Decimal('0'),
+                        'per_sqft_increment': Decimal(request.POST.get('highrise_per_sqft_increment', 20)) if request.POST.get('highrise_per_sqft_increment') else Decimal('20'),
+                        'development_charges_type': request.POST.get('highrise_dev_charges_type', 'fixed'),
+                        'development_charges_fixed': Decimal(request.POST.get('highrise_dev_charges_fixed', 0)) if request.POST.get('highrise_dev_charges_fixed') else Decimal('0'),
+                        'development_charges_per_sqft': Decimal(request.POST.get('highrise_dev_charges_per_sqft', 0)) if request.POST.get('highrise_dev_charges_per_sqft') else Decimal('0'),
+                        'parking_price': Decimal(request.POST.get('highrise_parking_price', 0)) if request.POST.get('highrise_parking_price') else Decimal('0'),
+                        'parking_negotiable': request.POST.get('highrise_parking_negotiable') == 'on',
+                        'include_parking_in_calculation': request.POST.get('highrise_include_parking') == 'on',
+                    }
+                )
+                if not created:
+                    # Update existing
+                    highrise_pricing.is_enabled = True
+                    highrise_pricing.floor_threshold = int(request.POST.get('highrise_floor_threshold', 10))
+                    highrise_pricing.base_price_per_sqft = Decimal(request.POST.get('highrise_base_price_per_sqft', 0)) if request.POST.get('highrise_base_price_per_sqft') else None
+                    highrise_pricing.pricing_type = request.POST.get('highrise_pricing_type', 'per_sqft')
+                    highrise_pricing.fixed_price_increment = Decimal(request.POST.get('highrise_fixed_price_increment', 0)) if request.POST.get('highrise_fixed_price_increment') else Decimal('0')
+                    highrise_pricing.per_sqft_increment = Decimal(request.POST.get('highrise_per_sqft_increment', 20)) if request.POST.get('highrise_per_sqft_increment') else Decimal('20')
+                    highrise_pricing.development_charges_type = request.POST.get('highrise_dev_charges_type', 'fixed')
+                    highrise_pricing.development_charges_fixed = Decimal(request.POST.get('highrise_dev_charges_fixed', 0)) if request.POST.get('highrise_dev_charges_fixed') else Decimal('0')
+                    highrise_pricing.development_charges_per_sqft = Decimal(request.POST.get('highrise_dev_charges_per_sqft', 0)) if request.POST.get('highrise_dev_charges_per_sqft') else Decimal('0')
+                    highrise_pricing.parking_price = Decimal(request.POST.get('highrise_parking_price', 0)) if request.POST.get('highrise_parking_price') else Decimal('0')
+                    highrise_pricing.parking_negotiable = request.POST.get('highrise_parking_negotiable') == 'on'
+                    highrise_pricing.include_parking_in_calculation = request.POST.get('highrise_include_parking') == 'on'
+                    highrise_pricing.save()
+            else:
+                # Disable highrise pricing if checkbox is unchecked
+                HighrisePricing.objects.filter(project=project).update(is_enabled=False)
+            
             messages.success(request, f'Project "{project.name}" updated successfully!')
             return JsonResponse({
                 'success': True,
@@ -1081,6 +1161,14 @@ def project_edit(request, pk):
     # Get project type choices for dropdown
     project_type_choices = Project.PROJECT_TYPE_CHOICES
     
+    # Get highrise pricing if exists
+    from projects.models import HighrisePricing
+    highrise_pricing = None
+    try:
+        highrise_pricing = project.highrise_pricing
+    except HighrisePricing.DoesNotExist:
+        pass
+    
     context = {
         'project': project,
         'mandate_owners': mandate_owners,
@@ -1091,6 +1179,7 @@ def project_edit(request, pk):
         'tower_floor_configs': tower_floor_configs,
         'commercial_floors_data': commercial_floors_json,  # Pass as JSON string
         'project_type_choices': project_type_choices,
+        'highrise_pricing': highrise_pricing,
     }
     return render(request, 'projects/edit.html', context)
 
@@ -1465,21 +1554,72 @@ def unit_calculation(request, pk, unit_id):
         config = unit_config.area_type.configuration
         area_type = unit_config.area_type
         
-        agreement_value = config.calculate_agreement_value(
-            carpet_area=area_type.carpet_area,
-            buildup_area=area_type.buildup_area
-        )
+        # Check if highrise pricing is enabled
+        from projects.models import HighrisePricing
+        highrise_pricing = None
+        try:
+            highrise_pricing = project.highrise_pricing
+        except HighrisePricing.DoesNotExist:
+            pass
         
-        cost_breakdown = config.calculate_total_cost(
-            carpet_area=area_type.carpet_area,
-            buildup_area=area_type.buildup_area
-        ) if agreement_value else None
+        # Calculate price per sqft - use highrise pricing if enabled
+        base_price_per_sqft = config.price_per_sqft or Decimal('0')
+        if highrise_pricing and highrise_pricing.is_enabled:
+            # Use highrise pricing calculation
+            floor_number = unit_config.floor_number
+            adjusted_price_per_sqft = highrise_pricing.calculate_price_per_sqft(
+                floor_number=floor_number,
+                base_price_per_sqft=base_price_per_sqft
+            )
+            price_per_sqft = adjusted_price_per_sqft
+        else:
+            price_per_sqft = base_price_per_sqft
+        
+        # Calculate agreement value using adjusted price
+        if price_per_sqft and area_type.buildup_area:
+            agreement_value = price_per_sqft * area_type.buildup_area
+        else:
+            agreement_value = None
+        
+        # Calculate cost breakdown
+        if agreement_value:
+            stamp_duty = agreement_value * (config.stamp_duty_percent / 100)
+            gst = agreement_value * (config.gst_percent / 100)
+            
+            # Get development charges - use highrise if enabled, otherwise use config
+            if highrise_pricing and highrise_pricing.is_enabled:
+                development_charges = highrise_pricing.calculate_development_charges(
+                    buildup_area=area_type.buildup_area
+                )
+            else:
+                development_charges = config.development_charges or Decimal('0')
+            
+            # Get parking price - use highrise if enabled
+            parking_price = Decimal('0')
+            if highrise_pricing and highrise_pricing.is_enabled:
+                parking_price = highrise_pricing.get_parking_price()
+            
+            total = agreement_value + stamp_duty + gst + config.registration_charges + config.legal_charges + development_charges + parking_price
+            
+            cost_breakdown = {
+                'agreement_value': agreement_value,
+                'stamp_duty': stamp_duty,
+                'gst': gst,
+                'registration_charges': config.registration_charges,
+                'legal_charges': config.legal_charges,
+                'development_charges': development_charges,
+                'parking_price': parking_price,
+                'total': total
+            }
+        else:
+            cost_breakdown = None
         
         pricing_info = {
             'agreement_value': agreement_value,
             'total_cost': cost_breakdown['total'] if cost_breakdown else None,
             'cost_breakdown': cost_breakdown,
-            'price_per_sqft': config.price_per_sqft,
+            'price_per_sqft': price_per_sqft,
+            'base_price_per_sqft': base_price_per_sqft,  # Original price before highrise adjustment
             'stamp_duty_percent': config.stamp_duty_percent,
             'gst_percent': config.gst_percent,
             'carpet_area': area_type.carpet_area,
@@ -1487,6 +1627,8 @@ def unit_calculation(request, pk, unit_id):
             'rera_area': area_type.rera_area,
             'configuration_name': config.name,
             'area_display': area_type.get_display_name(),
+            'highrise_pricing': highrise_pricing,
+            'floor_number': unit_config.floor_number,
         }
     
     # Get visited leads for this project (for booking conversion)

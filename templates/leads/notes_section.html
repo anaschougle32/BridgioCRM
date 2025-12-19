@@ -1,0 +1,16 @@
+{% load lead_filters %}
+{% if lead.notes %}
+<div class="space-y-3">
+    {% for note in lead.notes|split_by_timestamp %}
+    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+        {% if note.timestamp %}
+        <div class="text-xs text-gray-500 mb-2">--- {{ note.timestamp }} ({{ note.user }}) ---</div>
+        {% endif %}
+        <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ note.content }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-gray-500 mb-3">No notes added yet.</p>
+{% endif %}
+

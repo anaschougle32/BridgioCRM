@@ -474,10 +474,28 @@ def cp_performance(request):
             is_active=True
         ).distinct()
     elif user.is_sourcing_manager():
-        # Sourcing Manager sees CPs linked to their assigned projects
+        # Sourcing Manager sees CPs connected to them (via leads they created or projects assigned)
+        from leads.models import Lead
+        # Get CPs from leads created by this sourcing manager
+        cp_ids_from_leads = Lead.objects.filter(
+            created_by=user,
+            is_archived=False
+        ).exclude(
+            channel_partner__isnull=True
+        ).values_list('channel_partner_id', flat=True).distinct()
+        
+        # Get CPs linked to their assigned projects
         sourcing_projects = user.assigned_projects.filter(is_active=True)
-        cps = ChannelPartner.objects.filter(
+        cp_ids_from_projects = ChannelPartner.objects.filter(
             linked_projects__in=sourcing_projects,
+            status='active',
+            is_active=True
+        ).values_list('id', flat=True)
+        
+        # Combine both sources
+        all_cp_ids = set(list(cp_ids_from_leads) + list(cp_ids_from_projects))
+        cps = ChannelPartner.objects.filter(
+            id__in=all_cp_ids,
             status='active',
             is_active=True
         ).distinct()

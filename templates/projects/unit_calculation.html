@@ -30,10 +30,29 @@
         <div class="bg-white rounded-lg shadow-md p-6">
             <h2 class="text-xl font-heading font-bold mb-4 pb-2 border-b border-gray-200">Base Pricing</h2>
             <div class="space-y-3">
+                {% if pricing_info.highrise_pricing and pricing_info.highrise_pricing.is_enabled %}
+                <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-xs text-blue-800 font-semibold mb-1">Highrise Pricing Active</p>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Base Price/sqft:</span>
+                        <span class="font-medium">₹{{ pricing_info.base_price_per_sqft|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Floor {{ pricing_info.floor_number }} Adjusted Price/sqft:</span>
+                        <span class="font-bold text-blue-700">₹{{ pricing_info.price_per_sqft|floatformat:0 }}</span>
+                    </div>
+                    {% if pricing_info.floor_number > pricing_info.highrise_pricing.floor_threshold %}
+                    <p class="text-xs text-blue-700 mt-1">
+                        +{{ pricing_info.floor_number|add:"-"|add:pricing_info.highrise_pricing.floor_threshold }} floor(s) above threshold
+                    </p>
+                    {% endif %}
+                </div>
+                {% else %}
                 <div class="flex justify-between">
                     <span class="text-gray-600">Price/sqft:</span>
                     <span class="font-medium">₹{{ pricing_info.price_per_sqft|floatformat:0 }}</span>
                 </div>
+                {% endif %}
                 <div class="flex justify-between">
                     <span class="text-gray-600">Buildup Area:</span>
                     <span class="font-medium">{{ pricing_info.buildup_area|floatformat:0 }} sqft</span>
@@ -74,8 +93,14 @@
                     </div>
                     {% if pricing_info.cost_breakdown.development_charges %}
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">+ Development:</span>
+                        <span class="text-gray-500">+ Development Charges:</span>
                         <span>{{ pricing_info.cost_breakdown.development_charges|format_price_simple }}</span>
+                    </div>
+                    {% endif %}
+                    {% if pricing_info.cost_breakdown.parking_price %}
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">+ Parking{% if pricing_info.highrise_pricing and pricing_info.highrise_pricing.parking_negotiable %} <span class="text-xs text-orange-600">(Negotiable)</span>{% endif %}:</span>
+                        <span>{{ pricing_info.cost_breakdown.parking_price|format_price_simple }}</span>
                     </div>
                     {% endif %}
                     <div class="border-t pt-2 mt-2">
@@ -126,8 +151,14 @@
                             </div>
                             {% if pricing_info.cost_breakdown.development_charges %}
                             <div class="flex justify-between">
-                                <span class="text-gray-500">+ Development:</span>
-                                <span>{{ pricing_info.cost_breakdown.development_charges|format_price_simple }}</span>
+                                <span class="text-gray-500">+ Development Charges:</span>
+                                <span id="negotiated-dev-charges">{{ pricing_info.cost_breakdown.development_charges|format_price_simple }}</span>
+                            </div>
+                            {% endif %}
+                            {% if pricing_info.cost_breakdown.parking_price %}
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">+ Parking{% if pricing_info.highrise_pricing and pricing_info.highrise_pricing.parking_negotiable %} <span class="text-xs text-orange-600">(Negotiable)</span>{% endif %}:</span>
+                                <span id="negotiated-parking">{{ pricing_info.cost_breakdown.parking_price|format_price_simple }}</span>
                             </div>
                             {% endif %}
                             <div class="border-t pt-2 mt-2">
@@ -325,6 +356,7 @@ const gstPercent = {{ pricing_info.gst_percent|default:5 }};
 const registrationCharges = {{ pricing_info.cost_breakdown.registration_charges|default:30000 }};
 const legalCharges = {{ pricing_info.cost_breakdown.legal_charges|default:15000 }};
 const developmentCharges = {{ pricing_info.cost_breakdown.development_charges|default:0 }};
+const parkingPrice = {{ pricing_info.cost_breakdown.parking_price|default:0 }};
 
 function formatPrice(value) {
     if (!value) return "—";
@@ -347,7 +379,7 @@ function calculateNegotiatedPrice() {
     const negotiatedAgreementValue = negotiatedPriceSqft * buildupArea;
     const negotiatedStampDuty = negotiatedAgreementValue * (stampDutyPercent / 100);
     const negotiatedGst = negotiatedAgreementValue * (gstPercent / 100);
-    const negotiatedTotal = negotiatedAgreementValue + negotiatedStampDuty + negotiatedGst + registrationCharges + legalCharges + developmentCharges;
+    const negotiatedTotal = negotiatedAgreementValue + negotiatedStampDuty + negotiatedGst + registrationCharges + legalCharges + developmentCharges + parkingPrice;
     const totalDiscount = baseTotal - negotiatedTotal;
     
     document.getElementById('negotiated-agreement-value').textContent = formatPrice(negotiatedAgreementValue);

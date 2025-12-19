@@ -237,6 +237,25 @@ class LeadProjectAssociation(models.Model):
     # Project-Specific Notes
     notes = models.TextField(blank=True, help_text="Project-specific notes")
     
+    # Visit Time Frame (for pretagged leads)
+    TIME_FRAME_CHOICES = [
+        ('morning', 'Morning'),
+        ('afternoon', 'Afternoon'),
+        ('evening', 'Evening'),
+    ]
+    time_frame = models.CharField(
+        max_length=20,
+        choices=TIME_FRAME_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Preferred time frame for visit"
+    )
+    visit_scheduled_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Scheduled date and time for visit"
+    )
+    
     # System Metadata
     created_by = models.ForeignKey(
         User,

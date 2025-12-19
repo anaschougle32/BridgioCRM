@@ -194,10 +194,8 @@ def attendance_checkin(request):
         projects = Project.objects.filter(site_head=request.user, is_active=True)
     else:
         # For other roles, show projects they're assigned to
-        projects = Project.objects.filter(
-            leads__assigned_to=request.user,
-            is_active=True
-        ).distinct()
+        # Use assigned_projects relationship instead of leads__assigned_to
+        projects = request.user.assigned_projects.filter(is_active=True).distinct()
     
     context = {
         'projects': projects,

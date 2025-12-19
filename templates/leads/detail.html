@@ -63,25 +63,24 @@
             </button>
             
             {% if user.is_closing_manager or user.is_super_admin %}
-                {% if not lead.booking %}
-                    {% if primary_association %}
-                        {% if primary_association.status != 'lost' and primary_association.status != 'booked' %}
-                            {% if not primary_association.is_pretagged or primary_association.phone_verified %}
-                                <a href="{% url 'bookings:create' lead.id %}?project={{ primary_association.project_id }}" 
-                                   class="inline-flex items-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base">
-                                    <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                    <span class="hidden sm:inline">Create Booking</span>
-                                    <span class="sm:hidden">Booking</span>
-                                </a>
-                            {% endif %}
+                {% if primary_association %}
+                    {% if primary_association.status != 'lost' and primary_association.status != 'booked' %}
+                        {% if not primary_association.is_pretagged or primary_association.phone_verified %}
+                            <a href="{% url 'bookings:create' lead.id %}?project={{ primary_association.project_id }}" 
+                               class="inline-flex items-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base">
+                                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <span class="hidden sm:inline">Create Booking</span>
+                                <span class="sm:hidden">Booking</span>
+                            </a>
                         {% endif %}
                     {% endif %}
-                {% else %}
-                    <a href="{% url 'bookings:detail' lead.booking.id %}" 
-                       class="inline-flex items-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base">
+                {% endif %}
+                {% if lead.bookings.exists %}
+                    <a href="{% url 'bookings:list' %}?search={{ lead.name }}" 
+                       class="inline-flex items-center px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm sm:text-base">
                         <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        <span class="hidden sm:inline">View Booking</span>
-                        <span class="sm:hidden">Booking</span>
+                        <span class="hidden sm:inline">View Bookings ({{ lead.bookings.count }})</span>
+                        <span class="sm:hidden">Bookings</span>
                     </a>
                 {% endif %}
             {% endif %}
@@ -145,7 +144,7 @@
                 <div class="mt-6">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="font-heading font-bold text-olive-primary">Notes</h3>
-                        <button onclick="document.getElementById('notes-modal').classList.remove('hidden')" 
+                        <button onclick="document.getElementById('notes-modal').classList.remove('hidden'); document.getElementById('notes-textarea-detail').value = '';" 
                                 class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm">
                             + Add Note
                         </button>
@@ -299,20 +298,20 @@
 <div id="notes-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
     <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-heading font-bold text-olive-primary">{% if lead.notes %}Edit Notes{% else %}Add Notes{% endif %}</h3>
-            <button onclick="document.getElementById('notes-modal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">✕</button>
+            <h3 class="text-xl font-heading font-bold text-olive-primary">Add Note</h3>
+            <button onclick="document.getElementById('notes-modal').classList.add('hidden'); document.getElementById('notes-textarea-detail').value = '';" class="text-gray-500 hover:text-gray-700">✕</button>
         </div>
         <form method="post" action="{% url 'leads:update_notes' lead.id %}" hx-post="{% url 'leads:update_notes' lead.id %}" hx-target="#notes-section" hx-swap="innerHTML">
             {% csrf_token %}
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Notes *</label>
-                    <textarea name="notes" rows="6" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary">{{ lead.notes|default:'' }}</textarea>
+                    <textarea name="notes" id="notes-textarea-detail" rows="6" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary" placeholder="Add important notes about conversations, preferences, follow-ups, etc."></textarea>
                     <p class="text-xs text-gray-500 mt-1">Add important notes about conversations, preferences, follow-ups, etc.</p>
                 </div>
                 <div id="notes-result"></div>
                 <div class="flex justify-end space-x-3">
-                    <button type="button" onclick="document.getElementById('notes-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button type="button" onclick="document.getElementById('notes-modal').classList.add('hidden'); document.getElementById('notes-textarea-detail').value = '';" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary">Save Notes</button>
                 </div>
             </div>
@@ -380,10 +379,20 @@
         }
     });
     
-    document.getElementById('notes-modal').addEventListener('click', function(e) {
+    document.getElementById('notes-modal')?.addEventListener('click', function(e) {
         if (e.target === this) {
             this.classList.add('hidden');
+            const textarea = document.getElementById('notes-textarea-detail');
+            if (textarea) textarea.value = '';
         }
+    });
+    
+    // Handle closeNotesModal event from HTMX
+    document.body.addEventListener('closeNotesModal', function() {
+        const modal = document.getElementById('notes-modal');
+        const textarea = document.getElementById('notes-textarea-detail');
+        if (modal) modal.classList.add('hidden');
+        if (textarea) textarea.value = '';
     });
 </script>
 {% endblock %}

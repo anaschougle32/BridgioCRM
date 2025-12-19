@@ -10,8 +10,8 @@ User = get_user_model()
 
 
 class Booking(models.Model):
-    """Booking Entity"""
-    lead = models.OneToOneField(Lead, on_delete=models.CASCADE, related_name='booking')
+    """Booking Entity - One lead can have multiple bookings (e.g., investor booking multiple units)"""
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='bookings')
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='bookings')
     
     # Unit Details

@@ -365,6 +365,124 @@
                     </div>
                 </div>
                 
+                <!-- Highrise Pricing Section -->
+                <div class="mt-8 pt-6 border-t border-border-light">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-heading font-semibold text-text-primary">Highrise Pricing (Optional)</h3>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" name="highrise_enabled" id="highrise_enabled" 
+                                   {% if project.highrise_pricing and project.highrise_pricing.is_enabled %}checked{% endif %}
+                                   onchange="toggleHighriseFields()"
+                                   class="mr-2 w-5 h-5 text-olive-primary focus:ring-olive-primary border-gray-300 rounded">
+                            <span class="text-sm font-medium text-text-primary">Enable Highrise Pricing</span>
+                        </label>
+                    </div>
+                    
+                    <div id="highrise-fields" class="{% if not project.highrise_pricing or not project.highrise_pricing.is_enabled %}hidden{% endif %} space-y-6 mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Floor Threshold *</label>
+                                <input type="number" name="highrise_floor_threshold" id="highrise_floor_threshold" 
+                                       value="{% if project.highrise_pricing %}{{ project.highrise_pricing.floor_threshold }}{% else %}10{% endif %}" 
+                                       min="1" required
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <p class="text-xs text-gray-500 mt-1">Floors up to this number use base price (e.g., 10 = floors 1-10)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Base Price per Sqft (₹) *</label>
+                                <input type="number" name="highrise_base_price_per_sqft" id="highrise_base_price_per_sqft" 
+                                       value="{% if project.highrise_pricing %}{{ project.highrise_pricing.base_price_per_sqft }}{% endif %}" 
+                                       step="0.01" min="0"
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Pricing Type *</label>
+                                <select name="highrise_pricing_type" id="highrise_pricing_type" 
+                                        onchange="togglePricingTypeFields()"
+                                        class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                    <option value="fixed" {% if project.highrise_pricing and project.highrise_pricing.pricing_type == 'fixed' %}selected{% endif %}>Fixed Price Addition</option>
+                                    <option value="per_sqft" {% if not project.highrise_pricing or project.highrise_pricing.pricing_type == 'per_sqft' %}selected{% endif %}>Per Sqft Addition</option>
+                                </select>
+                            </div>
+                            <div id="fixed-price-field" class="{% if not project.highrise_pricing or project.highrise_pricing.pricing_type != 'fixed' %}hidden{% endif %}">
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Fixed Price Increment (₹) *</label>
+                                <input type="number" name="highrise_fixed_price_increment" id="highrise_fixed_price_increment" 
+                                       value="{% if project.highrise_pricing %}{{ project.highrise_pricing.fixed_price_increment }}{% else %}0{% endif %}" 
+                                       step="0.01" min="0"
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <p class="text-xs text-gray-500 mt-1">Amount added per floor above threshold</p>
+                            </div>
+                            <div id="per-sqft-field" class="{% if project.highrise_pricing and project.highrise_pricing.pricing_type == 'fixed' %}hidden{% endif %}">
+                                <label class="block text-sm font-semibold text-text-primary mb-2">Per Sqft Increment (₹) *</label>
+                                <input type="number" name="highrise_per_sqft_increment" id="highrise_per_sqft_increment" 
+                                       value="{% if project.highrise_pricing %}{{ project.highrise_pricing.per_sqft_increment }}{% else %}20{% endif %}" 
+                                       step="0.01" min="0"
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <p class="text-xs text-gray-500 mt-1">Amount added per sqft per floor above threshold (e.g., 20 = ₹20/sqft per floor)</p>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t border-gray-300 pt-4">
+                            <h4 class="text-md font-semibold text-text-primary mb-4">Development Charges</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-semibold text-text-primary mb-2">Development Charges Type *</label>
+                                    <select name="highrise_dev_charges_type" id="highrise_dev_charges_type" 
+                                            onchange="toggleDevChargesFields()"
+                                            class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                        <option value="fixed" {% if not project.highrise_pricing or project.highrise_pricing.development_charges_type == 'fixed' %}selected{% endif %}>Fixed Amount</option>
+                                        <option value="per_sqft" {% if project.highrise_pricing and project.highrise_pricing.development_charges_type == 'per_sqft' %}selected{% endif %}>Per Sqft</option>
+                                    </select>
+                                </div>
+                                <div id="dev-charges-fixed-field" class="{% if project.highrise_pricing and project.highrise_pricing.development_charges_type == 'per_sqft' %}hidden{% endif %}">
+                                    <label class="block text-sm font-semibold text-text-primary mb-2">Development Charges Fixed (₹)</label>
+                                    <input type="number" name="highrise_dev_charges_fixed" id="highrise_dev_charges_fixed" 
+                                           value="{% if project.highrise_pricing %}{{ project.highrise_pricing.development_charges_fixed }}{% else %}0{% endif %}" 
+                                           step="0.01" min="0"
+                                           class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                </div>
+                                <div id="dev-charges-per-sqft-field" class="{% if not project.highrise_pricing or project.highrise_pricing.development_charges_type != 'per_sqft' %}hidden{% endif %}">
+                                    <label class="block text-sm font-semibold text-text-primary mb-2">Development Charges per Sqft (₹)</label>
+                                    <input type="number" name="highrise_dev_charges_per_sqft" id="highrise_dev_charges_per_sqft" 
+                                           value="{% if project.highrise_pricing %}{{ project.highrise_pricing.development_charges_per_sqft }}{% else %}0{% endif %}" 
+                                           step="0.01" min="0"
+                                           class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t border-gray-300 pt-4">
+                            <h4 class="text-md font-semibold text-text-primary mb-4">Parking</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-semibold text-text-primary mb-2">Parking Price (₹)</label>
+                                    <input type="number" name="highrise_parking_price" id="highrise_parking_price" 
+                                           value="{% if project.highrise_pricing %}{{ project.highrise_pricing.parking_price }}{% else %}0{% endif %}" 
+                                           step="0.01" min="0"
+                                           class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="checkbox" name="highrise_parking_negotiable" id="highrise_parking_negotiable" 
+                                               {% if project.highrise_pricing and project.highrise_pricing.parking_negotiable %}checked{% endif %}
+                                               class="mr-2 w-5 h-5 text-olive-primary focus:ring-olive-primary border-gray-300 rounded">
+                                        <span class="text-sm font-medium text-text-primary">Negotiable</span>
+                                    </label>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="checkbox" name="highrise_include_parking" id="highrise_include_parking" 
+                                               {% if not project.highrise_pricing or project.highrise_pricing.include_parking_in_calculation %}checked{% endif %}
+                                               class="mr-2 w-5 h-5 text-olive-primary focus:ring-olive-primary border-gray-300 rounded">
+                                        <span class="text-sm font-medium text-text-primary">Include in Calculation</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="flex justify-end space-x-4 mt-6 pt-4 border-t border-border-light">
                     <button type="button" onclick="previousStep(5)" class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition">Previous</button>
                     <button type="button" onclick="submitFinalForm()" class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition">Update Project</button>
@@ -376,7 +494,114 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+    function toggleHighriseFields() {
+        const enabled = document.getElementById('highrise_enabled').checked;
+        const fields = document.getElementById('highrise-fields');
+        if (enabled) {
+            fields.classList.remove('hidden');
+            // Make required fields actually required
+            document.getElementById('highrise_floor_threshold').required = true;
+        } else {
+            fields.classList.add('hidden');
+            // Remove required attribute
+            document.getElementById('highrise_floor_threshold').required = false;
+        }
+    }
+    
+    function togglePricingTypeFields() {
+        const pricingType = document.getElementById('highrise_pricing_type').value;
+        const fixedField = document.getElementById('fixed-price-field');
+        const perSqftField = document.getElementById('per-sqft-field');
+        
+        if (pricingType === 'fixed') {
+            fixedField.classList.remove('hidden');
+            perSqftField.classList.add('hidden');
+            document.getElementById('highrise_fixed_price_increment').required = true;
+            document.getElementById('highrise_per_sqft_increment').required = false;
+        } else {
+            fixedField.classList.add('hidden');
+            perSqftField.classList.remove('hidden');
+            document.getElementById('highrise_fixed_price_increment').required = false;
+            document.getElementById('highrise_per_sqft_increment').required = true;
+        }
+    }
+    
+    function toggleDevChargesFields() {
+        const devChargesType = document.getElementById('highrise_dev_charges_type').value;
+        const fixedField = document.getElementById('dev-charges-fixed-field');
+        const perSqftField = document.getElementById('dev-charges-per-sqft-field');
+        
+        if (devChargesType === 'fixed') {
+            fixedField.classList.remove('hidden');
+            perSqftField.classList.add('hidden');
+        } else {
+            fixedField.classList.add('hidden');
+            perSqftField.classList.remove('hidden');
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        togglePricingTypeFields();
+        toggleDevChargesFields();
+    });
+</script>
+{% block extra_js %}
 <script id="commercial-floors-data" type="application/json">{{ commercial_floors_data|safe }}</script>
+<script>
+    function toggleHighriseFields() {
+        const enabled = document.getElementById('highrise_enabled').checked;
+        const fields = document.getElementById('highrise-fields');
+        if (enabled) {
+            fields.classList.remove('hidden');
+            // Make required fields actually required
+            document.getElementById('highrise_floor_threshold').required = true;
+        } else {
+            fields.classList.add('hidden');
+            // Remove required attribute
+            document.getElementById('highrise_floor_threshold').required = false;
+        }
+    }
+    
+    function togglePricingTypeFields() {
+        const pricingType = document.getElementById('highrise_pricing_type').value;
+        const fixedField = document.getElementById('fixed-price-field');
+        const perSqftField = document.getElementById('per-sqft-field');
+        
+        if (pricingType === 'fixed') {
+            fixedField.classList.remove('hidden');
+            perSqftField.classList.add('hidden');
+            document.getElementById('highrise_fixed_price_increment').required = true;
+            document.getElementById('highrise_per_sqft_increment').required = false;
+        } else {
+            fixedField.classList.add('hidden');
+            perSqftField.classList.remove('hidden');
+            document.getElementById('highrise_fixed_price_increment').required = false;
+            document.getElementById('highrise_per_sqft_increment').required = true;
+        }
+    }
+    
+    function toggleDevChargesFields() {
+        const devChargesType = document.getElementById('highrise_dev_charges_type').value;
+        const fixedField = document.getElementById('dev-charges-fixed-field');
+        const perSqftField = document.getElementById('dev-charges-per-sqft-field');
+        
+        if (devChargesType === 'fixed') {
+            fixedField.classList.remove('hidden');
+            perSqftField.classList.add('hidden');
+        } else {
+            fixedField.classList.add('hidden');
+            perSqftField.classList.remove('hidden');
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        togglePricingTypeFields();
+        toggleDevChargesFields();
+    });
+</script>
 <script>
     let configCounter = {{ configurations.count }};
     let areaCounters = {};

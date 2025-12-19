@@ -276,9 +276,14 @@ def dashboard(request):
         
         # Closing Manager Dashboard
         elif user_role == 'closing_manager':
-            # Use LeadProjectAssociation for assigned leads
+            # Get projects assigned to this closing manager
+            assigned_projects = user.assigned_projects.filter(is_active=True)
+            
+            # Use LeadProjectAssociation for leads in assigned projects
+            # Pretagged leads are assigned to PROJECTS, not to specific closers
+            # So we check project__in=assigned_projects, not assigned_to=user
             associations = LeadProjectAssociation.objects.filter(
-                assigned_to=user,
+                project__in=assigned_projects,
                 is_archived=False
             )
             
@@ -296,7 +301,8 @@ def dashboard(request):
                 is_completed=False
             ).count()
             
-            # Pending OTP - use LeadProjectAssociation
+            # Pending OTP - pretagged leads in assigned projects
+            # These are visible to ALL closers in the project, not just assigned ones
             pending_otp = associations.filter(
                 is_pretagged=True,
                 pretag_status='pending_verification'

@@ -64,6 +64,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Phone</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Project</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Visit Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Scheduled By</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Booking</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Visit Date</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Actions</th>
@@ -95,6 +96,10 @@
                                     <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                                         Visit Completed
                                     </span>
+                                {% elif assoc.status == 'visit_scheduled' %}
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        Scheduled
+                                    </span>
                                 {% elif assoc.phone_verified %}
                                     <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                                         OTP Verified
@@ -111,8 +116,23 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            {% if lead.booking %}
-                                <a href="{% url 'bookings:detail' lead.booking.id %}" 
+                            {% if assoc %}
+                                {% if assoc.created_by %}
+                                    <div class="text-sm text-gray-900">{{ assoc.created_by.get_full_name|default:assoc.created_by.username }}</div>
+                                    <div class="text-xs text-gray-500">{{ assoc.created_by.get_role_display }}</div>
+                                {% elif assoc.assigned_to %}
+                                    <div class="text-sm text-gray-900">{{ assoc.assigned_to.get_full_name|default:assoc.assigned_to.username }}</div>
+                                    <div class="text-xs text-gray-500">{{ assoc.assigned_to.get_role_display }}</div>
+                                {% else %}
+                                    <div class="text-sm text-gray-500">-</div>
+                                {% endif %}
+                            {% else %}
+                                <div class="text-sm text-gray-500">-</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if lead.bookings.exists %}
+                                <a href="{% url 'bookings:detail' lead.bookings.first.id %}" 
                                    class="text-green-600 hover:text-green-800 font-medium">
                                     View Booking →
                                 </a>
@@ -124,7 +144,11 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ lead.created_at|date:"d M Y, h:i A" }}
+                            {% if assoc and assoc.visit_scheduled_date %}
+                                {{ assoc.visit_scheduled_date|date:"d M Y, h:i A" }}
+                            {% else %}
+                                {{ lead.created_at|date:"d M Y, h:i A" }}
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <a href="{% url 'leads:detail' lead.id %}" 
@@ -133,6 +157,8 @@
                             </a>
                         </td>
                     </tr>
+                    {% endwith %}
+                    {% endwith %}
                     {% endfor %}
                 </tbody>
             </table>

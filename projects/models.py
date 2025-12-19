@@ -272,3 +272,93 @@ class PaymentMilestone(models.Model):
     
     def __str__(self):
         return f"{self.project.name} - {self.name}"
+
+
+class HighrisePricing(models.Model):
+    """Highrise Pricing Configuration - Optional feature for projects with floor-based pricing"""
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='highrise_pricing')
+    
+    # Enable/Disable highrise pricing
+    is_enabled = models.BooleanField(default=False, help_text="Enable highrise pricing for this project")
+    
+    # Floor threshold - pricing changes after this floor
+    floor_threshold = models.IntegerField(default=10, help_text="Floor number where pricing starts to change (e.g., 10 = floors 1-10 have base price, 11+ have increased price)")
+    
+    # Base price per sqft (used for floors up to threshold)
+    base_price_per_sqft = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Base price per sqft for floors up to threshold")
+    
+    # Pricing type for floors above threshold
+    PRICING_TYPE_CHOICES = [
+        ('fixed', 'Fixed Price Addition'),
+        ('per_sqft', 'Per Sqft Addition'),
+    ]
+    pricing_type = models.CharField(max_length=20, choices=PRICING_TYPE_CHOICES, default='per_sqft', help_text="How price increases for floors above threshold")
+    
+    # Fixed price increment (if pricing_type = 'fixed')
+    fixed_price_increment = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Fixed amount to add per floor above threshold (if pricing_type = 'fixed')")
+    
+    # Per sqft increment (if pricing_type = 'per_sqft')
+    per_sqft_increment = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Amount to add per sqft per floor above threshold (e.g., 20 = ₹20/sqft per floor)")
+    
+    # Development charges type
+    DEV_CHARGES_TYPE_CHOICES = [
+        ('fixed', 'Fixed Amount'),
+        ('per_sqft', 'Per Sqft'),
+    ]
+    development_charges_type = models.CharField(max_length=20, choices=DEV_CHARGES_TYPE_CHOICES, default='fixed', help_text="How development charges are calculated")
+    
+    # Development charges - fixed
+    development_charges_fixed = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Fixed development charges amount (if development_charges_type = 'fixed')")
+    
+    # Development charges - per sqft
+    development_charges_per_sqft = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Development charges per sqft (if development_charges_type = 'per_sqft')")
+    
+    # Parking
+    parking_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Parking price")
+    parking_negotiable = models.BooleanField(default=False, help_text="Is parking price negotiable?")
+    include_parking_in_calculation = models.BooleanField(default=True, help_text="Include parking in total calculation")
+    
+    class Meta:
+        db_table = 'highrise_pricing'
+    
+    def __str__(self):
+        return f"{self.project.name} - Highrise Pricing ({'Enabled' if self.is_enabled else 'Disabled'})"
+    
+    def calculate_price_per_sqft(self, floor_number, base_price_per_sqft=None):
+        """Calculate price per sqft for a given floor number"""
+        if not self.is_enabled:
+            return base_price_per_sqft or 0
+        
+        # Use provided base_price_per_sqft or fallback to model's base_price_per_sqft
+        base_price = base_price_per_sqft or self.base_price_per_sqft or 0
+        
+        if floor_number <= self.floor_threshold:
+            return base_price
+        
+        # Calculate floors above threshold
+        floors_above_threshold = floor_number - self.floor_threshold
+        
+        if self.pricing_type == 'fixed':
+            # Fixed price addition per floor
+            return base_price + (self.fixed_price_increment * floors_above_threshold)
+        else:
+            # Per sqft addition per floor
+            return base_price + (self.per_sqft_increment * floors_above_threshold)
+    
+    def calculate_development_charges(self, buildup_area=None):
+        """Calculate development charges based on type"""
+        if not self.is_enabled:
+            return 0
+        
+        if self.development_charges_type == 'fixed':
+            return self.development_charges_fixed
+        else:
+            if not buildup_area:
+                return 0
+            return self.development_charges_per_sqft * buildup_area
+    
+    def get_parking_price(self):
+        """Get parking price (returns 0 if not included in calculation)"""
+        if not self.include_parking_in_calculation:
+            return 0
+        return self.parking_price
