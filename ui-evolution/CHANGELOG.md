@@ -17,6 +17,28 @@ This file defines what is allowed to change. Only items listed in "Planned" or "
 
 ---
 
+## [0.2.0] – Mobile Leads List Cards
+### Changed
+- Enhanced mobile card view for leads list (≤768px only)
+- Cards are now tappable to open detail view
+- Improved touch targets (minimum 48px)
+- Better card styling with status badges
+- HTMX integration for smooth navigation
+
+### Scope
+- Mobile only (≤768px breakpoint using `md:hidden`)
+- Desktop table remains unchanged (≥769px using `hidden md:block`)
+- No backend changes
+
+### Verified
+- Cards display correctly on mobile
+- Table still works on desktop
+- Card tap opens detail view
+- All lead data displays correctly
+- Action buttons functional
+
+---
+
 ## [0.1.0] – Mobile Bottom Navigation
 ### Changed
 - Added bottom navigation bar on mobile devices (≤768px)

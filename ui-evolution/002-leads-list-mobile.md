@@ -1,7 +1,7 @@
 # 002 - Leads List Mobile Cards
 
 ## Status
-Planned
+Completed
 
 ## Goal
 Transform leads list from table to card-based layout on mobile devices (≤768px) for better touch interaction.
