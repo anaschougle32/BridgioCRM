@@ -150,8 +150,9 @@
         <form method="get" class="space-y-3">
             <!-- First Row: Search and Basic Filters -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <input type="text" name="search" placeholder="Search by name, phone, email, notes..." 
+                <input type="text" name="search" placeholder="Search by name, phone, email, notes... (Press / to focus)" 
                        value="{{ search }}"
+                       id="search-input"
                        class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
                 <select name="status" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
                     <option value="">All Status</option>
