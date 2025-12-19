@@ -286,12 +286,12 @@
         // Toggle selection
         if (selectedUnits.has(unitId)) {
             selectedUnits.delete(unitId);
-            unitBox.classList.remove('bg-blue-100', 'border-blue-500');
+            unitBox.classList.remove('bg-blue-100', 'border-blue-500', 'selected-unit');
             unitBox.classList.add('bg-green-100', 'border-green-500');
         } else {
             selectedUnits.add(unitId);
             unitBox.classList.remove('bg-green-100', 'border-green-500');
-            unitBox.classList.add('bg-blue-100', 'border-blue-500');
+            unitBox.classList.add('bg-blue-100', 'border-blue-500', 'selected-unit');
         }
         
         updateSelectedUnitPanel();
@@ -309,7 +309,11 @@
             return;
         }
         
+        // Show panel with explicit display
         panel.classList.remove('hidden');
+        panel.style.display = 'block';
+        panel.style.visibility = 'visible';
+        
         if (countSpan) countSpan.textContent = selectedUnits.size;
         
         const bookBtn = document.getElementById('book-units-btn');
@@ -324,7 +328,6 @@
         }
         
         // Fetch unit details via AJAX or use data attributes
-        // For now, we'll show basic info
         let html = '';
         selectedUnits.forEach(unitId => {
             const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
@@ -334,14 +337,23 @@
             const floorNum = unitCard.dataset.floor;
             
             html += `
-                <div class="border rounded-lg p-4 bg-gray-50">
-                    <h4 class="font-bold text-lg mb-2">Tower ${towerNum} - Floor ${floorNum} - Unit ${unitNumber}</h4>
-                    <p class="text-sm text-gray-600">Click unit for detailed pricing</p>
+                <div class="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition">
+                    <h4 class="font-bold text-base mb-1">Tower ${towerNum} - Floor ${floorNum} - Unit ${unitNumber}</h4>
+                    <p class="text-xs text-gray-600">Click unit card above for detailed pricing</p>
                 </div>
             `;
         });
         
-        content.innerHTML = html;
+        if (content) {
+            content.innerHTML = html;
+        }
+        
+        // Scroll panel into view on mobile
+        if (window.innerWidth < 768) {
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
     }
     
     function bookSelectedUnits() {
