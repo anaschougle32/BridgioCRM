@@ -1231,7 +1231,7 @@
         }
         
         // Get commercial floors data from backend
-        const backendCommercialFloors = JSON.parse(document.getElementById('commercial-floors-data')?.textContent || '{}');
+        const floorMappingCommercialFloors = JSON.parse(document.getElementById('commercial-floors-data')?.textContent || '{}');
         
         // Get existing unit configurations
         const existingUnits = {};
@@ -1273,9 +1273,8 @@
             // First try from backend data (most reliable)
             const commercialFloorsData = {};
             try {
-                const backendCommercialFloors = JSON.parse(document.getElementById('commercial-floors-data')?.textContent || '{}');
-                if (backendCommercialFloors && backendCommercialFloors[tower]) {
-                    Object.assign(commercialFloorsData, backendCommercialFloors[tower]);
+                if (floorMappingCommercialFloors && floorMappingCommercialFloors[tower]) {
+                    Object.assign(commercialFloorsData, floorMappingCommercialFloors[tower]);
                 }
             } catch (e) {
                 console.warn('Error parsing commercial floors data:', e);
