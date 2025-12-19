@@ -17,6 +17,31 @@ This file defines what is allowed to change. Only items listed in "Planned" or "
 
 ---
 
+## [0.3.0] – Mobile Lead Detail Slide Panel
+### Changed
+- Implemented full-screen slide panel for lead detail on mobile (≤768px)
+- Added sticky header with lead name, status badge, and close button
+- Made sections collapsible (Client Info, Notes, OTP, Call History, Reminders)
+- Added fixed action buttons at bottom (Call and Email)
+- Implemented swipe down to close gesture
+- HTMX integration for dynamic updates
+
+### Scope
+- Mobile only (≤768px breakpoint using `md:hidden`)
+- Desktop detail view remains unchanged (≥769px using `hidden md:block`)
+- No backend changes
+
+### Verified
+- Panel opens from leads list
+- Swipe down closes panel
+- All sections display correctly
+- Collapsible sections work
+- Action buttons functional
+- Edit modals work
+- HTMX updates smooth
+
+---
+
 ## [0.2.0] – Mobile Leads List Cards
 ### Changed
 - Enhanced mobile card view for leads list (≤768px only)
