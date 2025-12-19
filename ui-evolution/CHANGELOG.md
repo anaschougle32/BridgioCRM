@@ -17,6 +17,41 @@ This file defines what is allowed to change. Only items listed in "Planned" or "
 
 ---
 
+## [0.7.0] – Desktop Efficiency Enhancements
+### Changed
+- Added keyboard shortcuts for desktop power users (≥1025px)
+  - Ctrl+N: New Lead
+  - Ctrl+F: Focus Search
+  - /: Quick Search
+  - ?: Show Keyboard Shortcuts Help
+  - Esc: Close Modals
+- Implemented bulk selection and actions in leads table
+  - Select all/none checkboxes
+  - Bulk action dropdown (Assign, Change Status, Export)
+  - Visual feedback for selected items
+- Enhanced table with sortable columns
+  - Click column headers to sort (Name, Budget, Status)
+  - Sort indicators (⇅ icons)
+  - Hover effects on sortable columns
+- Improved table styling
+  - Striped rows for better readability
+  - Row hover highlights
+  - Better visual hierarchy
+
+### Scope
+- Desktop only (≥1025px breakpoint)
+- Mobile and tablet unchanged
+- No backend changes (frontend-only enhancements)
+
+### Verified
+- Keyboard shortcuts work
+- Bulk selection functional
+- Column sorting works
+- Table enhancements visible
+- Tested on desktop browsers
+
+---
+
 ## [0.6.0] – Dashboard UI Enhancement
 ### Changed
 - Enhanced dashboard templates with platform-specific layouts
