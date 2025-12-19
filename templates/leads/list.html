@@ -342,12 +342,12 @@
                     </div>
                 </div>
                 <div>
-                    <span class="text-gray-500 text-xs">Config:</span>
-                    <div class="mt-1">
+                    <span class="text-gray-600 text-xs font-medium mb-1 block">Config:</span>
+                    <div class="mt-1.5">
                         <div class="relative inline-block text-left">
                             {% with lead_configs=lead.configurations.all %}
                             <button type="button" 
-                                    class="inline-flex items-center px-2 py-1 text-xs rounded-full {% if lead_configs %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-600{% endif %} hover:bg-blue-200"
+                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full shadow-sm {% if lead_configs %}bg-blue-100 text-blue-800 border border-blue-200{% else %}bg-gray-100 text-gray-600 border border-gray-200{% endif %} hover:bg-blue-200 transition-colors"
                                     onclick="toggleConfigMenu({{ lead.id }})">
                                 {% if lead_configs %}
                                     <span>{% for config in lead_configs %}{{ config.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
