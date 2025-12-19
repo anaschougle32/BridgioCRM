@@ -220,14 +220,21 @@
     <div id="selected-unit-panel" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-olive-primary shadow-2xl p-6 z-40">
         <div class="max-w-7xl mx-auto">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-olive-primary">Selected Unit Details</h3>
-                <button onclick="closeUnitPanel()" class="text-gray-500 hover:text-gray-700">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
+                <h3 class="text-xl font-bold text-olive-primary">Selected Units (<span id="selected-count">0</span>)</h3>
+                <div class="flex gap-3">
+                    {% if lead_id %}
+                    <button id="book-units-btn" onclick="bookSelectedUnits()" class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition font-medium">
+                        Book Selected Units
+                    </button>
+                    {% endif %}
+                    <button onclick="closeUnitPanel()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
-            <div id="selected-unit-content" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div id="selected-unit-content" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                 <!-- Unit details will be populated here -->
             </div>
         </div>
@@ -289,6 +296,8 @@
     function updateSelectedUnitPanel() {
         const panel = document.getElementById('selected-unit-panel');
         const content = document.getElementById('selected-unit-content');
+        const countSpan = document.getElementById('selected-count');
+        const bookBtn = document.getElementById('book-units-btn');
         
         if (selectedUnits.size === 0) {
             panel.classList.add('hidden');
@@ -296,12 +305,18 @@
         }
         
         panel.classList.remove('hidden');
+        if (countSpan) countSpan.textContent = selectedUnits.size;
+        if (bookBtn) {
+            bookBtn.disabled = false;
+            bookBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
         
         // Fetch unit details via AJAX or use data attributes
         // For now, we'll show basic info
         let html = '';
         selectedUnits.forEach(unitId => {
             const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
+            if (!unitCard) return;
             const unitNumber = unitCard.dataset.unitNumber;
             const towerNum = unitCard.dataset.tower;
             const floorNum = unitCard.dataset.floor;
@@ -315,6 +330,23 @@
         });
         
         content.innerHTML = html;
+    }
+    
+    function bookSelectedUnits() {
+        {% if lead_id %}
+        if (selectedUnits.size === 0) {
+            alert('Please select at least one unit');
+            return;
+        }
+        
+        // Build unit IDs string
+        const unitIds = Array.from(selectedUnits).join(',');
+        const leadId = {{ lead_id }};
+        const projectId = {{ project.id }};
+        
+        // Redirect to booking create with selected unit IDs
+        window.location.href = `/bookings/create/${leadId}/?project_id=${projectId}&unit_ids=${unitIds}&from_unit=1`;
+        {% endif %}
     }
     
     function closeUnitPanel() {

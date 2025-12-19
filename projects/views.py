@@ -1188,6 +1188,7 @@ def project_edit(request, pk):
 def unit_selection(request, pk):
     """Interactive unit selection page (BookMyShow-style UI)"""
     project = get_object_or_404(Project, pk=pk)
+    lead_id = request.GET.get('lead_id')  # Optional lead_id for booking flow
     
     # Permission check - Mandate Owner has same permissions as Super Admin
     # Site Heads can view units for projects they manage
@@ -1641,14 +1642,21 @@ def unit_calculation(request, pk, unit_id):
         Q(status__in=['visit_completed', 'discussion', 'hot', 'ready_to_book']) |
         Q(is_pretagged=True, pretag_status='verified') |
         Q(phone_verified=True)  # Include any phone verified leads
-    ).exclude(lead__booking__isnull=False).select_related('lead').order_by('-updated_at')
+    ).select_related('lead').order_by('-updated_at')
     
     # Get unique leads (exclude those already booked)
     visited_lead_ids = visited_associations.values_list('lead_id', flat=True).distinct()
+    # Exclude leads that have bookings for this project
+    from bookings.models import Booking
+    booked_lead_ids = Booking.objects.filter(
+        project=project,
+        is_archived=False
+    ).values_list('lead_id', flat=True).distinct()
+    visited_lead_ids = [lid for lid in visited_lead_ids if lid not in booked_lead_ids]
     visited_leads = Lead.objects.filter(
         id__in=visited_lead_ids,
         is_archived=False
-    ).exclude(booking__isnull=False).order_by('-updated_at')
+    ).order_by('-updated_at')
     
     # Get channel partners linked to this project
     from channel_partners.models import ChannelPartner
@@ -1683,6 +1691,7 @@ def search_visited_leads(request, pk):
     
     # Get all visited leads for this project (not just assigned to user)
     from leads.models import LeadProjectAssociation
+    from bookings.models import Booking
     visited_associations = LeadProjectAssociation.objects.filter(
         project=project,
         is_archived=False
@@ -1690,7 +1699,14 @@ def search_visited_leads(request, pk):
         Q(status__in=['visit_completed', 'discussion', 'hot', 'ready_to_book']) |
         Q(is_pretagged=True, pretag_status='verified') |
         Q(phone_verified=True)
-    ).exclude(lead__booking__isnull=False).select_related('lead', 'lead__channel_partner')
+    ).select_related('lead', 'lead__channel_partner')
+    
+    # Exclude leads that have bookings for this project
+    booked_lead_ids = Booking.objects.filter(
+        project=project,
+        is_archived=False
+    ).values_list('lead_id', flat=True).distinct()
+    visited_associations = visited_associations.exclude(lead_id__in=booked_lead_ids)
     
     # Search by name, phone, email
     if query:

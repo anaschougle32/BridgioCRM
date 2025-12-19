@@ -17,6 +17,9 @@
     <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
         <form method="post" enctype="multipart/form-data" class="space-y-8">
             {% csrf_token %}
+            {% if request.GET.unit_ids %}
+            <input type="hidden" name="unit_ids" value="{{ request.GET.unit_ids }}">
+            {% endif %}
             
             <!-- Unit Details -->
             <div>

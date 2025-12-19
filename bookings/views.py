@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count
@@ -161,10 +162,16 @@ def booking_create(request, lead_id):
         messages.error(request, 'Cannot create booking for unverified pretagged lead. Please verify OTP first.')
         return redirect('leads:detail', pk=lead_id)
     
-    # Redirect to unit selection page first (unless coming from unit calculation page)
-    if request.method != 'POST' and not request.GET.get('from_unit'):
-        # Redirect to project unit selection page
-        return redirect('projects:unit_selection', pk=project.id)
+    # Get selected unit IDs from query string (for multiple unit booking)
+    unit_ids_param = request.GET.get('unit_ids') or request.POST.get('unit_ids')
+    selected_unit_ids = []
+    if unit_ids_param:
+        selected_unit_ids = [int(uid) for uid in unit_ids_param.split(',') if uid.strip().isdigit()]
+    
+    # Redirect to unit selection page first (unless coming from unit calculation page or has selected units)
+    if request.method != 'POST' and not request.GET.get('from_unit') and not selected_unit_ids:
+        # Redirect to project unit selection page with lead_id
+        return redirect(f"{reverse('projects:unit_selection', args=[project.id])}?lead_id={lead_id}")
     
     if request.method == 'POST':
         from django.db import transaction
