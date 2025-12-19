@@ -1820,6 +1820,41 @@ def multi_unit_calculation(request, pk):
     # Calculate average price per sqft
     avg_price_per_sqft = total_agreement_value / total_buildup_area if total_buildup_area > 0 else Decimal('0')
     
+    # Get visited leads for booking conversion
+    from leads.models import LeadProjectAssociation
+    visited_associations = LeadProjectAssociation.objects.filter(
+        project=project,
+        is_archived=False
+    ).filter(
+        Q(status__in=['visit_completed', 'discussion', 'hot', 'ready_to_book']) |
+        Q(is_pretagged=True, pretag_status='verified') |
+        Q(phone_verified=True)
+    ).select_related('lead').order_by('-updated_at')
+    
+    # Get unique leads (exclude those already booked)
+    visited_lead_ids = visited_associations.values_list('lead_id', flat=True).distinct()
+    from bookings.models import Booking
+    booked_lead_ids = Booking.objects.filter(
+        project=project,
+        is_archived=False
+    ).values_list('lead_id', flat=True).distinct()
+    visited_lead_ids = [lid for lid in visited_lead_ids if lid not in booked_lead_ids]
+    visited_leads = Lead.objects.filter(
+        id__in=visited_lead_ids,
+        is_archived=False
+    ).order_by('-updated_at')
+    
+    # Get channel partners linked to this project
+    from channel_partners.models import ChannelPartner
+    channel_partners = ChannelPartner.objects.filter(
+        linked_projects=project,
+        status='active'
+    ).order_by('cp_name')
+    
+    # Get stamp duty and GST percentages (use first unit's config as reference)
+    stamp_duty_percent = units_data[0]['stamp_duty_percent'] if units_data else 5
+    gst_percent = units_data[0]['gst_percent'] if units_data else 5
+    
     context = {
         'project': project,
         'units_data': units_data,
@@ -1835,6 +1870,11 @@ def multi_unit_calculation(request, pk):
         'total_buildup_area': total_buildup_area,
         'avg_price_per_sqft': avg_price_per_sqft,
         'highrise_pricing': highrise_pricing,
+        'visited_leads': visited_leads,
+        'channel_partners': channel_partners,
+        'stamp_duty_percent': stamp_duty_percent,
+        'gst_percent': gst_percent,
+        'unit_ids': ','.join([str(unit['unit_config'].id) for unit in units_data]),
     }
     return render(request, 'projects/multi_unit_calculation.html', context)
 
