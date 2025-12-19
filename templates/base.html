@@ -708,7 +708,7 @@
     
     <!-- Mobile Bottom Navigation -->
     <nav id="mobile-bottom-nav" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-50 transform transition-transform duration-300 shadow-lg">
-        <div class="flex justify-around items-center h-16 safe-area-bottom">
+        <div class="flex justify-around items-center h-20 safe-area-bottom px-1">
             <!-- Dashboard -->
             <a href="{% url 'dashboard' %}" 
                hx-get="{% url 'dashboard' %}" 
@@ -773,6 +773,19 @@
                 <span class="text-xs font-medium">Visits</span>
             </a>
             {% endif %}
+            
+            <!-- Follow-Ups -->
+            <a href="{% url 'leads:followups_list' %}" 
+               hx-get="{% url 'leads:followups_list' %}" 
+               hx-target="#main-content" 
+               hx-swap="innerHTML"
+               hx-push-url="true"
+               class="flex flex-col items-center justify-center flex-1 h-full min-h-[48px] {% if request.resolver_match.url_name == 'followups_list' %}text-olive-primary{% else %}text-gray-600{% endif %} transition-colors">
+                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-xs font-medium">Follow-Ups</span>
+            </a>
             
             <!-- Profile -->
             <a href="#" 

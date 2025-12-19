@@ -301,7 +301,8 @@
         const panel = document.getElementById('selected-unit-panel');
         const content = document.getElementById('selected-unit-content');
         const countSpan = document.getElementById('selected-count');
-        const bookBtn = document.getElementById('book-units-btn');
+        
+        if (!panel) return;
         
         if (selectedUnits.size === 0) {
             panel.classList.add('hidden');
