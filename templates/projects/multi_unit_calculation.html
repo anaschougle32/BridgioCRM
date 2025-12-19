@@ -519,8 +519,8 @@ function loadOTPControlsForBooking() {
     const otpControls = document.getElementById('otp-booking-controls');
     otpControls.innerHTML = '<div class="text-sm text-gray-600">Loading...</div>';
     
-    // Use fetch to load OTP controls
-    fetch(`/leads/${currentLeadIdForOTP}/send-otp/`, {
+    // Use fetch to load OTP controls - add for_booking parameter to always generate new OTP
+    fetch(`/leads/${currentLeadIdForOTP}/send-otp/?for_booking=1`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,

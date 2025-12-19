@@ -1088,7 +1088,12 @@ def send_otp(request, pk):
     # Check if there's an active OTP that hasn't expired OR if there's a verified OTP for pretagged leads
     now = timezone.now()
     
+    # Check if this is a booking context (from unit calculation page)
+    referer = request.headers.get('Referer', '')
+    is_booking_context = 'calculate' in referer or 'unit' in referer or request.GET.get('for_booking') == '1'
+    
     # For pretagged leads, also check for verified OTPs (they don't expire)
+    # BUT: For booking conversions, always generate new OTP even if previously verified
     is_pretagged = False
     if request.user.is_closing_manager():
         user_projects = request.user.assigned_projects.all()
@@ -1099,8 +1104,9 @@ def send_otp(request, pk):
         is_pretagged = associations.filter(is_pretagged=True).exists()
     
     # Check for verified OTP first (for pretagged leads that are already verified)
+    # BUT: Skip this check if it's for booking conversion - always generate new OTP for bookings
     verified_otp = None
-    if is_pretagged:
+    if is_pretagged and not is_booking_context:
         verified_otp = lead.otp_logs.filter(
             is_verified=True
         ).order_by('-verified_at').first()
@@ -1112,8 +1118,8 @@ def send_otp(request, pk):
         attempts__lt=3
     ).order_by('-created_at').first()
     
-    # If there's a verified OTP for pretagged lead, show it as verified (no expiry)
-    if verified_otp and is_pretagged:
+    # If there's a verified OTP for pretagged lead (and NOT for booking), show it as verified (no expiry)
+    if verified_otp and is_pretagged and not is_booking_context:
         from .utils import get_sms_deep_link, normalize_phone
         normalized_phone = normalize_phone(lead.phone)
         project_name = primary_project.name if primary_project else ''
