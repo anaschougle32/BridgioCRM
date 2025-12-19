@@ -41,28 +41,56 @@
     
     <!-- Key Metrics -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">My Leads</h3>
-            <p class="text-2xl sm:text-3xl font-bold text-olive-primary">{{ total_leads }}</p>
-            <p class="text-xs text-gray-500 mt-1">{{ new_visits_today }} new today</p>
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-5 sm:p-6 hover:shadow-xl hover:border-olive-primary/30 transition-all duration-200 group">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">My Leads</h3>
+                <div class="w-10 h-10 rounded-lg bg-olive-primary/10 flex items-center justify-center group-hover:bg-olive-primary/20 transition-colors">
+                    <svg class="w-5 h-5 text-olive-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <p class="text-3xl sm:text-4xl font-bold text-olive-primary mb-1">{{ total_leads }}</p>
+            <p class="text-xs text-gray-500 font-medium">{{ new_visits_today }} new today</p>
         </div>
         
-        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Today's Callbacks</h3>
-            <p class="text-2xl sm:text-3xl font-bold text-orange-600">{{ todays_callbacks|default:0 }}</p>
-            <a href="{% url 'leads:list' %}?reminder=today" class="text-xs text-olive-primary hover:underline mt-1 inline-block">View Callbacks →</a>
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-5 sm:p-6 hover:shadow-xl hover:border-orange-200 transition-all duration-200 group">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Today's Callbacks</h3>
+                <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+                    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <p class="text-3xl sm:text-4xl font-bold text-orange-600 mb-1">{{ todays_callbacks|default:0 }}</p>
+            <a href="{% url 'leads:list' %}?reminder=today" class="text-xs text-olive-primary hover:text-olive-secondary font-semibold mt-1 inline-flex items-center gap-1">View Callbacks <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a>
         </div>
         
-        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Follow-up Reminders</h3>
-            <p class="text-2xl sm:text-3xl font-bold text-yellow-600">{{ active_reminders|default:0 }}</p>
-            <a href="{% url 'leads:followups_list' %}" class="text-xs text-olive-primary hover:underline mt-1 inline-block">View Reminders →</a>
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-5 sm:p-6 hover:shadow-xl hover:border-yellow-200 transition-all duration-200 group">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Follow-up Reminders</h3>
+                <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center group-hover:bg-yellow-200 transition-colors">
+                    <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                </div>
+            </div>
+            <p class="text-3xl sm:text-4xl font-bold text-yellow-600 mb-1">{{ active_reminders|default:0 }}</p>
+            <a href="{% url 'leads:followups_list' %}" class="text-xs text-olive-primary hover:text-olive-secondary font-semibold mt-1 inline-flex items-center gap-1">View Reminders <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a>
         </div>
         
-        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-xs sm:text-sm font-medium text-gray-600 mb-2">Untouched >24h</h3>
-            <p class="text-2xl sm:text-3xl font-bold text-red-600">{{ untouched_leads|default:0 }}</p>
-            <a href="{% url 'leads:list' %}?untouched=true" class="text-xs text-olive-primary hover:underline mt-1 inline-block">View Leads →</a>
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-5 sm:p-6 hover:shadow-xl hover:border-red-200 transition-all duration-200 group">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide">Untouched >24h</h3>
+                <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors">
+                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+            </div>
+            <p class="text-3xl sm:text-4xl font-bold text-red-600 mb-1">{{ untouched_leads|default:0 }}</p>
+            <a href="{% url 'leads:list' %}?untouched=true" class="text-xs text-olive-primary hover:text-olive-secondary font-semibold mt-1 inline-flex items-center gap-1">View Leads <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a>
         </div>
     </div>
     
