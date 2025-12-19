@@ -1894,23 +1894,16 @@ def search_visited_leads(request, pk):
         return JsonResponse({'results': []})
     
     # Get all visited leads for this project (not just assigned to user)
+    # Note: We include booked leads so they can book additional units
     from leads.models import LeadProjectAssociation
-    from bookings.models import Booking
     visited_associations = LeadProjectAssociation.objects.filter(
         project=project,
         is_archived=False
     ).filter(
-        Q(status__in=['visit_completed', 'discussion', 'hot', 'ready_to_book']) |
+        Q(status__in=['visit_completed', 'discussion', 'hot', 'ready_to_book', 'booked']) |
         Q(is_pretagged=True, pretag_status='verified') |
         Q(phone_verified=True)
     ).select_related('lead', 'lead__channel_partner')
-    
-    # Exclude leads that have bookings for this project
-    booked_lead_ids = Booking.objects.filter(
-        project=project,
-        is_archived=False
-    ).values_list('lead_id', flat=True).distinct()
-    visited_associations = visited_associations.exclude(lead_id__in=booked_lead_ids)
     
     # Search by name, phone, email
     if query:
