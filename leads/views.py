@@ -1259,23 +1259,28 @@ def verify_otp(request, pk):
         # Mark OTP as verified
         otp_log.is_verified = True
         otp_log.verified_at = now
-        otp_log.save()
         
-        # Update associations - mark phone as verified and update status
-        # Get project from request if available (for booking form), otherwise update all associations
+        # For pretagged leads, set expires_at to far future so it never expires
+        # Check if this is a pretagged lead
         project_id = request.POST.get('project_id') or request.GET.get('project_id')
-        
         if project_id:
-            # Update specific project association
             associations = lead.project_associations.filter(project_id=project_id, is_archived=False)
         else:
-            # Update all associations for closing manager's projects
             if request.user.is_closing_manager():
                 user_projects = request.user.assigned_projects.all()
                 associations = lead.project_associations.filter(project__in=user_projects, is_archived=False)
             else:
                 associations = lead.project_associations.filter(is_archived=False)
         
+        is_pretagged = associations.filter(is_pretagged=True).exists()
+        if is_pretagged:
+            # Set expires_at to far future (100 years from now) so it never expires
+            from datetime import timedelta
+            otp_log.expires_at = now + timedelta(days=36500)  # ~100 years
+        
+        otp_log.save()
+        
+        # Update associations - mark phone as verified and update status
         for association in associations:
             association.phone_verified = True
             if association.is_pretagged:
