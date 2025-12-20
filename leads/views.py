@@ -1103,6 +1103,9 @@ def send_otp(request, pk):
         associations = lead.project_associations.filter(is_archived=False)
         is_pretagged = associations.filter(is_pretagged=True).exists()
     
+    # Get project_id from request (GET or POST)
+    project_id = request.GET.get('project_id') or request.POST.get('project_id')
+    
     # Check for verified OTP first (for pretagged leads that are already verified)
     # BUT: Skip this check if it's for booking conversion - always generate new OTP for bookings
     # ALSO: For pretagged leads, OTP verification is project-specific
