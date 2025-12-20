@@ -800,15 +800,40 @@
 </div>
 
 <script>
-    // Show/hide callback date field
-    document.querySelector('select[name="next_action"]').addEventListener('change', function() {
-        const callbackDate = document.getElementById('callback-date');
-        if (this.value === 'callback') {
-            callbackDate.classList.remove('hidden');
-        } else {
-            callbackDate.classList.add('hidden');
+    // WhatsApp menu toggle function
+    function toggleWhatsAppMenu(menuId) {
+        const menu = document.getElementById(menuId);
+        if (menu) {
+            menu.classList.toggle('hidden');
         }
+    }
+    
+    // Close WhatsApp menu when clicking outside
+    document.addEventListener('click', function(event) {
+        const whatsappMenus = ['whatsapp-menu-desktop', 'whatsapp-menu-mobile'];
+        whatsappMenus.forEach(menuId => {
+            const menu = document.getElementById(menuId);
+            const button = event.target.closest('button[onclick*="' + menuId + '"]');
+            if (menu && !menu.contains(event.target) && !button) {
+                menu.classList.add('hidden');
+            }
+        });
     });
+    
+    // Show/hide callback date field
+    const nextActionSelect = document.querySelector('select[name="next_action"]');
+    if (nextActionSelect) {
+        nextActionSelect.addEventListener('change', function() {
+            const callbackDate = document.getElementById('callback-date');
+            if (callbackDate) {
+                if (this.value === 'callback') {
+                    callbackDate.classList.remove('hidden');
+                } else {
+                    callbackDate.classList.add('hidden');
+                }
+            }
+        });
+    }
     
     // Close modals on outside click
     document.getElementById('call-modal').addEventListener('click', function(e) {
