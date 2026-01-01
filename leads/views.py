@@ -1188,56 +1188,66 @@ def send_otp(request, pk):
         html = render_to_string('leads/otp_controls.html', context, request=request)
         return HttpResponse(html)
     
-    # Generate OTP
-    otp_code = generate_otp()
-    otp_hash = hash_otp(otp_code)
-    
-    # Create OTP log (only hash, no plaintext)
-    expires_at = now + timedelta(minutes=5)
-    otp_log = OtpLog.objects.create(
-        lead=lead,
-        otp_hash=otp_hash,
-        expires_at=expires_at,
-        attempts=0,
-        max_attempts=3,
-        gateway_response='{}',  # Initialize with empty JSON
-    )
-    
-    # Normalize phone number before sending
-    from .utils import normalize_phone
-    normalized_phone = normalize_phone(lead.phone)
-    
-    # Send SMS via adapter (with WhatsApp fallback)
-    from .sms_adapter import send_sms
-    # Get project name for SMS
-    project_name = primary_project.name if primary_project else (lead.primary_project.name if lead.primary_project else '')
-    sms_response = send_sms(normalized_phone, otp_code, project_name=project_name)
-    
-    # Store gateway response
-    import json
-    otp_log.gateway_response = json.dumps(sms_response)
-    otp_log.save()
-    
-    # Generate WhatsApp link for OTP
-    from .utils import get_sms_deep_link
-    sms_link = get_sms_deep_link(normalized_phone, otp_code, project_name=project_name)
-    
     # Check if this is a JSON request (from Queue Visit or other AJAX calls)
     # Look for Accept: application/json header or Content-Type: application/json
     accept_header = request.headers.get('Accept', '')
     content_type = request.headers.get('Content-Type', '')
     is_json_request = 'application/json' in accept_header or 'application/json' in content_type
     
-    # For JSON requests (Queue Visit), return JSON response
-    if is_json_request:
-        return JsonResponse({
-            'success': True,
-            'message': 'OTP sent successfully',
-            'otp_id': otp_log.id,
-            'expires_at': otp_log.expires_at.isoformat(),
-            'sms_status': sms_response.get('status', 'sent'),
-            'whatsapp_link': sms_response.get('whatsapp_link') if sms_response.get('status') == 'fallback' else None
-        })
+    try:
+        # Generate OTP
+        otp_code = generate_otp()
+        otp_hash = hash_otp(otp_code)
+        
+        # Create OTP log (only hash, no plaintext)
+        expires_at = now + timedelta(minutes=5)
+        otp_log = OtpLog.objects.create(
+            lead=lead,
+            otp_hash=otp_hash,
+            expires_at=expires_at,
+            attempts=0,
+            max_attempts=3,
+            gateway_response='{}',  # Initialize with empty JSON
+        )
+        
+        # Normalize phone number before sending
+        from .utils import normalize_phone
+        normalized_phone = normalize_phone(lead.phone)
+        
+        # Send SMS via adapter (with WhatsApp fallback)
+        from .sms_adapter import send_sms
+        # Get project name for SMS
+        project_name = primary_project.name if primary_project else (lead.primary_project.name if lead.primary_project else '')
+        sms_response = send_sms(normalized_phone, otp_code, project_name=project_name)
+        
+        # Store gateway response
+        import json
+        otp_log.gateway_response = json.dumps(sms_response)
+        otp_log.save()
+        
+        # Generate WhatsApp link for OTP
+        from .utils import get_sms_deep_link
+        sms_link = get_sms_deep_link(normalized_phone, otp_code, project_name=project_name)
+        
+        # For JSON requests (Queue Visit), return JSON response
+        if is_json_request:
+            return JsonResponse({
+                'success': True,
+                'message': 'OTP sent successfully',
+                'otp_id': otp_log.id,
+                'expires_at': otp_log.expires_at.isoformat(),
+                'sms_status': sms_response.get('status', 'sent'),
+                'whatsapp_link': sms_response.get('whatsapp_link') if sms_response.get('status') == 'fallback' else None
+            })
+    except Exception as e:
+        # If JSON request and error occurs, return JSON error
+        if is_json_request:
+            return JsonResponse({
+                'success': False,
+                'error': f'Error sending OTP: {str(e)}'
+            }, status=500)
+        # Otherwise, let Django handle the error normally
+        raise
     
     # For HTML requests (lead detail page), return HTML
     context = {

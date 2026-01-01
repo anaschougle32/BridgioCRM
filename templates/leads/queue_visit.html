@@ -412,6 +412,7 @@ function sendOTP() {
             return fetch(`/leads/${data.lead_id}/send-otp/`, {
                 method: 'POST',
                 headers: {
+                    'Accept': 'application/json',
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 }
