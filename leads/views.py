@@ -40,9 +40,16 @@ def lead_list(request):
     # Role-based filtering
     if request.user.is_super_admin() or request.user.is_mandate_owner() or (request.user.is_superuser and request.user.is_staff):
         pass  # No filtering for super admin and mandate owner
-    elif request.user.is_telecaller() or request.user.is_closing_manager():
-        # Telecallers and Closing Managers see only their assigned leads
+    elif request.user.is_telecaller():
+        # Telecallers see only their assigned leads
         associations = associations.filter(assigned_to=request.user)
+    elif request.user.is_closing_manager():
+        # Closing Managers see their assigned leads AND pretagged leads in their projects
+        user_projects = request.user.assigned_projects.all()
+        associations = associations.filter(
+            Q(assigned_to=request.user) | 
+            Q(is_pretagged=True, project__in=user_projects)
+        )
     elif request.user.is_site_head():
         # Site head sees leads ONLY for their assigned projects (strict isolation)
         associations = associations.filter(project__site_head=request.user)
