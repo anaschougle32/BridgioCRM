@@ -113,7 +113,7 @@ def project_create(request):
                 
                 # Collect commercial floors and their unit counts for this tower
                 tower_commercial_floors = {}
-                for floor_num in range(1, total_floors + 1):  # Include ground floor (1) + floors_count floors
+                for floor_num in range(0, total_floors):  # Floor 0 (Ground) through N floors
                     if request.POST.get(f'tower_{tower_count}_floor_{floor_num}_commercial') == 'on':
                         commercial_units = request.POST.get(f'tower_{tower_count}_floor_{floor_num}_commercial_units', '0')
                         tower_commercial_floors[floor_num] = int(commercial_units) if commercial_units else 0
@@ -387,7 +387,7 @@ def project_create(request):
                         commercial_floors_data = project_data.get('commercial_floors', {})
                         tower_commercial_floors = commercial_floors_data.get(tower_num, {})  # Dict: {floor_num: units_count}
                         
-                        for floor_num in range(1, floors_count + 1):
+                        for floor_num in range(0, floors_count):
                             floor_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
                             # Check if this floor is commercial from tower structure step
                             floor_is_commercial = floor_num in tower_commercial_floors
@@ -397,8 +397,8 @@ def project_create(request):
                             else:
                                 units_per_floor_this = units_per_floor_tower
                             for unit_idx in range(1, units_per_floor_this + 1):
-                                # Floor 1: 101, 102, 103... Floor 2: 201, 202, 203... Floor 7: 701, 702, 703...
-                                unit_number = floor_num * 100 + unit_idx
+                                # Floor 0 (Ground): 001, 002, 003... Floor 1: 101, 102, 103... Floor 7: 701, 702, 703...
+                                unit_number = floor_num * 100 + unit_idx if floor_num > 0 else unit_idx
                                 unit_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
                                 area_type_key = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
                                 area_type_id = area_type_map.get(area_type_key) if area_type_key else None
@@ -415,11 +415,11 @@ def project_create(request):
                 else:
                     # Fallback to legacy structure
                     for tower_num in range(1, number_of_towers + 1):
-                        for floor_num in range(1, floors_per_tower + 1):
+                        for floor_num in range(0, floors_per_tower):
                             floor_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
                             for unit_idx in range(1, units_per_floor + 1):
-                                # Floor 1: 101, 102, 103... Floor 2: 201, 202, 203...
-                                unit_number = floor_num * 100 + unit_idx
+                                # Floor 0 (Ground): 001, 002, 003... Floor 1: 101, 102, 103... Floor 2: 201, 202, 203...
+                                unit_number = floor_num * 100 + unit_idx if floor_num > 0 else unit_idx
                                 unit_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
                                 area_type_key = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
                                 area_type_id = area_type_map.get(area_type_key) if area_type_key else None
@@ -675,7 +675,7 @@ def project_edit(request, pk):
                 
                 # Store commercial floors and their unit counts in session for floor mapping step
                 tower_commercial_floors = {}
-                for floor_num in range(1, total_floors + 1):  # Include ground floor (1) + floors_count floors
+                for floor_num in range(0, total_floors):  # Floor 0 (Ground) through N floors
                     if request.POST.get(f'tower_{tower_count}_floor_{floor_num}_commercial') == 'on':
                         commercial_units = request.POST.get(f'tower_{tower_count}_floor_{floor_num}_commercial_units', '0')
                         tower_commercial_floors[floor_num] = int(commercial_units) if commercial_units else 0
@@ -980,14 +980,10 @@ def project_edit(request, pk):
                         commercial_floors_data = request.session.get('edit_project_data', {}).get('commercial_floors', {})
                         tower_commercial_floors = commercial_floors_data.get(tower_num, {})  # Dict: {floor_num: units_count}
                         
-                        for floor_num in range(1, floors_count + 1):
+                        for floor_num in range(0, floors_count):
                             floor_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
                             # Check if this floor is commercial from tower structure step
                             floor_is_commercial = floor_num in tower_commercial_floors
-                            
-                            # Skip ground floor (G) if it's not commercial - it's vacant/parking
-                            if floor_num == 1 and not floor_is_commercial:
-                                continue
                             
                             # Get units per floor
                             # For commercial floors, use the specified unit count, otherwise use default
@@ -997,8 +993,8 @@ def project_edit(request, pk):
                                 units_per_floor_this = units_per_floor_tower
                             
                             for unit_idx in range(1, units_per_floor_this + 1):
-                                # Floor 1: 101, 102, 103... Floor 2: 201, 202, 203... Floor 7: 701, 702, 703...
-                                unit_number = floor_num * 100 + unit_idx
+                                # Floor 0 (Ground): 001, 002, 003... Floor 1: 101, 102, 103... Floor 7: 701, 702, 703...
+                                unit_number = floor_num * 100 + unit_idx if floor_num > 0 else unit_idx
                                 unit_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
                                 area_type_key = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
                                 area_type_id = area_type_map.get(area_type_key) if area_type_key else None
@@ -1019,12 +1015,12 @@ def project_edit(request, pk):
                     number_of_towers = project.number_of_towers
                     
                     for tower_num in range(1, number_of_towers + 1):
-                        for floor_num in range(1, floors_per_tower + 1):
+                        for floor_num in range(0, floors_per_tower):
                             floor_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
                             floor_is_commercial = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_is_commercial') == 'on'
                             for unit_idx in range(1, units_per_floor + 1):
-                                # Floor 1: 101, 102, 103... Floor 2: 201, 202, 203... Floor 7: 701, 702, 703...
-                                unit_number = floor_num * 100 + unit_idx
+                                # Floor 0 (Ground): 001, 002, 003... Floor 1: 101, 102, 103... Floor 7: 701, 702, 703...
+                                unit_number = floor_num * 100 + unit_idx if floor_num > 0 else unit_idx
                                 unit_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_excluded') == 'on'
                                 area_type_key = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
                                 area_type_id = area_type_map.get(area_type_key) if area_type_key else None
