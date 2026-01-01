@@ -133,7 +133,13 @@
                             <label class="block text-sm font-semibold text-text-primary mb-2">Enter 6-Digit OTP</label>
                             <input type="text" id="otp-code" placeholder="000000" maxlength="6" pattern="[0-9]{6}"
                                    class="w-full px-4 py-3 text-center text-2xl font-mono border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
-                            <p class="text-xs text-gray-500 mt-2 text-center">OTP sent to client's phone</p>
+                            <div class="flex justify-between items-center mt-2">
+                                <p class="text-xs text-gray-500">OTP sent to client's phone</p>
+                                <button type="button" onclick="resendOTP()" id="resend-otp-btn"
+                                        class="text-xs text-olive-primary hover:text-olive-secondary font-semibold underline">
+                                    Resend OTP
+                                </button>
+                            </div>
                         </div>
                         
                         <div id="otp-status" class="hidden text-center"></div>
@@ -467,6 +473,7 @@ function verifyOTP() {
     fetch(`/leads/${leadId}/verify-otp/`, {
         method: 'POST',
         headers: {
+            'Accept': 'application/json',
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-CSRFToken': '{{ csrf_token }}'
         },
@@ -499,6 +506,60 @@ function verifyOTP() {
         alert('Error verifying OTP');
         verifyBtn.disabled = false;
         verifyBtn.textContent = 'Verify & Continue';
+    });
+}
+
+// Resend OTP
+function resendOTP() {
+    const leadId = document.getElementById('lead-id').value;
+    
+    if (!leadId) {
+        alert('Please complete Step 1 first');
+        return;
+    }
+    
+    const resendBtn = document.getElementById('resend-otp-btn');
+    const originalText = resendBtn.textContent;
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Resending...';
+    
+    // Call sendOTP to the same lead
+    fetch(`/leads/${leadId}/send-otp/`, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            resendBtn.textContent = 'OTP Resent ✓';
+            resendBtn.classList.add('text-green-600');
+            
+            // Open WhatsApp automatically if link is provided
+            if (data.whatsapp_link) {
+                window.open(data.whatsapp_link, '_blank');
+            }
+            
+            // Reset button after 3 seconds
+            setTimeout(() => {
+                resendBtn.textContent = originalText;
+                resendBtn.classList.remove('text-green-600');
+                resendBtn.disabled = false;
+            }, 3000);
+        } else {
+            alert('Error: ' + data.error);
+            resendBtn.disabled = false;
+            resendBtn.textContent = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error resending OTP: ' + error.message);
+        resendBtn.disabled = false;
+        resendBtn.textContent = originalText;
     });
 }
 
