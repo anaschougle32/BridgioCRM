@@ -828,29 +828,55 @@
                 }
             }
             
-            // If we found the tower index, read commercial floor data
+            // Check if ground floor (0) is commercial
+            let groundIsCommercial = false;
             if (towerIndex !== null) {
-                for (let floor = 1; floor <= floorsPerTower; floor++) {
-                    const commercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial"]`);
-                    if (commercialCheck && commercialCheck.checked) {
-                        const unitsInput = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial_units"]`);
-                        const units = unitsInput ? parseInt(unitsInput.value) || unitsPerFloor : unitsPerFloor;
-                        commercialFloorsData[floor] = units;
+                const groundCommercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_0_commercial"]`);
+                groundIsCommercial = groundCommercialCheck && groundCommercialCheck.checked;
+                
+                // Read commercial floor data for all floors
+                if (groundIsCommercial) {
+                    // If ground is commercial, check floors 0 to floorsPerTower-1
+                    for (let floor = 0; floor < floorsPerTower; floor++) {
+                        const commercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial"]`);
+                        if (commercialCheck && commercialCheck.checked) {
+                            const unitsInput = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial_units"]`);
+                            const units = unitsInput ? parseInt(unitsInput.value) || unitsPerFloor : unitsPerFloor;
+                            commercialFloorsData[floor] = units;
+                        }
+                    }
+                } else {
+                    // If ground is NOT commercial, check floors 1 to floorsPerTower
+                    for (let floor = 1; floor <= floorsPerTower; floor++) {
+                        const commercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial"]`);
+                        if (commercialCheck && commercialCheck.checked) {
+                            const unitsInput = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial_units"]`);
+                            const units = unitsInput ? parseInt(unitsInput.value) || unitsPerFloor : unitsPerFloor;
+                            commercialFloorsData[floor] = units;
+                        }
                     }
                 }
             }
             
-            for (let floor = 1; floor <= floorsPerTower; floor++) {
-                // Get floor display name
+            // Determine floor range based on whether ground is commercial
+            const startFloor = groundIsCommercial ? 0 : 1;
+            const endFloor = groundIsCommercial ? floorsPerTower - 1 : floorsPerTower;
+            
+            for (let floor = startFloor; floor <= endFloor; floor++) {
+                // Get floor display name using the same logic as backend filter
                 let floorDisplayName;
-                if (floor === 1) {
-                    floorDisplayName = "Ground (G)";
-                } else if (floor === 2) {
+                if (floor === 0) {
+                    floorDisplayName = "Ground Floor (G)";
+                } else if (floor === 1) {
                     floorDisplayName = "1st Floor";
-                } else if (floor === 3) {
+                } else if (floor === 2) {
                     floorDisplayName = "2nd Floor";
+                } else if (floor === 3) {
+                    floorDisplayName = "3rd Floor";
+                } else if (floor === 4) {
+                    floorDisplayName = "4th Floor";
                 } else {
-                    floorDisplayName = `${floor - 1}th Floor`;
+                    floorDisplayName = `${floor}th Floor`;
                 }
                 
                 // Check if this floor is marked as commercial
@@ -862,31 +888,37 @@
                     unitsPerFloorThis = commercialFloorsData[floor];
                 }
                 
-                html += `<div class="mb-4 p-3 bg-white rounded border ${isCommercialFloor ? 'border-blue-300 bg-blue-50' : ''}">`;
+                html += `<div class="mb-4 p-3 bg-white rounded border ${isCommercialFloor ? 'border-blue-300 bg-blue-50' : ''}" data-floor-container="tower_${tower}_floor_${floor}">`;
                 html += `<div class="flex items-center justify-between mb-2 flex-wrap gap-2">`;
                 html += `<div class="flex items-center gap-4">`;
                 html += `<label class="flex items-center">`;
                 html += `<input type="checkbox" name="tower_${tower}_floor_${floor}_excluded" class="mr-2">`;
                 html += `<span class="font-medium">${floorDisplayName} - Exclude Entire Floor</span>`;
                 html += `</label>`;
+                html += `</div>`;
+                html += `<div class="flex items-center gap-2">`;
+                html += `<button type="button" onclick="copyFloorMapping(${tower}, ${floor})" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition">📋 Copy</button>`;
+                html += `<button type="button" onclick="pasteFloorMapping(${tower}, ${floor})" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition">📄 Paste</button>`;
+                html += `</div>`;
+                html += `</div>`;
+                html += `<div class="mt-2">`;
                 // Commercial floors are now selected in tower structure step, so we just display the status
                 if (isCommercialFloor) {
-                    html += `<span class="ml-4 text-sm font-medium text-blue-600">✓ Commercial Floor (${unitsPerFloorThis} units)</span>`;
-                } else if (floor === 1) {
-                    html += `<span class="ml-4 text-sm font-medium text-gray-500">(Vacant/Parking)</span>`;
+                    html += `<span class="text-sm font-medium text-blue-600">✓ Commercial Floor (${unitsPerFloorThis} units)</span>`;
+                } else if (floor === 0) {
+                    html += `<span class="text-sm font-medium text-gray-500">(Vacant/Parking)</span>`;
                 }
-                html += `</div>`;
                 html += `</div>`;
                 
                 for (let unit = 1; unit <= unitsPerFloorThis; unit++) {
-                    // Ground floor (1): 01, 02, 03... First floor (2): 101, 102, 103...
+                    // Floor 0 (Ground): 001, 002, 003... Floor 1: 101, 102, 103... Floor 7: 701, 702, 703...
                     let unitNumber;
                     let unitDisplay;
-                    if (floor === 1) {
+                    if (floor === 0) {
                         unitNumber = unit;
-                        unitDisplay = String(unit).padStart(2, '0'); // 01, 02, 03...
+                        unitDisplay = String(unit).padStart(3, '0'); // 001, 002, 003...
                     } else {
-                        unitNumber = (floor - 1) * 100 + unit;
+                        unitNumber = floor * 100 + unit;
                         unitDisplay = unitNumber;
                     }
                     html += `<div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 p-2 bg-gray-50 rounded">`;
@@ -917,6 +949,68 @@
         }
         
         container.innerHTML = html;
+    }
+    
+    // Floor mapping copy/paste functionality
+    let copiedFloorData = null;
+    
+    function copyFloorMapping(tower, floor) {
+        const floorContainer = document.querySelector(`[data-floor-container="tower_${tower}_floor_${floor}"]`);
+        if (!floorContainer) {
+            alert('Floor not found');
+            return;
+        }
+        
+        // Collect all unit configurations for this floor
+        const units = [];
+        const unitSelects = floorContainer.querySelectorAll('select[name^="tower_"][name*="_unit_"][name$="_area_type"]');
+        const unitExcludes = floorContainer.querySelectorAll('input[type="checkbox"][name^="tower_"][name*="_unit_"][name$="_excluded"]');
+        
+        unitSelects.forEach((select, index) => {
+            const excludeCheckbox = unitExcludes[index];
+            units.push({
+                areaType: select.value,
+                excluded: excludeCheckbox ? excludeCheckbox.checked : false
+            });
+        });
+        
+        copiedFloorData = {
+            tower: tower,
+            floor: floor,
+            units: units
+        };
+        
+        alert(`Floor mapping copied! (${units.length} units)`);
+    }
+    
+    function pasteFloorMapping(tower, floor) {
+        if (!copiedFloorData) {
+            alert('No floor mapping copied yet. Please copy a floor first.');
+            return;
+        }
+        
+        const floorContainer = document.querySelector(`[data-floor-container="tower_${tower}_floor_${floor}"]`);
+        if (!floorContainer) {
+            alert('Floor not found');
+            return;
+        }
+        
+        // Get all unit configurations for this floor
+        const unitSelects = floorContainer.querySelectorAll('select[name^="tower_"][name*="_unit_"][name$="_area_type"]');
+        const unitExcludes = floorContainer.querySelectorAll('input[type="checkbox"][name^="tower_"][name*="_unit_"][name$="_excluded"]');
+        
+        // Apply copied data to each unit
+        unitSelects.forEach((select, index) => {
+            if (index < copiedFloorData.units.length) {
+                const copiedUnit = copiedFloorData.units[index];
+                select.value = copiedUnit.areaType;
+                if (unitExcludes[index]) {
+                    unitExcludes[index].checked = copiedUnit.excluded;
+                }
+            }
+        });
+        
+        alert(`Floor mapping pasted! (${Math.min(unitSelects.length, copiedFloorData.units.length)} units updated)`);
     }
     
     // Initialize

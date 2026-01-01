@@ -1138,16 +1138,13 @@
                 const commercialInput = document.querySelector(`input[name="tower_${index}_is_commercial"]`);
                 
                 if (floorsInput && unitsInput) {
-                    // floorsInput.value is "number of floors excluding ground" (N)
-                    // Total floors = G + N = 1 + N
-                    const floorsExcludingGround = parseInt(floorsInput.value) || 1;
-                    const totalFloors = floorsExcludingGround + 1; // G + N
+                    const floorsCount = parseInt(floorsInput.value) || 1;
                     towerConfigs.push({
                         towerNum: towerNum,
-                        floors: totalFloors, // Total floors including ground
-                        floorsExcludingGround: floorsExcludingGround, // N (for reference)
+                        floors: floorsCount, // This will be adjusted based on ground floor
                         unitsPerFloor: parseInt(unitsInput.value) || 1,
-                        isCommercial: commercialInput ? commercialInput.checked : false
+                        isCommercial: commercialInput ? commercialInput.checked : false,
+                        towerIndex: index
                     });
                 }
             }
@@ -1257,13 +1254,7 @@
         let html = '';
         for (const towerConfig of towerConfigs) {
             const tower = towerConfig.towerNum;
-            // floorsPerTower from form is "N" (excluding ground), but we stored it as total (G + N)
-            // If it has floorsExcludingGround, use that to calculate total, otherwise assume it's already total
             let floorsPerTower = towerConfig.floors;
-            if (towerConfig.floorsExcludingGround !== undefined) {
-                // floorsExcludingGround is N, total = G + N = 1 + N
-                floorsPerTower = towerConfig.floorsExcludingGround + 1;
-            }
             const unitsPerFloor = towerConfig.unitsPerFloor;
             const isCommercialTower = towerConfig.isCommercial;
             
@@ -1295,38 +1286,44 @@
                 }
             }
             
-            // If we found the tower index, read commercial floor data from form
-            // floorsPerTower is already total floors (G + N) after our fix above
+            // Check if ground floor (0) is commercial
+            let groundIsCommercial = false;
             if (towerIndex !== null) {
-                for (let floor = 1; floor <= floorsPerTower; floor++) {
-                    const commercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial"]`);
-                    if (commercialCheck && commercialCheck.checked) {
-                        const unitsInput = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial_units"]`);
-                        const units = unitsInput ? parseInt(unitsInput.value) || unitsPerFloor : unitsPerFloor;
-                        // Form data takes precedence over backend data
-                        commercialFloorsData[floor] = units;
+                const groundCommercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_0_commercial"]`);
+                groundIsCommercial = groundCommercialCheck && groundCommercialCheck.checked;
+                
+                // Read commercial floor data based on ground floor status
+                if (groundIsCommercial) {
+                    // If ground is commercial, check floors 0 to floorsPerTower-1
+                    for (let floor = 0; floor < floorsPerTower; floor++) {
+                        const commercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial"]`);
+                        if (commercialCheck && commercialCheck.checked) {
+                            const unitsInput = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial_units"]`);
+                            const units = unitsInput ? parseInt(unitsInput.value) || unitsPerFloor : unitsPerFloor;
+                            commercialFloorsData[floor] = units;
+                        }
+                    }
+                } else {
+                    // If ground is NOT commercial, check floors 1 to floorsPerTower
+                    for (let floor = 1; floor <= floorsPerTower; floor++) {
+                        const commercialCheck = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial"]`);
+                        if (commercialCheck && commercialCheck.checked) {
+                            const unitsInput = document.querySelector(`input[name="tower_${towerIndex}_floor_${floor}_commercial_units"]`);
+                            const units = unitsInput ? parseInt(unitsInput.value) || unitsPerFloor : unitsPerFloor;
+                            commercialFloorsData[floor] = units;
+                        }
                     }
                 }
             }
             
-            // Track if any commercial floors were found
-            let hasCommercialFloors = Object.keys(commercialFloorsData).length > 0 || commercialFloors.has(`${tower}_1`) || isCommercialTower;
+            // Determine floor range based on whether ground is commercial
+            const startFloor = groundIsCommercial ? 0 : 1;
+            const endFloor = groundIsCommercial ? floorsPerTower - 1 : floorsPerTower;
             
-            // Only show floors that are marked as commercial
-            // If G (floor 1) is not commercial, skip it
-            let floorsAdded = 0;
-            for (let floor = 1; floor <= floorsPerTower; floor++) {
+            for (let floor = startFloor; floor <= endFloor; floor++) {
                 const floorKey = `${tower}_${floor}`;
                 // Check if this floor is marked as commercial
                 const isCommercialFloor = floor in commercialFloorsData || commercialFloors.has(floorKey) || isCommercialTower;
-                
-                // Skip ground floor (G) if it's not commercial - it's vacant/parking
-                // But show all other floors (residential or commercial)
-                if (floor === 1 && !isCommercialFloor) {
-                    continue;
-                }
-                
-                floorsAdded++;
                 
                 const floorExcluded = existingUnits[`${tower}_${floor}_0`]?.is_excluded || false;
                 
@@ -1337,16 +1334,20 @@
                     unitsPerFloorThis = commercialFloorsData[floor];
                 }
                 
-                // Get floor display name
+                // Get floor display name using the same logic as backend filter
                 let floorDisplayName;
-                if (floor === 1) {
-                    floorDisplayName = "Ground (G)";
-                } else if (floor === 2) {
+                if (floor === 0) {
+                    floorDisplayName = "Ground Floor (G)";
+                } else if (floor === 1) {
                     floorDisplayName = "1st Floor";
-                } else if (floor === 3) {
+                } else if (floor === 2) {
                     floorDisplayName = "2nd Floor";
+                } else if (floor === 3) {
+                    floorDisplayName = "3rd Floor";
+                } else if (floor === 4) {
+                    floorDisplayName = "4th Floor";
                 } else {
-                    floorDisplayName = `${floor - 1}th Floor`;
+                    floorDisplayName = `${floor}th Floor`;
                 }
                 
                 // Determine floor type label
@@ -1354,7 +1355,7 @@
                     `<span class="ml-4 text-sm font-medium text-blue-600">✓ Commercial Floor (${unitsPerFloorThis} units)</span>` :
                     `<span class="ml-4 text-sm font-medium text-green-600">✓ Residential Floor (${unitsPerFloorThis} units)</span>`;
                 
-                html += `<div class="mb-4 p-3 bg-white rounded border ${isCommercialFloor ? 'border-blue-300 bg-blue-50' : 'border-green-300 bg-green-50'}">`;
+                html += `<div class="mb-4 p-3 bg-white rounded border ${isCommercialFloor ? 'border-blue-300 bg-blue-50' : 'border-green-300 bg-green-50'}" data-floor-container="tower_${tower}_floor_${floor}">`;
                 html += `<div class="flex items-center justify-between mb-2 flex-wrap gap-2">`;
                 html += `<div class="flex items-center gap-4">`;
                 html += `<label class="flex items-center">`;
@@ -1363,15 +1364,19 @@
                 html += `</label>`;
                 html += floorTypeLabel;
                 html += `</div>`;
+                html += `<div class="flex items-center gap-2">`;
+                html += `<button type="button" onclick="copyFloorMapping(${tower}, ${floor})" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition">📋 Copy</button>`;
+                html += `<button type="button" onclick="pasteFloorMapping(${tower}, ${floor})" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition">📄 Paste</button>`;
+                html += `</div>`;
                 html += `</div>`;
                 
                 for (let unit = 1; unit <= unitsPerFloorThis; unit++) {
-                    // Ground floor (1): 01, 02, 03... First floor (2): 101, 102, 103...
+                    // Floor 0 (Ground): 001, 002, 003... Floor 1: 101, 102, 103... Floor 7: 701, 702, 703...
                     let unitNumber;
-                    if (floor === 1) {
-                        unitNumber = unit; // Will be displayed as 01, 02, 03...
+                    if (floor === 0) {
+                        unitNumber = unit; // Will be displayed as 001, 002, 003...
                     } else {
-                        unitNumber = (floor - 1) * 100 + unit;
+                        unitNumber = floor * 100 + unit;
                     }
                     const unitKey = `${tower}_${floor}_${unitNumber}`;
                     const unitData = existingUnits[unitKey];
@@ -1460,6 +1465,68 @@
         }
         
         console.log('Floor mapping generated. HTML length:', html.length, 'Towers:', towerConfigs.length);
+    }
+    
+    // Floor mapping copy/paste functionality
+    let copiedFloorData = null;
+    
+    function copyFloorMapping(tower, floor) {
+        const floorContainer = document.querySelector(`[data-floor-container="tower_${tower}_floor_${floor}"]`);
+        if (!floorContainer) {
+            alert('Floor not found');
+            return;
+        }
+        
+        // Collect all unit configurations for this floor
+        const units = [];
+        const unitSelects = floorContainer.querySelectorAll('select[name^="tower_"][name*="_unit_"][name$="_area_type"]');
+        const unitExcludes = floorContainer.querySelectorAll('input[type="checkbox"][name^="tower_"][name*="_unit_"][name$="_excluded"]');
+        
+        unitSelects.forEach((select, index) => {
+            const excludeCheckbox = unitExcludes[index];
+            units.push({
+                areaType: select.value,
+                excluded: excludeCheckbox ? excludeCheckbox.checked : false
+            });
+        });
+        
+        copiedFloorData = {
+            tower: tower,
+            floor: floor,
+            units: units
+        };
+        
+        alert(`Floor mapping copied! (${units.length} units)`);
+    }
+    
+    function pasteFloorMapping(tower, floor) {
+        if (!copiedFloorData) {
+            alert('No floor mapping copied yet. Please copy a floor first.');
+            return;
+        }
+        
+        const floorContainer = document.querySelector(`[data-floor-container="tower_${tower}_floor_${floor}"]`);
+        if (!floorContainer) {
+            alert('Floor not found');
+            return;
+        }
+        
+        // Get all unit configurations for this floor
+        const unitSelects = floorContainer.querySelectorAll('select[name^="tower_"][name*="_unit_"][name$="_area_type"]');
+        const unitExcludes = floorContainer.querySelectorAll('input[type="checkbox"][name^="tower_"][name*="_unit_"][name$="_excluded"]');
+        
+        // Apply copied data to each unit
+        unitSelects.forEach((select, index) => {
+            if (index < copiedFloorData.units.length) {
+                const copiedUnit = copiedFloorData.units[index];
+                select.value = copiedUnit.areaType;
+                if (unitExcludes[index]) {
+                    unitExcludes[index].checked = copiedUnit.excluded;
+                }
+            }
+        });
+        
+        alert(`Floor mapping pasted! (${Math.min(unitSelects.length, copiedFloorData.units.length)} units updated)`);
     }
     
     // Initialize
