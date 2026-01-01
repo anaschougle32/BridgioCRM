@@ -387,18 +387,20 @@ function sendOTP() {
     sendBtn.disabled = true;
     sendBtn.textContent = 'Sending OTP...';
     
-    // Create/get lead first
-    fetch('/leads/create/', {
+    // Create or get lead first
+    fetch('/leads/prepare-lead-for-otp/', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
             'X-CSRFToken': '{{ csrf_token }}'
         },
-        body: new URLSearchParams({
-            'name': name,
-            'phone': phone,
-            'email': leadData.email || '',
-            'step': '1'
+        body: JSON.stringify({
+            name: name,
+            phone: phone,
+            email: leadData.email || '',
+            age: leadData.age || null,
+            gender: leadData.gender || '',
+            locality: leadData.locality || ''
         })
     })
     .then(response => response.json())
@@ -415,7 +417,7 @@ function sendOTP() {
                 }
             });
         } else {
-            throw new Error(data.error || 'Failed to create lead');
+            throw new Error(data.error || 'Failed to prepare lead');
         }
     })
     .then(response => response.json())

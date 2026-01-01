@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Q
 from datetime import datetime
+import json
 
 from .models import Lead, LeadProjectAssociation, GlobalConfiguration
 from projects.models import Project
@@ -293,3 +294,61 @@ def mark_visit_done(request, association_id):
         'success': True,
         'message': f'Visit marked as completed for {association.lead.name}!'
     })
+
+
+@login_required
+def prepare_lead_for_otp(request):
+    """Create or get lead for OTP verification in queue visit flow"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    if not request.user.is_telecaller():
+        return JsonResponse({'success': False, 'error': 'Only telecallers can access this feature.'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        phone = data.get('phone', '').strip()
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip()
+        age = data.get('age')
+        gender = data.get('gender', '')
+        locality = data.get('locality', '').strip()
+        
+        if not phone or not name:
+            return JsonResponse({'success': False, 'error': 'Phone and name are required.'}, status=400)
+        
+        # Get or create lead
+        lead, created = Lead.objects.get_or_create(
+            phone=phone,
+            defaults={
+                'name': name,
+                'email': email,
+                'age': age if age else None,
+                'gender': gender,
+                'locality': locality,
+                'created_by': request.user
+            }
+        )
+        
+        # Update lead if it already exists
+        if not created:
+            lead.name = name or lead.name
+            lead.email = email or lead.email
+            if age:
+                lead.age = age
+            if gender:
+                lead.gender = gender
+            if locality:
+                lead.locality = locality
+            lead.save()
+        
+        return JsonResponse({
+            'success': True,
+            'lead_id': lead.id,
+            'created': created
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON data.'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
