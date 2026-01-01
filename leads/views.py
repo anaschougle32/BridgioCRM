@@ -1093,7 +1093,13 @@ def send_otp(request, pk):
             return JsonResponse({'success': False, 'error': 'You can only send OTP for leads assigned to you, pretagged leads, scheduled visits, or visited leads in your projects.'}, status=403)
         
         # Get primary project for SMS link
-        primary_project = associations.first().project if associations.exists() else lead.primary_project
+        if associations.exists():
+            primary_project = associations.first().project
+        elif user_projects.exists():
+            # For telecallers with new leads, use their first assigned project
+            primary_project = user_projects.first()
+        else:
+            primary_project = lead.primary_project
     else:
         primary_project = lead.primary_project
     
