@@ -1222,7 +1222,24 @@ def send_otp(request, pk):
     from .utils import get_sms_deep_link
     sms_link = get_sms_deep_link(normalized_phone, otp_code, project_name=project_name)
     
-    # Return HTML for the OTP verification form
+    # Check if this is a JSON request (from Queue Visit or other AJAX calls)
+    # Look for Accept: application/json header or Content-Type: application/json
+    accept_header = request.headers.get('Accept', '')
+    content_type = request.headers.get('Content-Type', '')
+    is_json_request = 'application/json' in accept_header or 'application/json' in content_type
+    
+    # For JSON requests (Queue Visit), return JSON response
+    if is_json_request:
+        return JsonResponse({
+            'success': True,
+            'message': 'OTP sent successfully',
+            'otp_id': otp_log.id,
+            'expires_at': otp_log.expires_at.isoformat(),
+            'sms_status': sms_response.get('status', 'sent'),
+            'whatsapp_link': sms_response.get('whatsapp_link') if sms_response.get('status') == 'fallback' else None
+        })
+    
+    # For HTML requests (lead detail page), return HTML
     context = {
         'lead': lead,
         'latest_otp': otp_log,
