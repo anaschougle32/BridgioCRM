@@ -126,6 +126,44 @@
                            oninput="calculateNegotiatedPrice()">
                 </div>
                 
+                <!-- Parking Control -->
+                {% if pricing_info.highrise_pricing and pricing_info.highrise_pricing.parking_price %}
+                <div class="border-t pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-sm font-medium text-gray-700">Parking</label>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="removeParkingFromCalculation()" 
+                                    class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition text-sm font-semibold">
+                                − Remove
+                            </button>
+                            <button type="button" onclick="addParkingToCalculation()" 
+                                    class="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition text-sm font-semibold">
+                                + Add
+                            </button>
+                        </div>
+                    </div>
+                    <div id="parking-details" class="space-y-3 {% if not pricing_info.highrise_pricing.include_parking_in_calculation %}hidden{% endif %}">
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Pre-added Parking Price</label>
+                            <input type="text" id="parking-preadded-price" 
+                                   value="₹{{ pricing_info.highrise_pricing.parking_price|floatformat:2 }}" 
+                                   readonly
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Negotiated Parking Price {% if pricing_info.highrise_pricing.parking_negotiable %}<span class="text-orange-600">(Negotiable)</span>{% endif %}</label>
+                            <input type="number" id="parking-negotiated-price" step="0.01" min="0"
+                                   value="{{ pricing_info.highrise_pricing.parking_price }}"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary text-sm"
+                                   oninput="calculateNegotiatedPrice()">
+                        </div>
+                    </div>
+                    <div id="parking-removed-message" class="text-sm text-gray-500 italic {% if pricing_info.highrise_pricing.include_parking_in_calculation %}hidden{% endif %}">
+                        Parking removed from calculation
+                    </div>
+                </div>
+                {% endif %}
+                
                 <div id="negotiated-results" class="space-y-3 hidden">
                     <div class="border-t pt-3">
                         <div class="flex justify-between mb-2">
@@ -369,6 +407,18 @@ function formatPrice(value) {
     }
 }
 
+function addParkingToCalculation() {
+    document.getElementById('parking-details').classList.remove('hidden');
+    document.getElementById('parking-removed-message').classList.add('hidden');
+    calculateNegotiatedPrice();
+}
+
+function removeParkingFromCalculation() {
+    document.getElementById('parking-details').classList.add('hidden');
+    document.getElementById('parking-removed-message').classList.remove('hidden');
+    calculateNegotiatedPrice();
+}
+
 function calculateNegotiatedPrice() {
     const negotiatedPriceSqft = parseFloat(document.getElementById('negotiated-price-sqft').value) || 0;
     if (negotiatedPriceSqft <= 0) {
@@ -376,15 +426,32 @@ function calculateNegotiatedPrice() {
         return;
     }
     
+    // Check if parking is included
+    let currentParkingPrice = 0;
+    const parkingDetailsVisible = document.getElementById('parking-details') && !document.getElementById('parking-details').classList.contains('hidden');
+    if (parkingDetailsVisible) {
+        const parkingNegotiatedInput = document.getElementById('parking-negotiated-price');
+        if (parkingNegotiatedInput) {
+            currentParkingPrice = parseFloat(parkingNegotiatedInput.value) || 0;
+        }
+    }
+    
     const negotiatedAgreementValue = negotiatedPriceSqft * buildupArea;
     const negotiatedStampDuty = negotiatedAgreementValue * (stampDutyPercent / 100);
     const negotiatedGst = negotiatedAgreementValue * (gstPercent / 100);
-    const negotiatedTotal = negotiatedAgreementValue + negotiatedStampDuty + negotiatedGst + registrationCharges + legalCharges + developmentCharges + parkingPrice;
+    const negotiatedTotal = negotiatedAgreementValue + negotiatedStampDuty + negotiatedGst + registrationCharges + legalCharges + developmentCharges + currentParkingPrice;
     const totalDiscount = baseTotal - negotiatedTotal;
     
     document.getElementById('negotiated-agreement-value').textContent = formatPrice(negotiatedAgreementValue);
     document.getElementById('negotiated-stamp-duty').textContent = formatPrice(negotiatedStampDuty);
     document.getElementById('negotiated-gst').textContent = formatPrice(negotiatedGst);
+    
+    // Update parking display in breakdown
+    const parkingElement = document.getElementById('negotiated-parking');
+    if (parkingElement) {
+        parkingElement.textContent = formatPrice(currentParkingPrice);
+    }
+    
     document.getElementById('negotiated-total').textContent = formatPrice(negotiatedTotal);
     document.getElementById('total-discount').textContent = formatPrice(totalDiscount);
     document.getElementById('negotiated-results').classList.remove('hidden');

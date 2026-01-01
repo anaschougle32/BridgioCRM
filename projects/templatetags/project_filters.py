@@ -7,19 +7,19 @@ register = template.Library()
 def floor_display_name(floor_num):
     """
     Convert floor number to display name.
-    Floor 1 = Ground (G)
-    Floor 2 = 1st Floor
-    Floor 3 = 2nd Floor
+    Floor 1 = 1st Floor
+    Floor 2 = 2nd Floor
+    Floor 3 = 3rd Floor
     etc.
     """
     if floor_num == 1:
-        return "Ground (G)"
-    elif floor_num == 2:
         return "1st Floor"
-    elif floor_num == 3:
+    elif floor_num == 2:
         return "2nd Floor"
-    elif floor_num == 4:
+    elif floor_num == 3:
         return "3rd Floor"
+    elif floor_num == 4:
+        return "4th Floor"
     else:
-        return f"{floor_num - 1}th Floor"
+        return f"{floor_num}th Floor"
 

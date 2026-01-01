@@ -325,7 +325,16 @@ class HighrisePricing(models.Model):
         return f"{self.project.name} - Highrise Pricing ({'Enabled' if self.is_enabled else 'Disabled'})"
     
     def calculate_price_per_sqft(self, floor_number, base_price_per_sqft=None):
-        """Calculate price per sqft for a given floor number"""
+        """Calculate price per sqft for a given floor number
+        
+        NOTE: This adds increment PER FLOOR above threshold, not cumulatively.
+        Example: If threshold=4, increment=100
+        - Floor 5: base + 100 (1 floor above)
+        - Floor 6: base + 100 (still 1 increment per floor, not cumulative)
+        - Floor 7: base + 100 (still 1 increment per floor, not cumulative)
+        
+        The increment is applied uniformly to all floors above threshold.
+        """
         if not self.is_enabled:
             return base_price_per_sqft or 0
         
@@ -335,15 +344,14 @@ class HighrisePricing(models.Model):
         if floor_number <= self.floor_threshold:
             return base_price
         
-        # Calculate floors above threshold
-        floors_above_threshold = floor_number - self.floor_threshold
-        
+        # Add increment per floor (uniform for all floors above threshold)
+        # NOT cumulative - each floor above threshold gets the same increment
         if self.pricing_type == 'fixed':
             # Fixed price addition per floor
-            return base_price + (self.fixed_price_increment * floors_above_threshold)
+            return base_price + self.fixed_price_increment
         else:
             # Per sqft addition per floor
-            return base_price + (self.per_sqft_increment * floors_above_threshold)
+            return base_price + self.per_sqft_increment
     
     def calculate_development_charges(self, buildup_area=None):
         """Calculate development charges based on type"""
