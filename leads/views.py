@@ -1057,29 +1057,37 @@ def send_otp(request, pk):
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check - Closing Managers, Site Heads, Mandate Owners, and Super Admins can send OTP
-    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
+    # Permission check - Closing Managers, Telecallers, Site Heads, Mandate Owners, and Super Admins can send OTP
+    if not (request.user.is_closing_manager() or request.user.is_telecaller() or request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
         return JsonResponse({'success': False, 'error': 'You do not have permission to send OTP.'}, status=403)
     
-    # For Closing Managers, allow OTP for:
+    # For Closing Managers and Telecallers, allow OTP for:
     # 1. Assigned leads (in their projects)
     # 2. Pretagged leads
     # 3. Scheduled visits (status='visit_scheduled')
     # 4. Visited leads (status='visit_completed' or phone_verified=True)
-    if request.user.is_closing_manager():
+    # 5. For Telecallers: Any lead in their assigned projects (for queue visit feature)
+    if request.user.is_closing_manager() or request.user.is_telecaller():
         # Check associations in user's projects
         user_projects = request.user.assigned_projects.all()
         associations = lead.project_associations.filter(
             project__in=user_projects,
             is_archived=False
         )
-        has_permission = associations.filter(
-            Q(assigned_to=request.user) |
-            Q(is_pretagged=True) |
-            Q(status='visit_scheduled') |
-            Q(status='visit_completed') |
-            Q(phone_verified=True)
-        ).exists()
+        
+        # Telecallers have broader access for queue visit feature
+        if request.user.is_telecaller():
+            # Telecallers can send OTP to any lead (for queue visit)
+            has_permission = True
+        else:
+            # Closing managers need specific conditions
+            has_permission = associations.filter(
+                Q(assigned_to=request.user) |
+                Q(is_pretagged=True) |
+                Q(status='visit_scheduled') |
+                Q(status='visit_completed') |
+                Q(phone_verified=True)
+            ).exists()
         
         if not has_permission:
             return JsonResponse({'success': False, 'error': 'You can only send OTP for leads assigned to you, pretagged leads, scheduled visits, or visited leads in your projects.'}, status=403)
@@ -1246,29 +1254,36 @@ def verify_otp(request, pk):
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check - Closing Managers, Site Heads, Mandate Owners, and Super Admins can verify OTP
-    if not (request.user.is_closing_manager() or request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
+    # Permission check - Closing Managers, Telecallers, Site Heads, Mandate Owners, and Super Admins can verify OTP
+    if not (request.user.is_closing_manager() or request.user.is_telecaller() or request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
         return JsonResponse({'success': False, 'error': 'You do not have permission to verify OTP.'}, status=403)
     
     # Super Admins can verify OTP for any lead - skip project checks
     if request.user.is_super_admin():
         has_permission = True
-    # For Closing Managers, allow OTP verification for assigned leads, scheduled visits, OR visited leads
+    # For Closing Managers and Telecallers, allow OTP verification for assigned leads, scheduled visits, OR visited leads
     # For Mandate Owners and Site Heads, allow OTP verification for all leads in their projects
-    elif request.user.is_closing_manager():
+    elif request.user.is_closing_manager() or request.user.is_telecaller():
         # Check associations in user's projects
         user_projects = request.user.assigned_projects.all()
         associations = lead.project_associations.filter(
             project__in=user_projects,
             is_archived=False
         )
-        has_permission = associations.filter(
-            Q(assigned_to=request.user) |
-            Q(is_pretagged=True) |
-            Q(status='visit_scheduled') |
-            Q(status='visit_completed') |
-            Q(phone_verified=True)
-        ).exists()
+        
+        # Telecallers have broader access for queue visit feature
+        if request.user.is_telecaller():
+            # Telecallers can verify OTP for any lead (for queue visit)
+            has_permission = True
+        else:
+            # Closing managers need specific conditions
+            has_permission = associations.filter(
+                Q(assigned_to=request.user) |
+                Q(is_pretagged=True) |
+                Q(status='visit_scheduled') |
+                Q(status='visit_completed') |
+                Q(phone_verified=True)
+            ).exists()
         
         if not has_permission:
             return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads assigned to you, pretagged leads, scheduled visits, or visited leads in your projects.'}, status=403)
