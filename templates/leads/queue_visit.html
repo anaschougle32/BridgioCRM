@@ -4,210 +4,333 @@
 {% block title %}Queue Visit - Bridgio CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6">
-    <div class="flex justify-between items-center">
-        <div>
-            <h1 class="text-3xl font-heading font-bold text-olive-primary">Queue Visit (Receptionist)</h1>
-            <p class="text-gray-600 mt-1">Verify client at door and queue for closing manager</p>
-        </div>
-        <a href="{% url 'dashboard' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Dashboard</a>
+<div class="max-w-5xl mx-auto">
+    <div class="mb-4 sm:mb-6">
+        <h1 class="text-2xl sm:text-3xl font-heading font-semibold text-text-primary mb-2">Queue Visit (Receptionist)</h1>
+        <p class="text-sm sm:text-base text-text-secondary">Verify client at door and queue for closing manager. OTP verification required.</p>
     </div>
     
-    <!-- Info Banner -->
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p class="text-sm text-blue-800">
-            <strong>How it works:</strong> Search for the client by phone number, verify their identity with OTP, fill in all required details, and queue them for the closing manager. The closing manager will be notified immediately.
-        </p>
+    <!-- Progress Steps -->
+    <div class="mb-6 sm:mb-8 overflow-x-auto">
+        <div class="flex items-center justify-between min-w-[600px] sm:min-w-0">
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-olive-primary text-white font-bold" id="step-1-indicator">1</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-olive-primary">Client Info</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-1-2-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-2-indicator">2</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">OTP Verify</p>
+                </div>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-200" id="step-2-3-line"></div>
+            <div class="flex items-center">
+                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold" id="step-3-indicator">3</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500">Requirements</p>
+                </div>
+            </div>
+        </div>
     </div>
     
-    <!-- Search Lead -->
-    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
-        <h2 class="text-xl font-heading font-bold mb-4">Search Client</h2>
-        <div class="flex gap-4">
-            <input type="text" 
-                   id="search-phone" 
-                   placeholder="Enter phone number..." 
-                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            <button onclick="searchLead()" 
-                    class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
-                Search
-            </button>
-            <button onclick="clearForm()" 
-                    class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition">
-                New Client
-            </button>
-        </div>
-        <div id="search-result" class="mt-4"></div>
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form id="queue-visit-form" class="space-y-8">
+            {% csrf_token %}
+            <input type="hidden" id="lead-id" value="">
+            <input type="hidden" id="otp-verified" value="false">
+            
+            <!-- Step 1: Client Information -->
+            <div id="step-1" class="step-content">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Client Information</h2>
+                
+                <!-- Lead Search Section -->
+                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 class="text-lg font-semibold text-text-primary mb-3">Search Existing Client</h3>
+                    <div class="flex gap-3">
+                        <input type="text" id="search-phone" placeholder="Enter phone number..." autocomplete="off"
+                               class="flex-1 px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        <button type="button" onclick="searchLead()" 
+                                class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold">
+                            Search
+                        </button>
+                    </div>
+                    <div id="search-result" class="mt-3"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Name *</label>
+                        <input type="text" id="name" required
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Phone *</label>
+                        <input type="tel" id="phone" required placeholder="10-digit phone number"
+                               pattern="[0-9]{10}" maxlength="10"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                        <p class="text-xs text-gray-500 mt-1">Enter 10-digit phone number</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Email</label>
+                        <input type="email" id="email"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Age</label>
+                        <input type="number" id="age" min="18" max="100"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Gender</label>
+                        <select id="gender"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Locality</label>
+                        <input type="text" id="locality"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+                <div class="flex justify-end mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="nextStep(1)" 
+                            class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
+                        Next: OTP Verification →
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 2: OTP Verification -->
+            <div id="step-2" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">OTP Verification</h2>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <p class="text-sm text-blue-800">
+                        <strong>Important:</strong> Send OTP to client's phone number to verify their identity before queuing the visit.
+                    </p>
+                </div>
+                
+                <div class="max-w-md mx-auto">
+                    <div class="text-center mb-6">
+                        <p class="text-lg font-medium text-text-primary">Verify: <span id="verify-phone-display" class="font-mono text-olive-primary"></span></p>
+                        <p class="text-sm text-text-secondary mt-1">Client Name: <span id="verify-name-display" class="font-semibold"></span></p>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <button type="button" onclick="sendOTP()" id="send-otp-btn"
+                                class="w-full px-6 py-3 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm">
+                            Send OTP
+                        </button>
+                        
+                        <div id="otp-input-section" class="hidden">
+                            <label class="block text-sm font-semibold text-text-primary mb-2">Enter 6-Digit OTP</label>
+                            <input type="text" id="otp-code" placeholder="000000" maxlength="6" pattern="[0-9]{6}"
+                                   class="w-full px-4 py-3 text-center text-2xl font-mono border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <p class="text-xs text-gray-500 mt-2 text-center">OTP sent to client's phone</p>
+                        </div>
+                        
+                        <div id="otp-status" class="hidden text-center"></div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between space-x-4 mt-8 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(1)" 
+                            class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
+                        ← Previous
+                    </button>
+                    <button type="button" onclick="verifyOTP()" id="verify-otp-btn" disabled
+                            class="px-6 py-2.5 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        Verify & Continue
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 3: Requirements -->
+            <div id="step-3" class="step-content hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Requirement Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Project *</label>
+                        <select id="project" required
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Project</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}">{{ project.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Configurations</label>
+                        <div class="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-48 overflow-y-auto">
+                            {% for config in configurations %}
+                            <label class="flex items-center space-x-2 p-2 hover:bg-white rounded cursor-pointer border border-gray-200">
+                                <input type="checkbox" class="config-checkbox" value="{{ config.id }}" 
+                                       class="rounded border-gray-300 text-olive-primary focus:ring-olive-primary">
+                                <span class="text-sm font-medium">{{ config.display_name }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Budget Min (₹ Lakhs)</label>
+                        <input type="number" id="budget_min" step="0.01"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Budget Max (₹ Lakhs)</label>
+                        <input type="number" id="budget_max" step="0.01"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Purpose</label>
+                        <select id="purpose"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Purpose</option>
+                            <option value="investment">Investment</option>
+                            <option value="first_home">First Home</option>
+                            <option value="second_home">Second Home</option>
+                            <option value="retirement_home">Retirement Home</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Visit Type</label>
+                        <select id="visit_type"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select</option>
+                            <option value="family">Family</option>
+                            <option value="alone">Alone</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Occupation</label>
+                        <select id="occupation"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Occupation</option>
+                            <option value="self_emp">Self Employed</option>
+                            <option value="service">Service</option>
+                            <option value="homemaker">Homemaker</option>
+                            <option value="business">Business</option>
+                            <option value="retired">Retired</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Current Residence</label>
+                        <select id="current_residence"
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select</option>
+                            <option value="own">Own</option>
+                            <option value="rent">Rent</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Company Name</label>
+                        <input type="text" id="company_name"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Designation</label>
+                        <input type="text" id="designation"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+                <div class="flex justify-between space-x-4 mt-6 pt-4 border-t border-border-light">
+                    <button type="button" onclick="previousStep(2)" 
+                            class="px-6 py-2.5 border border-border-light rounded-lg hover:bg-gray-50 transition font-medium text-text-primary">
+                        ← Previous
+                    </button>
+                    <button type="button" onclick="submitQueueVisit()" 
+                            class="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold shadow-sm">
+                        Queue Visit for Closing Manager
+                    </button>
+                </div>
+            </div>
+        </form>
     </div>
-    
-    <!-- Queue Visit Form -->
-    <form method="post" class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
-        {% csrf_token %}
-        
-        <h2 class="text-xl font-heading font-bold mb-4">Client Details</h2>
-        
-        <!-- Basic Info -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-                <label class="block text-sm font-medium mb-2">Phone Number *</label>
-                <input type="text" name="phone" id="phone" required
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Name *</label>
-                <input type="text" name="name" id="name" required
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Email</label>
-                <input type="email" name="email" id="email"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Project *</label>
-                <select name="project" id="project" required
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-                    <option value="">Select Project</option>
-                    {% for project in projects %}
-                    <option value="{{ project.id }}">{{ project.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-        
-        <!-- Additional Details -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-                <label class="block text-sm font-medium mb-2">Age</label>
-                <input type="number" name="age" id="age" min="18" max="100"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Gender</label>
-                <select name="gender" id="gender"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Locality</label>
-                <input type="text" name="locality" id="locality"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Current Residence</label>
-                <select name="current_residence" id="current_residence"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-                    <option value="">Select</option>
-                    <option value="own">Own</option>
-                    <option value="rent">Rent</option>
-                </select>
-            </div>
-        </div>
-        
-        <!-- Occupation Details -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div>
-                <label class="block text-sm font-medium mb-2">Occupation</label>
-                <select name="occupation" id="occupation"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-                    <option value="">Select Occupation</option>
-                    <option value="self_emp">Self Employed</option>
-                    <option value="service">Service</option>
-                    <option value="homemaker">Homemaker</option>
-                    <option value="business">Business</option>
-                    <option value="retired">Retired</option>
-                    <option value="other">Other</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Company Name</label>
-                <input type="text" name="company_name" id="company_name"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Designation</label>
-                <input type="text" name="designation" id="designation"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-        </div>
-        
-        <!-- Requirement Details -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-                <label class="block text-sm font-medium mb-2">Purpose</label>
-                <select name="purpose" id="purpose"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-                    <option value="">Select Purpose</option>
-                    <option value="investment">Investment</option>
-                    <option value="first_home">First Home</option>
-                    <option value="second_home">Second Home</option>
-                    <option value="retirement_home">Retirement Home</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Configurations</label>
-                <select name="configurations" id="configurations" multiple
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-                    {% for config in configurations %}
-                    <option value="{{ config.id }}">{{ config.display_name }}</option>
-                    {% endfor %}
-                </select>
-                <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Budget Min (₹ Lakhs)</label>
-                <input type="number" name="budget_min" id="budget_min" step="0.01"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Budget Max (₹ Lakhs)</label>
-                <input type="number" name="budget_max" id="budget_max" step="0.01"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-            </div>
-        </div>
-        
-        <!-- Visit Details -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-                <label class="block text-sm font-medium mb-2">Visit Type</label>
-                <select name="visit_type" id="visit_type"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-                    <option value="">Select</option>
-                    <option value="family">Family</option>
-                    <option value="alone">Alone</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Visit Source</label>
-                <select name="visit_source" id="visit_source"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
-                    <option value="">Select</option>
-                    <option value="call">Call Generated</option>
-                    <option value="cp">Channel Partner</option>
-                    <option value="walkin">Direct Walk-in</option>
-                </select>
-            </div>
-        </div>
-        
-        <!-- Submit Button -->
-        <div class="flex gap-4">
-            <button type="submit" 
-                    class="bg-olive-primary text-white px-8 py-3 rounded-lg hover:bg-olive-secondary transition font-medium">
-                Queue Visit for Closing Manager
-            </button>
-            <button type="button" onclick="clearForm()" 
-                    class="bg-gray-200 text-gray-700 px-8 py-3 rounded-lg hover:bg-gray-300 transition font-medium">
-                Clear Form
-            </button>
-        </div>
-    </form>
 </div>
 
 <script>
+let currentStep = 1;
+let leadData = {};
+
+// Step Navigation
+function nextStep(step) {
+    if (step === 1) {
+        // Validate Step 1
+        const name = document.getElementById('name').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        
+        if (!name || !phone) {
+            alert('Please fill in Name and Phone number');
+            return;
+        }
+        
+        if (phone.length !== 10) {
+            alert('Please enter a valid 10-digit phone number');
+            return;
+        }
+        
+        // Store data
+        leadData.name = name;
+        leadData.phone = phone;
+        leadData.email = document.getElementById('email').value.trim();
+        leadData.age = document.getElementById('age').value;
+        leadData.gender = document.getElementById('gender').value;
+        leadData.locality = document.getElementById('locality').value.trim();
+        
+        // Update OTP verification display
+        document.getElementById('verify-phone-display').textContent = phone;
+        document.getElementById('verify-name-display').textContent = name;
+        
+        showStep(2);
+    } else if (step === 2) {
+        if (document.getElementById('otp-verified').value !== 'true') {
+            alert('Please verify OTP before continuing');
+            return;
+        }
+        showStep(3);
+    }
+}
+
+function previousStep(step) {
+    showStep(step);
+}
+
+function showStep(step) {
+    // Hide all steps
+    document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden'));
+    
+    // Show current step
+    document.getElementById(`step-${step}`).classList.remove('hidden');
+    
+    // Update indicators
+    for (let i = 1; i <= 3; i++) {
+        const indicator = document.getElementById(`step-${i}-indicator`);
+        const line = document.getElementById(`step-${i}-${i+1}-line`);
+        
+        if (i < step) {
+            indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white font-bold';
+            if (line) line.className = 'flex-1 h-1 mx-4 bg-green-500';
+        } else if (i === step) {
+            indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-olive-primary text-white font-bold';
+            if (line) line.className = 'flex-1 h-1 mx-4 bg-gray-200';
+        } else {
+            indicator.className = 'flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-gray-600 font-bold';
+            if (line) line.className = 'flex-1 h-1 mx-4 bg-gray-200';
+        }
+    }
+    
+    currentStep = step;
+}
+
+// Search Lead
 function searchLead() {
     const phone = document.getElementById('search-phone').value.trim();
     if (!phone) {
@@ -222,34 +345,23 @@ function searchLead() {
             if (data.leads && data.leads.length > 0) {
                 const lead = data.leads[0];
                 resultDiv.innerHTML = `
-                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <p class="text-green-800 font-medium">Client found! Details loaded below.</p>
-                        <p class="text-sm text-green-600 mt-1">Name: ${lead.name} | Email: ${lead.email || 'N/A'}</p>
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <p class="text-green-800 font-medium text-sm">✓ Client found! Details loaded.</p>
                     </div>
                 `;
                 
-                // Fill form with lead data
-                document.getElementById('phone').value = lead.phone;
+                // Fill form
+                document.getElementById('lead-id').value = lead.id;
                 document.getElementById('name').value = lead.name;
+                document.getElementById('phone').value = lead.phone;
                 document.getElementById('email').value = lead.email || '';
-                
-                // Fill other fields if available
                 if (lead.age) document.getElementById('age').value = lead.age;
                 if (lead.gender) document.getElementById('gender').value = lead.gender;
                 if (lead.locality) document.getElementById('locality').value = lead.locality;
-                if (lead.current_residence) document.getElementById('current_residence').value = lead.current_residence;
-                if (lead.occupation) document.getElementById('occupation').value = lead.occupation;
-                if (lead.company_name) document.getElementById('company_name').value = lead.company_name;
-                if (lead.designation) document.getElementById('designation').value = lead.designation;
-                if (lead.purpose) document.getElementById('purpose').value = lead.purpose;
-                if (lead.budget_min) document.getElementById('budget_min').value = lead.budget_min;
-                if (lead.budget_max) document.getElementById('budget_max').value = lead.budget_max;
-                if (lead.visit_type) document.getElementById('visit_type').value = lead.visit_type;
-                if (lead.visit_source) document.getElementById('visit_source').value = lead.visit_source;
             } else {
                 resultDiv.innerHTML = `
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <p class="text-yellow-800 font-medium">Client not found. Please fill in details for new client.</p>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p class="text-yellow-800 font-medium text-sm">New client - please fill details.</p>
                     </div>
                 `;
                 document.getElementById('phone').value = phone;
@@ -261,10 +373,191 @@ function searchLead() {
         });
 }
 
-function clearForm() {
-    document.querySelector('form').reset();
-    document.getElementById('search-result').innerHTML = '';
-    document.getElementById('search-phone').value = '';
+// OTP Functions
+function sendOTP() {
+    const phone = leadData.phone;
+    const name = leadData.name;
+    
+    if (!phone || !name) {
+        alert('Please complete Step 1 first');
+        return;
+    }
+    
+    const sendBtn = document.getElementById('send-otp-btn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending OTP...';
+    
+    // Create/get lead first
+    fetch('/leads/create/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'name': name,
+            'phone': phone,
+            'email': leadData.email || '',
+            'step': '1'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.lead_id) {
+            document.getElementById('lead-id').value = data.lead_id;
+            
+            // Now send OTP
+            return fetch(`/leads/${data.lead_id}/send-otp/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+        } else {
+            throw new Error(data.error || 'Failed to create lead');
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('otp-input-section').classList.remove('hidden');
+            document.getElementById('otp-code').addEventListener('input', function() {
+                if (this.value.length === 6) {
+                    document.getElementById('verify-otp-btn').disabled = false;
+                }
+            });
+            sendBtn.textContent = 'OTP Sent ✓';
+            sendBtn.classList.add('bg-green-600');
+        } else {
+            alert('Error: ' + data.error);
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send OTP';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error sending OTP: ' + error.message);
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send OTP';
+    });
+}
+
+function verifyOTP() {
+    const otpCode = document.getElementById('otp-code').value.trim();
+    const leadId = document.getElementById('lead-id').value;
+    
+    if (!otpCode || otpCode.length !== 6) {
+        alert('Please enter a valid 6-digit OTP');
+        return;
+    }
+    
+    const verifyBtn = document.getElementById('verify-otp-btn');
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = 'Verifying...';
+    
+    fetch(`/leads/${leadId}/verify-otp/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'otp': otpCode
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('otp-verified').value = 'true';
+            document.getElementById('otp-status').innerHTML = `
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p class="text-green-800 font-medium">✓ OTP Verified Successfully!</p>
+                </div>
+            `;
+            document.getElementById('otp-status').classList.remove('hidden');
+            
+            setTimeout(() => {
+                nextStep(2);
+            }, 1000);
+        } else {
+            alert('Error: ' + data.error);
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = 'Verify & Continue';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error verifying OTP');
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = 'Verify & Continue';
+    });
+}
+
+// Submit Queue Visit
+function submitQueueVisit() {
+    const project = document.getElementById('project').value;
+    
+    if (!project) {
+        alert('Please select a project');
+        return;
+    }
+    
+    if (document.getElementById('otp-verified').value !== 'true') {
+        alert('OTP verification required');
+        return;
+    }
+    
+    // Collect configuration IDs
+    const configurations = Array.from(document.querySelectorAll('.config-checkbox:checked')).map(cb => cb.value);
+    
+    // Prepare data
+    const formData = new URLSearchParams({
+        'phone': leadData.phone,
+        'name': leadData.name,
+        'email': leadData.email || '',
+        'project': project,
+        'age': leadData.age || '',
+        'gender': leadData.gender || '',
+        'locality': leadData.locality || '',
+        'current_residence': document.getElementById('current_residence').value,
+        'occupation': document.getElementById('occupation').value,
+        'company_name': document.getElementById('company_name').value,
+        'designation': document.getElementById('designation').value,
+        'purpose': document.getElementById('purpose').value,
+        'budget_min': document.getElementById('budget_min').value,
+        'budget_max': document.getElementById('budget_max').value,
+        'visit_type': document.getElementById('visit_type').value,
+        'visit_source': 'walkin'
+    });
+    
+    configurations.forEach(id => formData.append('configurations', id));
+    
+    fetch('/leads/queue-visit/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+        return response.text();
+    })
+    .then(html => {
+        if (html) {
+            alert('Visit queued successfully!');
+            window.location.href = '/leads/queue-visit/';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error queuing visit');
+    });
 }
 </script>
 {% endblock %}
