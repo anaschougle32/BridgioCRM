@@ -432,6 +432,11 @@ function sendOTP() {
             });
             sendBtn.textContent = 'OTP Sent ✓';
             sendBtn.classList.add('bg-green-600');
+            
+            // Open WhatsApp automatically if link is provided
+            if (data.whatsapp_link) {
+                window.open(data.whatsapp_link, '_blank');
+            }
         } else {
             alert('Error: ' + data.error);
             sendBtn.disabled = false;
