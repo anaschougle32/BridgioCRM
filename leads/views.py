@@ -1064,7 +1064,8 @@ def send_otp(request, pk):
     # For Closing Managers, allow OTP for:
     # 1. Assigned leads (in their projects)
     # 2. Pretagged leads
-    # 3. Visited leads (status='visit_completed' or phone_verified=True)
+    # 3. Scheduled visits (status='visit_scheduled')
+    # 4. Visited leads (status='visit_completed' or phone_verified=True)
     if request.user.is_closing_manager():
         # Check associations in user's projects
         user_projects = request.user.assigned_projects.all()
@@ -1075,12 +1076,13 @@ def send_otp(request, pk):
         has_permission = associations.filter(
             Q(assigned_to=request.user) |
             Q(is_pretagged=True) |
+            Q(status='visit_scheduled') |
             Q(status='visit_completed') |
             Q(phone_verified=True)
         ).exists()
         
         if not has_permission:
-            return JsonResponse({'success': False, 'error': 'You can only send OTP for leads assigned to you, pretagged leads, or visited leads in your projects.'}, status=403)
+            return JsonResponse({'success': False, 'error': 'You can only send OTP for leads assigned to you, pretagged leads, scheduled visits, or visited leads in your projects.'}, status=403)
         
         # Get primary project for SMS link
         primary_project = associations.first().project if associations.exists() else lead.primary_project
@@ -1251,7 +1253,7 @@ def verify_otp(request, pk):
     # Super Admins can verify OTP for any lead - skip project checks
     if request.user.is_super_admin():
         has_permission = True
-    # For Closing Managers, allow OTP verification for assigned leads OR visited leads
+    # For Closing Managers, allow OTP verification for assigned leads, scheduled visits, OR visited leads
     # For Mandate Owners and Site Heads, allow OTP verification for all leads in their projects
     elif request.user.is_closing_manager():
         # Check associations in user's projects
@@ -1263,12 +1265,13 @@ def verify_otp(request, pk):
         has_permission = associations.filter(
             Q(assigned_to=request.user) |
             Q(is_pretagged=True) |
+            Q(status='visit_scheduled') |
             Q(status='visit_completed') |
             Q(phone_verified=True)
         ).exists()
         
         if not has_permission:
-            return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads assigned to you, pretagged leads, or visited leads in your projects.'}, status=403)
+            return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads assigned to you, pretagged leads, scheduled visits, or visited leads in your projects.'}, status=403)
     elif request.user.is_mandate_owner():
         # Mandate owners can verify OTP for all leads (they have full access)
         # Allow verification for any lead - mandate owners have full permissions
