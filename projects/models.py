@@ -327,13 +327,12 @@ class HighrisePricing(models.Model):
     def calculate_price_per_sqft(self, floor_number, base_price_per_sqft=None):
         """Calculate price per sqft for a given floor number
         
-        NOTE: This adds increment PER FLOOR above threshold, not cumulatively.
-        Example: If threshold=4, increment=100
-        - Floor 5: base + 100 (1 floor above)
-        - Floor 6: base + 100 (still 1 increment per floor, not cumulative)
-        - Floor 7: base + 100 (still 1 increment per floor, not cumulative)
-        
-        The increment is applied uniformly to all floors above threshold.
+        Range-based pricing: Increment is added for every threshold range.
+        Example: If threshold=4, increment=100, base=6500
+        - Floors 1-4: ₹6500 (base price)
+        - Floors 5-8: ₹6600 (base + 100, 1st range above threshold)
+        - Floors 9-12: ₹6700 (base + 200, 2nd range above threshold)
+        - Floors 13-16: ₹6800 (base + 300, 3rd range above threshold)
         """
         if not self.is_enabled:
             return base_price_per_sqft or 0
@@ -344,14 +343,17 @@ class HighrisePricing(models.Model):
         if floor_number <= self.floor_threshold:
             return base_price
         
-        # Add increment per floor (uniform for all floors above threshold)
-        # NOT cumulative - each floor above threshold gets the same increment
+        # Calculate which range the floor falls into
+        # Floors above threshold are divided into ranges of threshold size
+        floors_above_threshold = floor_number - self.floor_threshold
+        range_number = ((floors_above_threshold - 1) // self.floor_threshold) + 1
+        
         if self.pricing_type == 'fixed':
-            # Fixed price addition per floor
-            return base_price + self.fixed_price_increment
+            # Fixed price addition per range
+            return base_price + (self.fixed_price_increment * range_number)
         else:
-            # Per sqft addition per floor
-            return base_price + self.per_sqft_increment
+            # Per sqft addition per range
+            return base_price + (self.per_sqft_increment * range_number)
     
     def calculate_development_charges(self, buildup_area=None):
         """Calculate development charges based on type"""
