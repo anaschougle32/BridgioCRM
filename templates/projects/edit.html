@@ -1317,8 +1317,10 @@
             }
             
             // Determine floor range based on whether ground is commercial
+            // If ground is commercial: floors 0 to floorsPerTower (e.g., 0-13 for 13 floors input)
+            // If ground is NOT commercial: floors 1 to floorsPerTower (e.g., 1-13 for 13 floors input)
             const startFloor = groundIsCommercial ? 0 : 1;
-            const endFloor = groundIsCommercial ? floorsPerTower - 1 : floorsPerTower;
+            const endFloor = floorsPerTower;
             
             for (let floor = startFloor; floor <= endFloor; floor++) {
                 const floorKey = `${tower}_${floor}`;
