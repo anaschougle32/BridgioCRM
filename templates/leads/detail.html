@@ -227,6 +227,15 @@
                             </a>
                         {% endif %}
                     {% endif %}
+                    
+                    {% if primary_association.status == 'visit_completed' %}
+                        <button onclick="openRevisitModal()" 
+                                class="inline-flex items-center px-3 sm:px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition text-sm sm:text-base">
+                            <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            <span class="hidden sm:inline">Schedule Revisit</span>
+                            <span class="sm:hidden">Revisit</span>
+                        </button>
+                    {% endif %}
                 {% endif %}
                 {% if lead.bookings.exists %}
                     <a href="{% url 'bookings:list' %}?search={{ lead.name }}" 
@@ -892,7 +901,121 @@
             document.body.style.overflow = '';
         }
     });
+    
+    // Revisit Modal Functions
+    function openRevisitModal() {
+        document.getElementById('revisit-modal').classList.remove('hidden');
+    }
+    
+    function closeRevisitModal() {
+        document.getElementById('revisit-modal').classList.add('hidden');
+    }
+    
+    function scheduleRevisit() {
+        const visitDate = document.getElementById('revisit-date').value;
+        const visitTime = document.getElementById('revisit-time').value;
+        const timeFrame = document.getElementById('revisit-timeframe').value;
+        const reason = document.getElementById('revisit-reason').value;
+        
+        if (!visitDate || !visitTime) {
+            alert('Please select date and time for the revisit');
+            return;
+        }
+        
+        fetch('{% url "leads:schedule_revisit" lead.id %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: new URLSearchParams({
+                'project_id': '{{ primary_association.project.id }}',
+                'visit_date': visitDate,
+                'visit_time': visitTime,
+                'time_frame': timeFrame,
+                'revisit_reason': reason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                closeRevisitModal();
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error scheduling revisit');
+        });
+    }
 </script>
+
+<!-- Revisit Modal -->
+<div id="revisit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-heading font-bold text-olive-primary">Schedule Revisit</h3>
+            <button onclick="closeRevisitModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-2">Visit Date *</label>
+                <input type="date" id="revisit-date" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-2">Visit Time *</label>
+                <input type="time" id="revisit-time" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-2">Time Frame</label>
+                <select id="revisit-timeframe"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+                    <option value="">Select Time Frame</option>
+                    <option value="morning">Morning</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="evening">Evening</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-2">Reason for Revisit</label>
+                <textarea id="revisit-reason" rows="3"
+                          placeholder="E.g., Client wants to see model flat, discuss payment plan, etc."
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary"></textarea>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p class="text-sm text-blue-800">
+                    <strong>Note:</strong> Revisits do not require OTP verification. The client will be marked as verified automatically.
+                </p>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="scheduleRevisit()"
+                        class="flex-1 bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition font-medium">
+                    Schedule Revisit
+                </button>
+                <button onclick="closeRevisitModal()"
+                        class="flex-1 bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition font-medium">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 

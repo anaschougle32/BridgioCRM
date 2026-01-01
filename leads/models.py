@@ -190,6 +190,7 @@ class LeadProjectAssociation(models.Model):
         ('new', 'New'),
         ('contacted', 'Contacted'),
         ('visit_scheduled', 'Visit Scheduled'),
+        ('queued_visit', 'Queued Visit'),
         ('visit_completed', 'Visit Completed'),
         ('discussion', 'Discussion'),
         ('hot', 'Hot'),
@@ -254,6 +255,30 @@ class LeadProjectAssociation(models.Model):
         blank=True,
         null=True,
         help_text="Scheduled date and time for visit"
+    )
+    
+    # Revisit Fields
+    is_revisit = models.BooleanField(default=False, help_text="Is this a revisit?")
+    revisit_count = models.IntegerField(default=0, help_text="Number of times client revisited")
+    revisit_reason = models.TextField(blank=True, help_text="Reason for revisit")
+    previous_visit = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='revisits',
+        help_text="Link to previous visit association"
+    )
+    
+    # Queue Visit Fields (Receptionist Feature)
+    queued_at = models.DateTimeField(null=True, blank=True, help_text="When the visit was queued")
+    queued_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='queued_visits',
+        help_text="Telecaller who queued the visit"
     )
     
     # System Metadata

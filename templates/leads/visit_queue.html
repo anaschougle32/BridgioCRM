@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load lead_filters %}
+
+{% block title %}Visit Queue - Bridgio CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-heading font-bold text-olive-primary">Visit Queue</h1>
+            <p class="text-gray-600 mt-1">Clients waiting for closing manager</p>
+        </div>
+        <a href="{% url 'dashboard' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Stats Card -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-medium text-gray-600 mb-2">Clients in Queue</h3>
+                <p class="text-4xl font-bold text-olive-primary">{{ queued_associations.count }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-600">Auto-refreshes every 30 seconds</p>
+                <button onclick="location.reload()" class="text-olive-primary hover:text-olive-secondary text-sm font-medium mt-2">
+                    🔄 Refresh Now
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-4">
+        <form method="get" class="flex flex-wrap gap-4">
+            <input type="text" 
+                   name="search" 
+                   placeholder="Search by name, phone, project..." 
+                   value="{{ search }}"
+                   class="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+            
+            <select name="project" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-primary">
+                <option value="">All Projects</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>
+                    {{ project.name }}
+                </option>
+                {% endfor %}
+            </select>
+            
+            <button type="submit" class="bg-olive-primary text-white px-6 py-2 rounded-lg hover:bg-olive-secondary transition">
+                Filter
+            </button>
+            <a href="{% url 'leads:visit_queue' %}" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+                Clear
+            </a>
+        </form>
+    </div>
+    
+    <!-- Queue List -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light overflow-hidden">
+        {% if queued_associations %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-olive-lighter">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Client</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Phone</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Project</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Queued By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Queued At</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Wait Time</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-olive-primary uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-card-bg divide-y divide-gray-200">
+                    {% for assoc in queued_associations %}
+                    <tr class="hover:bg-olive-lighter transition" id="queue-row-{{ assoc.id }}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ assoc.lead.name }}</div>
+                            <div class="text-xs text-gray-500">{{ assoc.lead.email|default:"-" }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ assoc.lead.phone }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ assoc.project.name }}</div>
+                            <div class="text-xs text-gray-500">{{ assoc.project.location }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if assoc.queued_by %}
+                            <div class="text-sm text-gray-900">{{ assoc.queued_by.get_full_name|default:assoc.queued_by.username }}</div>
+                            <div class="text-xs text-gray-500">{{ assoc.queued_by.get_role_display }}</div>
+                            {% else %}
+                            <div class="text-sm text-gray-500">-</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if assoc.queued_at %}
+                            <div class="text-sm text-gray-900">{{ assoc.queued_at|date:"d M Y" }}</div>
+                            <div class="text-xs text-gray-500">{{ assoc.queued_at|date:"h:i A" }}</div>
+                            {% else %}
+                            <div class="text-sm text-gray-500">-</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if assoc.queued_at %}
+                            <div class="text-sm font-medium text-orange-600" data-queued-time="{{ assoc.queued_at|date:'c' }}">
+                                Calculating...
+                            </div>
+                            {% else %}
+                            <div class="text-sm text-gray-500">-</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                            <a href="{% url 'leads:detail' assoc.lead.id %}" 
+                               class="text-blue-600 hover:text-blue-800 font-medium">
+                                View Details
+                            </a>
+                            <button onclick="markVisitDone({{ assoc.id }}, '{{ assoc.lead.name }}')" 
+                                    class="text-green-600 hover:text-green-800 font-medium">
+                                ✓ Mark Done
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <p class="text-gray-500 text-lg">No clients in queue.</p>
+            <p class="text-gray-400 text-sm mt-2">Clients queued by telecallers will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Calculate wait time for each queued visit
+function updateWaitTimes() {
+    const now = new Date();
+    document.querySelectorAll('[data-queued-time]').forEach(elem => {
+        const queuedTime = new Date(elem.dataset.queuedTime);
+        const diffMs = now - queuedTime;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        let waitText = '';
+        if (diffMins < 1) {
+            waitText = 'Just now';
+        } else if (diffMins < 60) {
+            waitText = `${diffMins} min${diffMins > 1 ? 's' : ''}`;
+        } else {
+            const hours = Math.floor(diffMins / 60);
+            const mins = diffMins % 60;
+            waitText = `${hours}h ${mins}m`;
+        }
+        
+        elem.textContent = waitText;
+        
+        // Change color based on wait time
+        if (diffMins < 5) {
+            elem.className = 'text-sm font-medium text-green-600';
+        } else if (diffMins < 15) {
+            elem.className = 'text-sm font-medium text-orange-600';
+        } else {
+            elem.className = 'text-sm font-medium text-red-600';
+        }
+    });
+}
+
+// Update wait times immediately and every 30 seconds
+updateWaitTimes();
+setInterval(updateWaitTimes, 30000);
+
+// Auto-refresh page every 30 seconds
+setTimeout(() => location.reload(), 30000);
+
+function markVisitDone(associationId, clientName) {
+    if (!confirm(`Mark visit as completed for ${clientName}?`)) {
+        return;
+    }
+    
+    fetch(`/leads/association/${associationId}/mark-done/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove row from table with animation
+            const row = document.getElementById(`queue-row-${associationId}`);
+            row.style.backgroundColor = '#d1fae5';
+            setTimeout(() => {
+                row.style.transition = 'opacity 0.5s';
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 500);
+            }, 500);
+            
+            // Show success message
+            alert(data.message);
+            
+            // Reload page after 1 second if no more rows
+            setTimeout(() => {
+                if (document.querySelectorAll('tbody tr').length === 1) {
+                    location.reload();
+                }
+            }, 1500);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error marking visit as done');
+    });
+}
+</script>
+{% endblock %}

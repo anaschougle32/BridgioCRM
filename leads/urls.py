@@ -6,6 +6,7 @@ from .views import (
     upload_analyze, upload_preview, lead_upload_errors_csv, lead_download,
     update_budget, update_configuration, track_call_click, search_channel_partners, search_leads, followups_list
 )
+from .views_revisit_queue import schedule_revisit, queue_visit, visit_queue, mark_visit_done
 
 app_name = 'leads'
 
@@ -28,9 +29,13 @@ urlpatterns = [
     path('pretagged-leads/', pretagged_leads, name='pretagged_leads'),
     path('scheduled-visits/', scheduled_visits, name='scheduled_visits'),
     path('followups/', followups_list, name='followups_list'),
+    path('queue-visit/', queue_visit, name='queue_visit'),
+    path('visit-queue/', visit_queue, name='visit_queue'),
     path('<int:pk>/', lead_detail, name='detail'),
     path('<int:pk>/send-otp/', send_otp, name='send_otp'),
     path('<int:pk>/verify-otp/', verify_otp, name='verify_otp'),
+    path('<int:pk>/schedule-revisit/', schedule_revisit, name='schedule_revisit'),
+    path('association/<int:association_id>/mark-done/', mark_visit_done, name='mark_visit_done'),
     path('<int:pk>/update-status/', update_status, name='update_status'),
     path('<int:pk>/update-budget/', update_budget, name='update_budget'),
     path('<int:pk>/update-configuration/', update_configuration, name='update_configuration'),
