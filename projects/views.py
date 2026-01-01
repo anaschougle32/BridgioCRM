@@ -391,6 +391,11 @@ def project_create(request):
                             floor_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
                             # Check if this floor is commercial from tower structure step
                             floor_is_commercial = floor_num in tower_commercial_floors
+                            
+                            # Auto-exclude Ground floor (0) if not commercial
+                            if floor_num == 0 and not floor_is_commercial:
+                                floor_excluded = True
+                            
                             # Get units per floor for commercial floors, otherwise use default
                             if floor_is_commercial:
                                 units_per_floor_this = tower_commercial_floors.get(floor_num, units_per_floor_tower)
@@ -417,6 +422,11 @@ def project_create(request):
                     for tower_num in range(1, number_of_towers + 1):
                         for floor_num in range(0, floors_per_tower):
                             floor_excluded = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
+                            
+                            # Auto-exclude Ground floor (0) if not commercial (legacy doesn't track commercial per floor)
+                            if floor_num == 0:
+                                floor_excluded = True
+                            
                             for unit_idx in range(1, units_per_floor + 1):
                                 # Floor 0 (Ground): 001, 002, 003... Floor 1: 101, 102, 103... Floor 2: 201, 202, 203...
                                 unit_number = floor_num * 100 + unit_idx if floor_num > 0 else unit_idx
@@ -985,6 +995,10 @@ def project_edit(request, pk):
                             # Check if this floor is commercial from tower structure step
                             floor_is_commercial = floor_num in tower_commercial_floors
                             
+                            # Auto-exclude Ground floor (0) if not commercial
+                            if floor_num == 0 and not floor_is_commercial:
+                                floor_excluded = True
+                            
                             # Get units per floor
                             # For commercial floors, use the specified unit count, otherwise use default
                             if floor_is_commercial and floor_num in tower_commercial_floors:
@@ -1018,6 +1032,11 @@ def project_edit(request, pk):
                         for floor_num in range(0, floors_per_tower):
                             floor_excluded = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_excluded') == 'on'
                             floor_is_commercial = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_is_commercial') == 'on'
+                            
+                            # Auto-exclude Ground floor (0) if not commercial
+                            if floor_num == 0 and not floor_is_commercial:
+                                floor_excluded = True
+                            
                             for unit_idx in range(1, units_per_floor + 1):
                                 # Floor 0 (Ground): 001, 002, 003... Floor 1: 101, 102, 103... Floor 7: 701, 702, 703...
                                 unit_number = floor_num * 100 + unit_idx if floor_num > 0 else unit_idx
