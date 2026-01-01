@@ -1293,12 +1293,12 @@ def unit_selection(request, pk):
         return redirect('projects:list')
     
     # Get all unit configurations with related data
-    # Filter out non-commercial ground floors (floor 1) - they're vacant/parking
+    # Filter out non-commercial ground floors (floor 0) - they're vacant/parking
     unit_configs = UnitConfiguration.objects.filter(project=project).select_related(
         'area_type', 
         'area_type__configuration'
     ).exclude(
-        floor_number=1,
+        floor_number=0,
         is_commercial=False
     ).order_by('tower_number', 'floor_number', 'unit_number')
     
