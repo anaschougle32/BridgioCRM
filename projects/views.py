@@ -1010,7 +1010,7 @@ def project_edit(request, pk):
         
         elif step == '4':
             # Step 4: Floor Mapping - Update unit configurations
-            from projects.models import UnitConfiguration, TowerFloorConfig
+            from projects.models import UnitConfiguration, TowerFloorConfig, ConfigurationAreaType
             
             has_floor_mapping_data = any(key.startswith('tower_') for key in request.POST.keys())
             if has_floor_mapping_data:
