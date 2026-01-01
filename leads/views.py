@@ -1555,17 +1555,19 @@ def upcoming_visits(request):
             Q(status='visit_scheduled')
         ).select_related('lead', 'project', 'assigned_to')
     else:  # Closing Manager
-        # Show pretagged leads in projects assigned to this closing manager
+        # Show pretagged leads AND scheduled visits in projects assigned to this closing manager
         # Single project pretag: ALL closers in that project see it (filtered by assigned_projects)
         # Universal tag (multiple projects): ALL closers in those projects see it
         # Each project association has independent OTP verification and visit counting
         # Pretagged leads are assigned to the PROJECT, not to a specific closing manager
         # So we only check if the project is in their assigned_projects
+        # Also include scheduled visits that need OTP verification
         associations = LeadProjectAssociation.objects.filter(
             project__in=assigned_projects,
-            is_archived=False,
-            is_pretagged=True,
-            pretag_status='pending_verification'
+            is_archived=False
+        ).filter(
+            Q(is_pretagged=True, pretag_status='pending_verification') |
+            Q(status='visit_scheduled', phone_verified=False)
         ).select_related('lead', 'project', 'assigned_to', 'created_by')
     
     # Search

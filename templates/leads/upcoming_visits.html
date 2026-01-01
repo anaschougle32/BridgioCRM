@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 {% load lead_filters %}
 
-{% block title %}Pretagged Visits - Bridgio CRM{% endblock %}
+{% block title %}Upcoming Visits - Bridgio CRM{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto space-y-6">
     <div class="flex justify-between items-center">
-        <h1 class="text-3xl font-heading font-bold text-olive-primary">Pretagged Visits</h1>
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Upcoming Visits (OTP Verification)</h1>
         <a href="{% url 'dashboard' %}" class="text-olive-primary hover:text-olive-secondary">← Back to Dashboard</a>
     </div>
     
@@ -44,10 +44,10 @@
         </form>
     </div>
     
-    <!-- Time Frame Info -->
+    <!-- Info Banner -->
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <p class="text-sm text-blue-800">
-            <strong>Note:</strong> Time frame options (Morning, Afternoon, Evening) and date/time can be set when creating or editing pretagged leads.
+            <strong>Note:</strong> This page shows both pretagged leads and scheduled visits that require OTP verification. Click "View & Send OTP" to verify the client's phone number when they arrive for their visit.
         </p>
     </div>
     
@@ -127,8 +127,18 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if assoc.is_pretagged %}
                             <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                {{ assoc.get_pretag_status_display }}
+                                Pretagged - {{ assoc.get_pretag_status_display }}
                             </span>
+                            {% elif assoc.status == 'visit_scheduled' %}
+                                {% if assoc.phone_verified %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    Scheduled - OTP Verified
+                                </span>
+                                {% else %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    Scheduled - Pending OTP
+                                </span>
+                                {% endif %}
                             {% else %}
                             <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                                 {{ assoc.get_status_display }}
