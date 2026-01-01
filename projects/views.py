@@ -426,12 +426,20 @@ def project_create(request):
                                 area_type_key = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
                                 area_type_id = area_type_map.get(area_type_key) if area_type_key else None
                                 
+                                # Get the actual area_type object if ID exists
+                                area_type_obj = None
+                                if area_type_id and not (floor_excluded or unit_excluded):
+                                    try:
+                                        area_type_obj = ConfigurationAreaType.objects.get(id=area_type_id)
+                                    except ConfigurationAreaType.DoesNotExist:
+                                        pass
+                                
                                 UnitConfiguration.objects.create(
                                     project=project,
                                     tower_number=tower_num,
                                     floor_number=floor_num,
                                     unit_number=unit_number,
-                                    area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
+                                    area_type=area_type_obj,
                                     is_excluded=(floor_excluded or unit_excluded),
                                     is_commercial=floor_is_commercial,
                                 )
@@ -448,12 +456,20 @@ def project_create(request):
                                 area_type_key = floor_mapping_data.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
                                 area_type_id = area_type_map.get(area_type_key) if area_type_key else None
                                 
+                                # Get the actual area_type object if ID exists
+                                area_type_obj = None
+                                if area_type_id and not (floor_excluded or unit_excluded):
+                                    try:
+                                        area_type_obj = ConfigurationAreaType.objects.get(id=area_type_id)
+                                    except ConfigurationAreaType.DoesNotExist:
+                                        pass
+                                
                                 UnitConfiguration.objects.create(
                                     project=project,
                                     tower_number=tower_num,
                                     floor_number=floor_num,
                                     unit_number=unit_number,
-                                    area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
+                                    area_type=area_type_obj,
                                     is_excluded=(floor_excluded or unit_excluded),
                                 )
             
@@ -1047,12 +1063,20 @@ def project_edit(request, pk):
                                 area_type_key = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
                                 area_type_id = area_type_map.get(area_type_key) if area_type_key else None
                                 
+                                # Get the actual area_type object if ID exists
+                                area_type_obj = None
+                                if area_type_id and not (floor_excluded or unit_excluded):
+                                    try:
+                                        area_type_obj = ConfigurationAreaType.objects.get(id=area_type_id)
+                                    except ConfigurationAreaType.DoesNotExist:
+                                        pass
+                                
                                 UnitConfiguration.objects.create(
                                     project=project,
                                     tower_number=tower_num,
                                     floor_number=floor_num,
                                     unit_number=unit_number,
-                                    area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
+                                    area_type=area_type_obj,
                                     is_excluded=(floor_excluded or unit_excluded),
                                     is_commercial=floor_is_commercial,
                                 )
@@ -1074,12 +1098,20 @@ def project_edit(request, pk):
                                 area_type_key = request.POST.get(f'tower_{tower_num}_floor_{floor_num}_unit_{unit_idx}_area_type')
                                 area_type_id = area_type_map.get(area_type_key) if area_type_key else None
                                 
+                                # Get the actual area_type object if ID exists
+                                area_type_obj = None
+                                if area_type_id and not (floor_excluded or unit_excluded):
+                                    try:
+                                        area_type_obj = ConfigurationAreaType.objects.get(id=area_type_id)
+                                    except ConfigurationAreaType.DoesNotExist:
+                                        pass
+                                
                                 UnitConfiguration.objects.create(
                                     project=project,
                                     tower_number=tower_num,
                                     floor_number=floor_num,
                                     unit_number=unit_number,
-                                    area_type_id=area_type_id if area_type_id and not (floor_excluded or unit_excluded) else None,
+                                    area_type=area_type_obj,
                                     is_excluded=(floor_excluded or unit_excluded),
                                     is_commercial=floor_is_commercial,
                                 )
