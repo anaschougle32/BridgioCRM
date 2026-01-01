@@ -446,34 +446,10 @@
     
     <!-- Leads Table - Desktop View (≥769px) -->
     <div class="hidden md:block bg-white rounded-custom shadow-md overflow-hidden">
-        <!-- Desktop Bulk Actions Bar (≥1025px) -->
-        <div class="hidden lg:flex items-center justify-between px-6 py-3 bg-gray-50 border-b border-gray-200">
-            <div class="flex items-center space-x-4">
-                <label class="flex items-center space-x-2 cursor-pointer">
-                    <input type="checkbox" id="bulk-select-all" class="w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary">
-                    <span class="text-sm text-gray-700">Select All</span>
-                </label>
-                <span id="bulk-selected-count" class="text-sm text-gray-600 hidden">0 selected</span>
-            </div>
-            <div class="flex items-center space-x-2">
-                <select id="bulk-action-select" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-primary" disabled>
-                    <option value="">Bulk Actions</option>
-                    <option value="assign">Assign To...</option>
-                    <option value="status">Change Status...</option>
-                    <option value="export">Export Selected</option>
-                </select>
-                <button id="bulk-action-apply" class="px-4 py-1.5 text-sm bg-olive-primary text-white rounded-lg hover:bg-olive-secondary disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    Apply
-                </button>
-            </div>
-        </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase lg:w-12">
-                            <input type="checkbox" class="bulk-select-all-checkbox w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary hidden lg:block">
-                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none sortable-column" data-column="name">
                             Name
                             <span class="sort-icon inline-block ml-1 text-gray-400">⇅</span>
@@ -497,9 +473,6 @@
                 {% for lead in leads %}
                 {% with notif=lead_notifications|get_item:lead.id %}
                 <tr class="hover:bg-gray-50 {% cycle 'bg-white' 'bg-gray-50' %}" id="lead-row-{{ lead.id }}">
-                    <td class="px-6 py-3 lg:w-12">
-                        <input type="checkbox" class="bulk-select-checkbox w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary hidden lg:block" value="{{ lead.id }}" data-lead-id="{{ lead.id }}">
-                    </td>
                     <td class="px-3 sm:px-6 py-3 sm:py-4">
                         <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                             <span class="font-medium text-sm sm:text-base">{{ lead.name }}</span>
@@ -1132,110 +1105,24 @@
         alert('Error: ' + errorMsg);
     });
     
-    // Desktop Bulk Selection (≥1025px only)
-    if (window.innerWidth >= 1025) {
-        const bulkSelectAll = document.getElementById('bulk-select-all');
-        const bulkSelectAllCheckbox = document.querySelector('.bulk-select-all-checkbox');
-        const bulkSelectCheckboxes = document.querySelectorAll('.bulk-select-checkbox');
-        const bulkActionSelect = document.getElementById('bulk-action-select');
-        const bulkActionApply = document.getElementById('bulk-action-apply');
-        const bulkSelectedCount = document.getElementById('bulk-selected-count');
-        
-        function updateBulkActions() {
-            const selected = document.querySelectorAll('.bulk-select-checkbox:checked');
-            const count = selected.length;
+    // Column sorting
+    document.querySelectorAll('.sortable-column').forEach(header => {
+        header.addEventListener('click', function() {
+            const column = this.dataset.column;
+            const currentUrl = new URL(window.location);
+            const currentSort = currentUrl.searchParams.get('sort');
+            const currentOrder = currentUrl.searchParams.get('order');
             
-            if (bulkSelectedCount) {
-                if (count > 0) {
-                    bulkSelectedCount.textContent = count + ' selected';
-                    bulkSelectedCount.classList.remove('hidden');
-                } else {
-                    bulkSelectedCount.classList.add('hidden');
-                }
+            let newOrder = 'asc';
+            if (currentSort === column && currentOrder === 'asc') {
+                newOrder = 'desc';
             }
             
-            if (bulkActionSelect && bulkActionApply) {
-                bulkActionSelect.disabled = count === 0;
-                bulkActionApply.disabled = count === 0;
-            }
-            
-            // Update select all checkbox
-            if (bulkSelectAll && bulkSelectAllCheckbox) {
-                const allChecked = bulkSelectCheckboxes.length > 0 && selected.length === bulkSelectCheckboxes.length;
-                bulkSelectAll.checked = allChecked;
-                bulkSelectAllCheckbox.checked = allChecked;
-            }
-        }
-        
-        // Select all functionality
-        if (bulkSelectAll) {
-            bulkSelectAll.addEventListener('change', function() {
-                bulkSelectCheckboxes.forEach(cb => {
-                    cb.checked = this.checked;
-                });
-                if (bulkSelectAllCheckbox) {
-                    bulkSelectAllCheckbox.checked = this.checked;
-                }
-                updateBulkActions();
-            });
-        }
-        
-        if (bulkSelectAllCheckbox) {
-            bulkSelectAllCheckbox.addEventListener('change', function() {
-                bulkSelectCheckboxes.forEach(cb => {
-                    cb.checked = this.checked;
-                });
-                if (bulkSelectAll) {
-                    bulkSelectAll.checked = this.checked;
-                }
-                updateBulkActions();
-            });
-        }
-        
-        // Individual checkbox changes
-        bulkSelectCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', updateBulkActions);
+            currentUrl.searchParams.set('sort', column);
+            currentUrl.searchParams.set('order', newOrder);
+            window.location.href = currentUrl.toString();
         });
-        
-        // Bulk action apply
-        if (bulkActionApply) {
-            bulkActionApply.addEventListener('click', function() {
-                const action = bulkActionSelect?.value;
-                const selected = Array.from(document.querySelectorAll('.bulk-select-checkbox:checked')).map(cb => cb.value);
-                
-                if (!action || selected.length === 0) return;
-                
-                if (action === 'export') {
-                    // Export selected leads
-                    const params = new URLSearchParams();
-                    selected.forEach(id => params.append('ids', id));
-                    window.location.href = '{% url "leads:download" %}?' + params.toString();
-                } else if (action === 'assign' || action === 'status') {
-                    // Show modal for assign/status change
-                    alert('Bulk ' + action + ' feature - to be implemented with backend support');
-                }
-            });
-        }
-        
-        // Column sorting
-        document.querySelectorAll('.sortable-column').forEach(header => {
-            header.addEventListener('click', function() {
-                const column = this.dataset.column;
-                const currentUrl = new URL(window.location);
-                const currentSort = currentUrl.searchParams.get('sort');
-                const currentOrder = currentUrl.searchParams.get('order');
-                
-                let newOrder = 'asc';
-                if (currentSort === column && currentOrder === 'asc') {
-                    newOrder = 'desc';
-                }
-                
-                currentUrl.searchParams.set('sort', column);
-                currentUrl.searchParams.set('order', newOrder);
-                window.location.href = currentUrl.toString();
-            });
-        });
-    }
+    });
     
     // Handle page reload trigger from server
     document.body.addEventListener('reloadPage', function() {

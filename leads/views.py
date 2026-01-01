@@ -641,15 +641,9 @@ def lead_create(request):
                 # Update association if it already existed
                 if not assoc_created:
                     association.status = 'visit_completed'
-                    # If phone was verified in any other association, mark it verified here too (never expires)
-                    if phone_already_verified or association.phone_verified:
-                        association.phone_verified = True
+                    # OTP was verified in step 2, so always mark as verified
+                    association.phone_verified = True
                     association.save()
-                else:
-                    # For new association, if phone was verified elsewhere, ensure it's verified here too
-                    if phone_already_verified:
-                        association.phone_verified = True
-                        association.save()
                 
                 # Create OTP log entry for audit trail
                 otp_data = request.session.get('new_visit_otp', {})

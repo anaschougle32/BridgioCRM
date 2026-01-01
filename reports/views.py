@@ -533,7 +533,7 @@ def cp_performance(request):
                 Q(booking__lead__channel_partner=cp) | 
                 Q(booking__lead__cp_phone=cp.phone)
             )
-        else:  # Site Head
+        elif user.is_site_head():
             site_head_projects = Project.objects.filter(site_head=user, is_active=True)
             cp_lead_ids = Lead.objects.filter(
                 Q(channel_partner=cp) | Q(cp_phone=cp.phone),
@@ -554,6 +554,28 @@ def cp_performance(request):
                 Q(booking__lead__channel_partner=cp) | 
                 Q(booking__lead__cp_phone=cp.phone),
                 booking__project__in=site_head_projects
+            )
+        else:  # Sourcing Manager
+            sourcing_projects = user.assigned_projects.filter(is_active=True)
+            cp_lead_ids = Lead.objects.filter(
+                Q(channel_partner=cp) | Q(cp_phone=cp.phone),
+                is_archived=False
+            ).values_list('id', flat=True)
+            cp_associations = LeadProjectAssociation.objects.filter(
+                lead_id__in=cp_lead_ids,
+                project__in=sourcing_projects,
+                is_archived=False
+            )
+            cp_bookings = Booking.objects.filter(
+                Q(channel_partner=cp) | Q(lead__channel_partner=cp) | Q(lead__cp_phone=cp.phone),
+                project__in=sourcing_projects,
+                is_archived=False
+            )
+            cp_payments = Payment.objects.filter(
+                Q(booking__channel_partner=cp) | 
+                Q(booking__lead__channel_partner=cp) | 
+                Q(booking__lead__cp_phone=cp.phone),
+                booking__project__in=sourcing_projects
             )
         
         # CPs active number (always 1 if CP is active, 0 if inactive)
