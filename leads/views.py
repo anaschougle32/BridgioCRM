@@ -1342,6 +1342,11 @@ def verify_otp(request, pk):
             return JsonResponse({'success': False, 'error': 'You can only verify OTP for leads in your projects.'}, status=403)
     # Note: Super admin case is handled above with has_permission = True
     
+    # Check if this is a JSON request (from Queue Visit or other AJAX calls)
+    accept_header = request.headers.get('Accept', '')
+    content_type = request.headers.get('Content-Type', '')
+    is_json_request = 'application/json' in accept_header or 'application/json' in content_type
+    
     otp_code = request.POST.get('otp', '').strip()
     if not otp_code or len(otp_code) != 6:
         return JsonResponse({'success': False, 'error': 'Invalid OTP format. Please enter a 6-digit code.'}, status=400)
@@ -1433,6 +1438,15 @@ def verify_otp(request, pk):
             object_id=str(lead.id),
             changes={'lead_name': lead.name, 'phone': lead.phone, 'message': 'OTP verified'},
         )
+        
+        # For JSON requests (Queue Visit), return JSON response
+        if is_json_request:
+            return JsonResponse({
+                'success': True,
+                'message': 'OTP verified successfully!',
+                'lead_id': lead.id,
+                'phone_verified': True
+            })
         
         # Return updated HTML - check if this is from booking form
         lead.refresh_from_db()
