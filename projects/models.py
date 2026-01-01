@@ -289,13 +289,14 @@ class HighrisePricing(models.Model):
     
     # Pricing type for floors above threshold
     PRICING_TYPE_CHOICES = [
-        ('fixed', 'Fixed Price Addition'),
+        ('fixed_total', 'Fixed Total Price Addition'),
+        ('fixed_sqft', 'Fixed Per Sqft Addition'),
         ('per_sqft', 'Per Sqft Addition'),
     ]
     pricing_type = models.CharField(max_length=20, choices=PRICING_TYPE_CHOICES, default='per_sqft', help_text="How price increases for floors above threshold")
     
-    # Fixed price increment (if pricing_type = 'fixed')
-    fixed_price_increment = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Fixed amount to add per floor above threshold (if pricing_type = 'fixed')")
+    # Fixed total price increment (if pricing_type = 'fixed_total')
+    fixed_price_increment = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Fixed total amount to add per range (if pricing_type = 'fixed_total') OR fixed per sqft amount (if pricing_type = 'fixed_sqft')")
     
     # Per sqft increment (if pricing_type = 'per_sqft')
     per_sqft_increment = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Amount to add per sqft per floor above threshold (e.g., 20 = ₹20/sqft per floor)")
@@ -329,10 +330,13 @@ class HighrisePricing(models.Model):
         
         Range-based pricing: Increment is added for every threshold range.
         Example: If threshold=4, increment=100, base=6500
-        - Floors 1-4: ₹6500 (base price)
+        - Floors 0-4: ₹6500 (base price)
         - Floors 5-8: ₹6600 (base + 100, 1st range above threshold)
         - Floors 9-12: ₹6700 (base + 200, 2nd range above threshold)
         - Floors 13-16: ₹6800 (base + 300, 3rd range above threshold)
+        
+        Note: For 'fixed_total' pricing type, this returns the base price per sqft only.
+        Use calculate_total_price_increment() to get the fixed total increment.
         """
         if not self.is_enabled:
             return base_price_per_sqft or 0
@@ -348,12 +352,38 @@ class HighrisePricing(models.Model):
         floors_above_threshold = floor_number - self.floor_threshold
         range_number = ((floors_above_threshold - 1) // self.floor_threshold) + 1
         
-        if self.pricing_type == 'fixed':
-            # Fixed price addition per range
+        if self.pricing_type == 'fixed_total':
+            # For fixed total, return base price per sqft (increment is added to total separately)
+            return base_price
+        elif self.pricing_type == 'fixed_sqft':
+            # Fixed per sqft addition per range
             return base_price + (self.fixed_price_increment * range_number)
         else:
             # Per sqft addition per range
             return base_price + (self.per_sqft_increment * range_number)
+    
+    def calculate_total_price_increment(self, floor_number):
+        """Calculate fixed total price increment for a given floor number
+        
+        Only applicable when pricing_type = 'fixed_total'.
+        Returns the fixed amount to add to the total unit price.
+        
+        Example: If threshold=4, fixed_increment=100000
+        - Floors 0-4: ₹0 (no increment)
+        - Floors 5-8: ₹100,000 (1st range above threshold)
+        - Floors 9-12: ₹200,000 (2nd range above threshold)
+        """
+        if not self.is_enabled or self.pricing_type != 'fixed_total':
+            return 0
+        
+        if floor_number <= self.floor_threshold:
+            return 0
+        
+        # Calculate which range the floor falls into
+        floors_above_threshold = floor_number - self.floor_threshold
+        range_number = ((floors_above_threshold - 1) // self.floor_threshold) + 1
+        
+        return self.fixed_price_increment * range_number
     
     def calculate_development_charges(self, buildup_area=None):
         """Calculate development charges based on type"""

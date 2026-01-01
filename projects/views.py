@@ -549,9 +549,12 @@ def project_detail(request, pk):
         # Fallback to legacy calculation
         total_units = project.total_units
     
-    assigned_units = unit_configs.filter(area_type__isnull=False, is_excluded=False).count()
+    # Count booked units
+    booked_units = Booking.objects.filter(project=project, is_archived=False).count()
+    
+    # Calculate remaining/available units (total - booked - excluded)
     excluded_units = unit_configs.filter(is_excluded=True).count()
-    available_units = total_units - assigned_units - excluded_units
+    available_units = total_units - booked_units - excluded_units
     
     # Get unit distribution by configuration
     unit_distribution = {}
@@ -578,8 +581,7 @@ def project_detail(request, pk):
         'configurations': configurations,
         'milestones': milestones,
         'total_units': total_units,
-        'assigned_units': assigned_units,
-        'excluded_units': excluded_units,
+        'booked_units': booked_units,
         'available_units': available_units,
         'unit_distribution': unit_distribution,
     }
@@ -1587,6 +1589,11 @@ def unit_calculation(request, pk, unit_id):
         # Calculate agreement value using adjusted price
         if price_per_sqft and area_type.buildup_area:
             agreement_value = price_per_sqft * area_type.buildup_area
+            
+            # Add fixed total price increment if using fixed_total pricing
+            if highrise_pricing and highrise_pricing.is_enabled and highrise_pricing.pricing_type == 'fixed_total':
+                total_increment = highrise_pricing.calculate_total_price_increment(unit_config.floor_number)
+                agreement_value += total_increment
         else:
             agreement_value = None
         
@@ -1769,6 +1776,11 @@ def multi_unit_calculation(request, pk):
         # Calculate agreement value
         if price_per_sqft and area_type.buildup_area:
             agreement_value = price_per_sqft * area_type.buildup_area
+            
+            # Add fixed total price increment if using fixed_total pricing
+            if highrise_pricing and highrise_pricing.is_enabled and highrise_pricing.pricing_type == 'fixed_total':
+                total_increment = highrise_pricing.calculate_total_price_increment(unit_config.floor_number)
+                agreement_value += total_increment
         else:
             agreement_value = Decimal('0')
         

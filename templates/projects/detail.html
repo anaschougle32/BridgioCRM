@@ -368,22 +368,18 @@
     <!-- Unit Inventory Overview -->
     <div class="bg-white rounded-custom shadow-md p-6">
         <h2 class="text-xl font-heading font-bold mb-4">Unit Inventory Overview</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-3 gap-4 mb-6">
             <div class="text-center p-4 bg-blue-50 rounded-lg">
                 <p class="text-2xl font-bold text-blue-600">{{ total_units }}</p>
                 <p class="text-sm text-gray-600 mt-1">Total Units</p>
             </div>
             <div class="text-center p-4 bg-green-50 rounded-lg">
-                <p class="text-2xl font-bold text-green-600">{{ available_units }}</p>
-                <p class="text-sm text-gray-600 mt-1">Available</p>
+                <p class="text-2xl font-bold text-green-600">{{ booked_units }}</p>
+                <p class="text-sm text-gray-600 mt-1">Booked</p>
             </div>
-            <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                <p class="text-2xl font-bold text-yellow-600">{{ assigned_units }}</p>
-                <p class="text-sm text-gray-600 mt-1">Assigned</p>
-            </div>
-            <div class="text-center p-4 bg-red-50 rounded-lg">
-                <p class="text-2xl font-bold text-red-600">{{ excluded_units }}</p>
-                <p class="text-sm text-gray-600 mt-1">Excluded</p>
+            <div class="text-center p-4 bg-orange-50 rounded-lg">
+                <p class="text-2xl font-bold text-orange-600">{{ available_units }}</p>
+                <p class="text-sm text-gray-600 mt-1">Remaining</p>
             </div>
         </div>
         
