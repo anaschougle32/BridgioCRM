@@ -943,14 +943,21 @@ def project_edit(request, pk):
                                                 )
                                                 area_type_ids_in_form.add(area_type.id)
                                         else:
-                                            # No ID provided, create new area type
-                                            area_type = ConfigurationAreaType.objects.create(
+                                            # No ID provided, check if area type already exists or create new
+                                            area_type, created = ConfigurationAreaType.objects.get_or_create(
                                                 configuration=config,
                                                 carpet_area=carpet_decimal,
                                                 buildup_area=buildup_decimal,
-                                                rera_area=rera_decimal,
-                                                description=area_description,
+                                                defaults={
+                                                    'rera_area': rera_decimal,
+                                                    'description': area_description,
+                                                }
                                             )
+                                            # If it already existed, update the non-unique fields
+                                            if not created:
+                                                area_type.rera_area = rera_decimal
+                                                area_type.description = area_description
+                                                area_type.save()
                                             area_type_ids_in_form.add(area_type.id)
                                     except Exception as e:
                                         import traceback
