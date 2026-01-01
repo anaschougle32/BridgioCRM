@@ -964,9 +964,10 @@ def lead_detail(request, pk):
         )
         has_permission = associations.exists()
     elif request.user.is_closing_manager():
-        # Closing managers can view assigned leads, scheduled visits, or visited leads (for booking creation)
+        # Closing managers can view assigned leads, pretagged leads, scheduled visits, or visited leads
         associations = lead.project_associations.filter(
             Q(assigned_to=request.user) | 
+            Q(is_pretagged=True) |
             Q(status='visit_scheduled') |
             Q(status='visit_completed') | 
             Q(phone_verified=True),
