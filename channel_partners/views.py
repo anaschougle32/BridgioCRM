@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Count, Sum, Cast, FloatField
+from django.db.models import Q, Count, Sum
 from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
@@ -204,11 +204,12 @@ def cp_detail(request, pk):
         leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(project__in=site_head_projects, is_archived=False)
         from bookings.models import Payment
-        # Use Cast to FloatField to avoid string concatenation issues
-        total_revenue = Payment.objects.filter(
+        # Use simple Sum with float conversion to avoid string concatenation issues
+        total_revenue_raw = Payment.objects.filter(
             booking__channel_partner=cp,
             booking__project__in=site_head_projects
-        ).aggregate(total=Sum(Cast('amount', FloatField())))['total'] or 0
+        ).aggregate(total=Sum('amount'))['total']
+        total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.filter(id__in=site_head_projects)
     elif request.user.is_sourcing_manager():
         # Sourcing Manager sees all CP data
@@ -219,10 +220,11 @@ def cp_detail(request, pk):
         leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
-        # Use Cast to FloatField to avoid string concatenation issues
-        total_revenue = Payment.objects.filter(booking__channel_partner=cp).aggregate(
-            total=Sum(Cast('amount', FloatField()))
-        )['total'] or 0
+        # Use simple Sum with float conversion to avoid string concatenation issues
+        total_revenue_raw = Payment.objects.filter(booking__channel_partner=cp).aggregate(
+            total=Sum('amount')
+        )['total']
+        total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.all()
     else:
         association_ids = LeadProjectAssociation.objects.filter(
@@ -232,10 +234,11 @@ def cp_detail(request, pk):
         leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
-        # Use Cast to FloatField to avoid string concatenation issues
-        total_revenue = Payment.objects.filter(booking__channel_partner=cp).aggregate(
-            total=Sum(Cast('amount', FloatField()))
-        )['total'] or 0
+        # Use simple Sum with float conversion to avoid string concatenation issues
+        total_revenue_raw = Payment.objects.filter(booking__channel_partner=cp).aggregate(
+            total=Sum('amount')
+        )['total']
+        total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.all()
     
     # Get project-wise stats for Sourcing Managers

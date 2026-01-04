@@ -1,4 +1,4 @@
-from django.db.models import Q, Sum, Count, Avg, Cast, FloatField
+from django.db.models import Q, Sum, Count, Avg
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -282,18 +282,18 @@ def employee_performance(request):
             metrics['total_leads'] = emp_associations.filter(assigned_to=emp).count()
             metrics['leads_this_month'] = emp_associations.filter(assigned_to=emp, created_at__date__gte=this_month_start).count()
             metrics['leads_this_week'] = emp_associations.filter(assigned_to=emp, created_at__date__gte=this_week_start).count()
-            # Use Cast to FloatField to avoid string concatenation issues
-            total_revenue_float = emp_payments.filter(booking__credited_to_closing_manager=emp).aggregate(
-                total=Sum(Cast('amount', FloatField()))
-            )['total'] or 0
-            metrics['total_revenue'] = total_revenue_float
+            # Use Value expression to avoid string concatenation issues
+            total_revenue_raw = emp_payments.filter(booking__credited_to_closing_manager=emp).aggregate(
+                total=Sum('amount')
+            )['total']
+            metrics['total_revenue'] = float(total_revenue_raw) if total_revenue_raw is not None else 0
             
-            revenue_this_month_float = emp_payments.filter(
+            revenue_this_month_raw = emp_payments.filter(
                 booking__credited_to_closing_manager=emp
             ).filter(
                 payment_date__gte=this_month_start
-            ).aggregate(total=Sum(Cast('amount', FloatField())))['total'] or 0
-            metrics['revenue_this_month'] = revenue_this_month_float
+            ).aggregate(total=Sum('amount'))['total']
+            metrics['revenue_this_month'] = float(revenue_this_month_raw) if revenue_this_month_raw is not None else 0
             assigned_leads = emp_associations.filter(assigned_to=emp).count()
             if assigned_leads > 0:
                 metrics['conversion_rate'] = (metrics['total_bookings'] / assigned_leads) * 100
@@ -592,16 +592,16 @@ def cp_performance(request):
             created_at__date__lte=last_month_end
         ).count()
         
-        # Revenue generated - Use Cast to FloatField to avoid string concatenation issues
-        total_revenue_float = cp_payments.aggregate(
-            total=Sum(Cast('amount', FloatField()))
-        )['total'] or 0
-        metrics['total_revenue'] = total_revenue_float
+        # Revenue generated - Use Value expression to avoid string concatenation issues
+        total_revenue_raw = cp_payments.aggregate(
+            total=Sum('amount')
+        )['total']
+        metrics['total_revenue'] = float(total_revenue_raw) if total_revenue_raw is not None else 0
         
-        revenue_this_month_float = cp_payments.filter(
+        revenue_this_month_raw = cp_payments.filter(
             payment_date__gte=this_month_start
-        ).aggregate(total=Sum(Cast('amount', FloatField())))['total'] or 0
-        metrics['revenue_this_month'] = revenue_this_month_float
+        ).aggregate(total=Sum('amount'))['total']
+        metrics['revenue_this_month'] = float(revenue_this_month_raw) if revenue_this_month_raw is not None else 0
         
         # Overall visit to conversion ratio of CPs
         if metrics['cp_visits'] > 0:
