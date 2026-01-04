@@ -588,9 +588,14 @@ def cp_performance(request):
             created_at__date__lte=last_month_end
         ).count()
         
-        # Revenue generated
+        # Revenue generated - DEBUG
         total_revenue_raw = cp_payments.aggregate(total=Sum('amount'))['total']
+        print(f"DEBUG: CP {cp.cp_name} - total_revenue_raw: {total_revenue_raw} (type: {type(total_revenue_raw)})")
+        print(f"DEBUG: CP {cp.cp_name} - cp_payments count: {cp_payments.count()}")
+        if cp_payments.exists():
+            print(f"DEBUG: CP {cp.cp_name} - First payment amount: {cp_payments.first().amount} (type: {type(cp_payments.first().amount)})")
         metrics['total_revenue'] = float(total_revenue_raw) if total_revenue_raw is not None else 0
+        print(f"DEBUG: CP {cp.cp_name} - final total_revenue: {metrics['total_revenue']} (type: {type(metrics['total_revenue'])})")
         
         revenue_this_month_raw = cp_payments.filter(
             payment_date__gte=this_month_start
@@ -670,8 +675,12 @@ def cp_performance(request):
     # Sort by total bookings (descending)
     cp_metrics.sort(key=lambda x: x['total_bookings'], reverse=True)
     
-    # Calculate total revenue
+    # Calculate total revenue - DEBUG
+    print(f"DEBUG: Calculating total revenue from {len(cp_metrics)} CPs")
+    for i, m in enumerate(cp_metrics):
+        print(f"DEBUG: CP {i} - {m['cp_name']}: total_revenue = {m['total_revenue']} (type: {type(m['total_revenue'])})")
     total_revenue = sum(float(m['total_revenue']) for m in cp_metrics)
+    print(f"DEBUG: Final total_revenue: {total_revenue} (type: {type(total_revenue)})")
     
     context = {
         'cp_metrics': cp_metrics,
