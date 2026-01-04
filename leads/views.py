@@ -4127,6 +4127,7 @@ def revisit_visit(request):
             time_frame = request.POST.get('time_frame', '')
             visit_scheduled_date_str = request.POST.get('visit_scheduled_date', '')
             visit_scheduled_time_str = request.POST.get('visit_scheduled_time', '')
+            add_to_queue = request.POST.get('add_to_queue') == 'true'
             
             # Parse visit date and time
             visit_scheduled_date = None
@@ -4157,7 +4158,7 @@ def revisit_visit(request):
                 time_frame=time_frame,
                 visit_scheduled_date=visit_scheduled_date,
                 visit_scheduled_time=visit_scheduled_time,
-                pretag_status='pending_verification',
+                pretag_status='pending_verification' if not add_to_queue else 'queued',
                 is_pretagged=True,
                 created_by=request.user,
             )
@@ -4165,7 +4166,18 @@ def revisit_visit(request):
             # Copy configurations from original visit
             revisit_association.configurations.set(existing_association.configurations.all())
             
-            # Send OTP for verification
+            # Handle queue option
+            if add_to_queue:
+                # Add to queue - set queue timestamp and status
+                revisit_association.queued_at = timezone.now()
+                revisit_association.queued_by = request.user
+                revisit_association.pretag_status = 'queued'
+                revisit_association.save()
+                
+                messages.success(request, f'Revisit for {existing_association.lead.name} has been added to the visit queue!')
+                return redirect('leads:visit_detail', association_id=revisit_association.id)
+            
+            # Send OTP for verification (normal flow)
             otp = generate_otp()
             hashed_otp = hash_otp(otp)
             

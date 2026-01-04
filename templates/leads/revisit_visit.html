@@ -98,11 +98,29 @@
                     </div>
                 </div>
                 
-                <!-- Submit Button -->
-                <div class="mt-8 flex justify-center">
+                <!-- Queue Option -->
+                <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" name="add_to_queue" id="add-to-queue" value="true"
+                               class="w-4 h-4 text-olive-primary border-gray-300 rounded focus:ring-olive-primary">
+                        <span class="ml-3 text-sm font-medium text-gray-700">
+                            Add revisit to visit queue (no OTP required)
+                        </span>
+                    </label>
+                    <p class="text-xs text-gray-600 mt-2 ml-7">
+                        If checked, the revisit will be added to the visit queue for immediate processing without requiring OTP verification.
+                    </p>
+                </div>
+                
+                <!-- Submit Buttons -->
+                <div class="mt-8 flex justify-center gap-4">
                     <button type="submit" 
                             class="bg-olive-primary text-white px-8 py-3 rounded-lg hover:bg-olive-secondary transition font-semibold text-lg shadow-lg">
                         Create Revisit & Send OTP
+                    </button>
+                    <button type="button" id="queue-only-btn"
+                            class="bg-blue-500 text-white px-8 py-3 rounded-lg hover:bg-blue-600 transition font-semibold text-lg shadow-lg">
+                        Add to Queue Only
                     </button>
                 </div>
             </div>
@@ -251,6 +269,24 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!visitSearch.contains(e.target) && !visitSearchResults.contains(e.target)) {
             visitSearchResults.classList.add('hidden');
         }
+    });
+    
+    // Queue-only button functionality
+    const queueOnlyBtn = document.getElementById('queue-only-btn');
+    const addToQueueCheckbox = document.getElementById('add-to-queue');
+    
+    queueOnlyBtn.addEventListener('click', function() {
+        // Check if a visit is selected
+        if (!existingVisitId.value) {
+            alert('Please select an existing visit first.');
+            return;
+        }
+        
+        // Set the checkbox to checked
+        addToQueueCheckbox.checked = true;
+        
+        // Submit the form
+        this.closest('form').submit();
     });
 });
 </script>
