@@ -592,44 +592,9 @@ def cp_performance(request):
             created_at__date__lte=last_month_end
         ).count()
         
-        # Revenue generated - DEBUG with raw SQL
-        print(f"DEBUG: CP {cp.cp_name} - checking payments...")
-        
-        # Check individual payment amounts
-        for payment in cp_payments[:3]:  # Check first 3 payments
-            print(f"DEBUG: Payment ID {payment.id}: amount={payment.amount} (type: {type(payment.amount)})")
-        
-        # Try raw SQL to see what's in database
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT amount FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE channel_partner_id = %s) LIMIT 3", [cp.id])
-            raw_payments = cursor.fetchall()
-            print(f"DEBUG: Raw SQL payments for CP {cp.cp_name}: {raw_payments}")
-        
-        # Try manual calculation as fallback
-        manual_total = 0
-        for payment in cp_payments:
-            try:
-                manual_total += float(payment.amount)
-            except (ValueError, TypeError):
-                print(f"DEBUG: Invalid payment amount: {payment.amount}")
-        
-        print(f"DEBUG: CP {cp.cp_name} - manual_total: {manual_total}")
-        
-        total_revenue_raw = cp_payments.aggregate(
-            total=Sum('amount')
-        )['total']
-        print(f"DEBUG: CP {cp.cp_name} - aggregated total: {total_revenue_raw} (type: {type(total_revenue_raw)})")
-        
-        # Use manual total as fallback if aggregation fails
-        if total_revenue_raw is None:
-            metrics['total_revenue'] = manual_total
-            print(f"DEBUG: CP {cp.cp_name} - using manual total")
-        else:
-            metrics['total_revenue'] = float(total_revenue_raw)
-            print(f"DEBUG: CP {cp.cp_name} - using aggregated total")
-        
-        print(f"DEBUG: CP {cp.cp_name} - final total_revenue: {metrics['total_revenue']} (type: {type(metrics['total_revenue'])})")
+        # Revenue generated
+        total_revenue_raw = cp_payments.aggregate(total=Sum('amount'))['total']
+        metrics['total_revenue'] = float(total_revenue_raw) if total_revenue_raw is not None else 0
         
         revenue_this_month_raw = cp_payments.filter(
             payment_date__gte=this_month_start
@@ -709,13 +674,11 @@ def cp_performance(request):
     # Sort by total bookings (descending)
     cp_metrics.sort(key=lambda x: x['total_bookings'], reverse=True)
     
-    # Calculate total revenue - DEBUG
-    print(f"DEBUG: Final CP metrics before template:")
-    for i, m in enumerate(cp_metrics[:5]):  # Show first 5 CPs
-        print(f"DEBUG: CP {i} - {m['cp_name']}: total_revenue={m['total_revenue']} (type: {type(m['total_revenue'])})")
-    
     total_revenue = sum(float(m['total_revenue']) for m in cp_metrics)
-    print(f"DEBUG: Final total_revenue: {total_revenue} (type: {type(total_revenue)})")
+    
+    # Calculate totals for all metrics to avoid template concatenation
+    total_leads = sum(m['total_leads'] for m in cp_metrics)
+    total_bookings = sum(m['total_bookings'] for m in cp_metrics)
     
     context = {
         'cp_metrics': cp_metrics,
@@ -723,6 +686,8 @@ def cp_performance(request):
         'this_month_start': this_month_start,
         'last_month_start': last_month_start,
         'total_cps': len(cp_metrics),
+        'total_leads': total_leads,
+        'total_bookings': total_bookings,
         'total_revenue': total_revenue,
         'search': search,
         'selected_status': selected_status,
