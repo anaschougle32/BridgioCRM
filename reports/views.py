@@ -1,6 +1,7 @@
-from django.shortcuts import render
+from django.db.models import Q, Sum, Count, Avg, Cast, FloatField
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Sum, Q, Avg
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta
 from leads.models import Lead
@@ -282,8 +283,6 @@ def employee_performance(request):
             metrics['leads_this_month'] = emp_associations.filter(assigned_to=emp, created_at__date__gte=this_month_start).count()
             metrics['leads_this_week'] = emp_associations.filter(assigned_to=emp, created_at__date__gte=this_week_start).count()
             # Use Cast to FloatField to avoid string concatenation issues
-            from django.db.models import FloatField
-            
             total_revenue_float = emp_payments.filter(booking__credited_to_closing_manager=emp).aggregate(
                 total=Sum(Cast('amount', FloatField()))
             )['total'] or 0
@@ -593,21 +592,10 @@ def cp_performance(request):
             created_at__date__lte=last_month_end
         ).count()
         
-        # Revenue generated - Try different approach
-        # Use Django's Cast to ensure proper numeric aggregation
-        from django.db.models import FloatField
-        
+        # Revenue generated - Use Cast to FloatField to avoid string concatenation issues
         total_revenue_float = cp_payments.aggregate(
             total=Sum(Cast('amount', FloatField()))
         )['total'] or 0
-        
-        # Also try the original method for comparison
-        total_revenue_decimal = cp_payments.aggregate(total=Sum('amount'))['total']
-        
-        print(f"DEBUG: CP {cp.cp_name} - total_revenue_float: {total_revenue_float} (type: {type(total_revenue_float)})")
-        print(f"DEBUG: CP {cp.cp_name} - total_revenue_decimal: {total_revenue_decimal} (type: {type(total_revenue_decimal)})")
-        
-        # Use the float version to avoid any string issues
         metrics['total_revenue'] = total_revenue_float
         
         revenue_this_month_float = cp_payments.filter(
@@ -688,12 +676,8 @@ def cp_performance(request):
     # Sort by total bookings (descending)
     cp_metrics.sort(key=lambda x: x['total_bookings'], reverse=True)
     
-    # Calculate total revenue - DEBUG
-    print(f"DEBUG: Calculating total revenue from {len(cp_metrics)} CPs")
-    for i, m in enumerate(cp_metrics):
-        print(f"DEBUG: CP {i} - {m['cp_name']}: total_revenue = {m['total_revenue']} (type: {type(m['total_revenue'])})")
+    # Calculate total revenue
     total_revenue = sum(float(m['total_revenue']) for m in cp_metrics)
-    print(f"DEBUG: Final total_revenue: {total_revenue} (type: {type(total_revenue)})")
     
     context = {
         'cp_metrics': cp_metrics,

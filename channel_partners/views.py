@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Count, Sum
+from django.db.models import Q, Count, Sum, Cast, FloatField
 from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
@@ -205,7 +205,6 @@ def cp_detail(request, pk):
         bookings = cp.bookings.filter(project__in=site_head_projects, is_archived=False)
         from bookings.models import Payment
         # Use Cast to FloatField to avoid string concatenation issues
-        from django.db.models import FloatField
         total_revenue = Payment.objects.filter(
             booking__channel_partner=cp,
             booking__project__in=site_head_projects
@@ -221,7 +220,6 @@ def cp_detail(request, pk):
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
         # Use Cast to FloatField to avoid string concatenation issues
-        from django.db.models import FloatField
         total_revenue = Payment.objects.filter(booking__channel_partner=cp).aggregate(
             total=Sum(Cast('amount', FloatField()))
         )['total'] or 0
@@ -235,7 +233,6 @@ def cp_detail(request, pk):
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
         # Use Cast to FloatField to avoid string concatenation issues
-        from django.db.models import FloatField
         total_revenue = Payment.objects.filter(booking__channel_partner=cp).aggregate(
             total=Sum(Cast('amount', FloatField()))
         )['total'] or 0
