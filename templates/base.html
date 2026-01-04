@@ -37,6 +37,35 @@
         .font-body, body, input, textarea, select, button {
             font-family: 'Satoshi Variable', 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
         }
+        
+        /* Mobile navigation fixes */
+        @media (max-width: 768px) {
+            /* Ensure main content takes full width on mobile */
+            .main-content-wrapper {
+                width: 100% !important;
+                margin-left: 0 !important;
+            }
+            
+            /* Fix sidebar overlay z-index */
+            #sidebar-overlay {
+                z-index: 40 !important;
+            }
+            
+            /* Ensure sidebar is above overlay */
+            #sidebar {
+                z-index: 50 !important;
+            }
+            
+            /* Fix mobile bottom navigation */
+            #mobile-bottom-nav {
+                z-index: 45 !important;
+            }
+            
+            /* Safe area for iPhone notch */
+            .safe-area-bottom {
+                padding-bottom: env(safe-area-inset-bottom, 0);
+            }
+        }
     </style>
     
     <script>
@@ -80,7 +109,7 @@
     {% if user.is_authenticated %}
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <aside id="sidebar" class="fixed md:static lg:static inset-y-0 left-0 w-64 sm:w-72 bg-olive-dark text-white flex-shrink-0 transition-all duration-300 ease-in-out z-50 md:translate-x-0 lg:translate-x-0 -translate-x-full shadow-premium-lg">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 sm:w-72 bg-olive-dark text-white flex-shrink-0 transition-all duration-300 ease-in-out z-50 -translate-x-full transform md:translate-x-0 lg:translate-x-0 md:relative lg:relative shadow-premium-lg">
             <div class="flex flex-col h-full overflow-hidden">
                 <!-- Logo/Brand -->
                 <div class="p-4 sm:p-6 border-b border-olive-primary/30 flex-shrink-0">
@@ -687,16 +716,18 @@
         </aside>
         
         <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col overflow-hidden md:ml-0 lg:ml-0 main-content-wrapper">
             <!-- Top Bar (Mobile Menu Toggle) -->
-            <header id="main-header" class="bg-card-bg shadow-premium border-b border-border-light px-4 sm:px-6 py-3 sm:py-4 hidden md:block">
+            <header id="main-header" class="bg-card-bg shadow-premium border-b border-border-light px-4 sm:px-6 py-3 sm:py-4">
                 <div class="flex items-center justify-between">
-                    <button id="sidebar-toggle" class="lg:hidden text-text-secondary hover:text-text-primary transition-colors p-2 -ml-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                        </svg>
-                    </button>
-                    <h2 class="text-lg sm:text-xl font-heading font-semibold text-text-primary hidden lg:block tracking-tight">{% block page_title %}{% endblock %}</h2>
+                    <div class="flex items-center space-x-3">
+                        <button id="sidebar-toggle" class="md:hidden text-text-secondary hover:text-text-primary transition-colors p-2 -ml-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                        </button>
+                        <h2 class="text-lg sm:text-xl font-heading font-semibold text-text-primary tracking-tight">{% block page_title %}{% endblock %}</h2>
+                    </div>
                     <div class="flex items-center space-x-2 sm:space-x-4">
                         <span class="text-xs sm:text-sm text-text-secondary font-medium hidden sm:block">{{ user.get_full_name|default:user.username }}</span>
                     </div>
@@ -822,34 +853,69 @@
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const mainContent = document.getElementById('main-content');
+        
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.remove('hidden');
+            // Prevent body scroll when sidebar is open on mobile
+            if (window.innerWidth < 768) {
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+            // Restore body scroll
+            document.body.style.overflow = '';
+        }
         
         if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('-translate-x-full');
-                sidebarOverlay.classList.toggle('hidden');
+            sidebarToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (sidebar.classList.contains('-translate-x-full')) {
+                    openSidebar();
+                } else {
+                    closeSidebar();
+                }
             });
         }
         
         if (sidebarOverlay) {
             sidebarOverlay.addEventListener('click', () => {
-                sidebar.classList.add('-translate-x-full');
-                sidebarOverlay.classList.add('hidden');
+                closeSidebar();
             });
         }
         
+        // Close sidebar on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('-translate-x-full')) {
+                closeSidebar();
+            }
+        });
+        
         // Close sidebar on window resize (desktop)
         window.addEventListener('resize', () => {
-            if (window.innerWidth >= 1024) {
+            if (window.innerWidth >= 768) {
                 sidebar.classList.remove('-translate-x-full');
                 sidebarOverlay.classList.add('hidden');
+                document.body.style.overflow = '';
             } else {
                 sidebar.classList.add('-translate-x-full');
+                document.body.style.overflow = '';
             }
         });
         
         // Initialize sidebar state on load
-        if (window.innerWidth < 1024) {
+        if (window.innerWidth < 768) {
             sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+            document.body.style.overflow = '';
+        } else {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+            document.body.style.overflow = '';
         }
         
         // Mobile bottom navigation hide/show on scroll
