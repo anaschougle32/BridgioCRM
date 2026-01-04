@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block title %}Visit Details - Bridgio CRM{% endblock %}
+
+{% block page_title %}Visit Details{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-heading font-semibold text-text-primary mb-2">Visit Details</h1>
+        <p class="text-text-secondary">
+            {% if association.is_revisit %}
+                Revisit details for {{ lead.name }}
+            {% else %}
+                Original visit details for {{ lead.name }}
+            {% endif %}
+        </p>
+    </div>
+    
+    <!-- Main Visit Information -->
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8 mb-6">
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h2 class="text-2xl font-heading font-semibold text-text-primary mb-2">
+                    {% if association.is_revisit %}
+                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium mr-2">Revisit</span>
+                    {% else %}
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium mr-2">Original Visit</span>
+                    {% endif %}
+                    {{ lead.name }}
+                </h2>
+                <p class="text-lg text-gray-600">{{ project.name }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-600">Visit #{{ association.id }}</p>
+                <p class="text-sm text-gray-600">Created: {{ association.created_at|date:"M d, Y H:i" }}</p>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+                <h3 class="text-lg font-semibold text-text-primary mb-4">Client Information</h3>
+                <div class="space-y-2">
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Name:</span>
+                        <span class="text-sm font-semibold">{{ lead.name }}</span>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Phone:</span>
+                        <span class="text-sm font-semibold">{{ lead.phone }}</span>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Email:</span>
+                        <span class="text-sm font-semibold">{{ lead.email|default:"N/A" }}</span>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Age:</span>
+                        <span class="text-sm font-semibold">{{ lead.age|default:"N/A" }}</span>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Gender:</span>
+                        <span class="text-sm font-semibold">{{ lead.get_gender_display|default:"N/A" }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h3 class="text-lg font-semibold text-text-primary mb-4">Visit Details</h3>
+                <div class="space-y-2">
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Assigned to:</span>
+                        <span class="text-sm font-semibold">{{ assigned_to.get_full_name|default:assigned_to.username }}</span>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Status:</span>
+                        <span class="text-sm font-semibold">
+                            {% if association.is_revisit %}
+                                {% if association.pretag_status == 'verified' %}
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Verified</span>
+                                {% else %}
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Pending Verification</span>
+                                {% endif %}
+                            {% else %}
+                                {% if association.pretag_status == 'verified' %}
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Verified</span>
+                                {% else %}
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Pending Verification</span>
+                                {% endif %}
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if association.visit_scheduled_date %}
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Scheduled Date:</span>
+                        <span class="text-sm font-semibold">{{ association.visit_scheduled_date }}</span>
+                    </div>
+                    {% endif %}
+                    {% if association.visit_scheduled_time %}
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Scheduled Time:</span>
+                        <span class="text-sm font-semibold">{{ association.visit_scheduled_time }}</span>
+                    </div>
+                    {% endif %}
+                    {% if association.time_frame %}
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Time Frame:</span>
+                        <span class="text-sm font-semibold">{{ association.time_frame }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if association.is_revisit %}
+            <div>
+                <h3 class="text-lg font-semibold text-text-primary mb-4">Revisit Information</h3>
+                <div class="space-y-2">
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Revisit Count:</span>
+                        <span class="text-sm font-semibold">{{ association.revisit_count }}</span>
+                    </div>
+                    {% if association.revisit_reason %}
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Revisit Reason:</span>
+                        <span class="text-sm font-semibold">{{ association.revisit_reason }}</span>
+                    </div>
+                    {% endif %}
+                    {% if association.previous_visit %}
+                    <div>
+                        <span class="text-sm font-medium text-gray-600">Previous Visit:</span>
+                        <span class="text-sm font-semibold">
+                            <a href="{% url 'leads:visit_detail' association.previous_visit.id %}" 
+                               class="text-olive-primary hover:text-olive-secondary">
+                                Visit #{{ association.previous_visit.id }}
+                            </a>
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Revisits History -->
+    {% if not association.is_revisit and revisits %}
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <h2 class="text-xl font-heading font-semibold text-text-primary mb-6">Revisit History</h2>
+        
+        {% if revisits %}
+        <div class="space-y-4">
+            {% for revisit in revisits %}
+            <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-lg font-semibold text-text-primary">
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-medium mr-2">Revisit</span>
+                            Visit #{{ revisit.id }}
+                        </h3>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Created: {{ revisit.created_at|date:"M d, Y H:i" }}
+                        </p>
+                        {% if revisit.revisit_reason %}
+                        <p class="text-sm text-gray-700 mt-2">
+                            <span class="font-medium">Reason:</span> {{ revisit.revisit_reason }}
+                        </p>
+                        {% endif %}
+                        {% if revisit.visit_scheduled_date %}
+                        <p class="text-sm text-gray-700">
+                            <span class="font-medium">Scheduled:</span> 
+                            {{ revisit.visit_scheduled_date }}
+                            {% if revisit.visit_scheduled_time %}at {{ revisit.visit_scheduled_time }}{% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600">Status:</p>
+                        <span class="text-sm font-semibold">
+                            {% if revisit.pretag_status == 'verified' %}
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Verified</span>
+                            {% else %}
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Pending Verification</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{% url 'leads:visit_detail' revisit.id %}" 
+                       class="text-olive-primary hover:text-olive-secondary text-sm font-medium">
+                        View Details →
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500">No revisits found for this visit.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <!-- Action Buttons -->
+    <div class="flex justify-center gap-4 mt-8">
+        <a href="{% url 'leads:revisit_visit' %}" 
+           class="bg-olive-primary text-white px-6 py-3 rounded-lg hover:bg-olive-secondary transition font-semibold">
+            Create New Revisit
+        </a>
+        <a href="{% url 'dashboard' %}" 
+           class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition font-semibold">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -4,7 +4,8 @@ from .views import (
     upcoming_visits, visits_list, pretagged_leads, schedule_visit, scheduled_visits, closing_manager_visits, log_call, create_reminder, complete_reminder, whatsapp, 
     lead_assign, lead_upload, lead_assign_admin, update_status, update_notes,
     upload_analyze, upload_preview, lead_upload_errors_csv, lead_download,
-    update_budget, update_configuration, track_call_click, search_channel_partners, search_leads, followups_list
+    update_budget, update_configuration, track_call_click, search_channel_partners, search_leads, followups_list,
+    revisit_visit, search_existing_visits, verify_revisit_otp, visit_detail, resend_revisit_otp
 )
 from .views_revisit_queue import schedule_revisit, queue_visit, visit_queue, mark_visit_done, prepare_lead_for_otp
 
@@ -48,6 +49,11 @@ urlpatterns = [
     path('<int:pk>/whatsapp/', whatsapp, name='whatsapp'),
     path('search-cp/', search_channel_partners, name='search_cp'),
     path('search-leads/', search_leads, name='search_leads'),
+    path('revisit-visit/', revisit_visit, name='revisit_visit'),
+    path('search-existing-visits/', search_existing_visits, name='search_existing_visits'),
+    path('verify-revisit-otp/<int:association_id>/', verify_revisit_otp, name='verify_revisit_otp'),
+    path('resend-revisit-otp/<int:association_id>/', resend_revisit_otp, name='resend_revisit_otp'),
+    path('visit-detail/<int:association_id>/', visit_detail, name='visit_detail'),
 ]
 
 

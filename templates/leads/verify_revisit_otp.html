@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify Revisit OTP - Bridgio CRM{% endblock %}
+
+{% block page_title %}Verify Revisit OTP{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-heading font-semibold text-text-primary mb-2">Verify Revisit OTP</h1>
+        <p class="text-text-secondary">Enter the OTP sent to the client's phone number to confirm the revisit.</p>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <!-- Visit Details -->
+        <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h3 class="text-lg font-semibold text-text-primary mb-3">Revisit Details</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <span class="text-sm font-medium text-gray-600">Client Name:</span>
+                    <span class="text-sm font-semibold">{{ lead.name }}</span>
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-600">Phone:</span>
+                    <span class="text-sm font-semibold">{{ lead.phone }}</span>
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-600">Project:</span>
+                    <span class="text-sm font-semibold">{{ association.project.name }}</span>
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-600">Revisit Reason:</span>
+                    <span class="text-sm font-semibold">{{ association.revisit_reason }}</span>
+                </div>
+                {% if association.visit_scheduled_date %}
+                <div>
+                    <span class="text-sm font-medium text-gray-600">Scheduled Date:</span>
+                    <span class="text-sm font-semibold">{{ association.visit_scheduled_date }}</span>
+                </div>
+                {% endif %}
+                {% if association.visit_scheduled_time %}
+                <div>
+                    <span class="text-sm font-medium text-gray-600">Scheduled Time:</span>
+                    <span class="text-sm font-semibold">{{ association.visit_scheduled_time }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- OTP Verification Form -->
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label class="block text-sm font-semibold text-text-primary mb-2">Enter OTP *</label>
+                <div class="flex gap-2">
+                    <input type="text" name="otp" id="otp-input" required maxlength="6" pattern="[0-9]{6}"
+                           class="flex-1 px-4 py-3 text-center text-2xl font-bold border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition"
+                           placeholder="000000"
+                           autocomplete="off">
+                </div>
+                <p class="text-xs text-gray-600 mt-2">Enter the 6-digit OTP sent to {{ lead.phone }}</p>
+            </div>
+            
+            <div class="flex gap-4">
+                <button type="submit" 
+                        class="flex-1 bg-olive-primary text-white px-6 py-3 rounded-lg hover:bg-olive-secondary transition font-semibold">
+                    Verify OTP & Confirm Revisit
+                </button>
+                <a href="{% url 'leads:revisit_visit' %}" 
+                   class="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition font-semibold text-center">
+                    Cancel
+                </a>
+            </div>
+        </form>
+        
+        <!-- Resend OTP Section -->
+        <div class="mt-6 pt-6 border-t border-border-light">
+            <div class="text-center">
+                <p class="text-sm text-gray-600 mb-3">Didn't receive the OTP?</p>
+                <button id="resend-otp-btn" 
+                        class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition text-sm font-medium">
+                    Resend OTP
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const otpInput = document.getElementById('otp-input');
+    const resendBtn = document.getElementById('resend-otp-btn');
+    let resendTimer;
+    let countdown = 0;
+    
+    // Auto-format and move to next input
+    otpInput.addEventListener('input', function(e) {
+        // Only allow numbers
+        this.value = this.value.replace(/[^0-9]/g, '');
+        
+        // Auto-submit when 6 digits are entered
+        if (this.value.length === 6) {
+            this.form.submit();
+        }
+    });
+    
+    // Resend OTP functionality
+    resendBtn.addEventListener('click', function() {
+        if (countdown > 0) return;
+        
+        // Disable button and start countdown
+        this.disabled = true;
+        countdown = 30;
+        updateResendButton();
+        
+        // Make AJAX request to resend OTP
+        fetch(`/leads/resend-revisit-otp/{{ association.id }}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showMessage('OTP has been resent successfully!', 'success');
+                } else {
+                    // Show error message
+                    showMessage(data.error || 'Failed to resend OTP', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Resend error:', error);
+                showMessage('Failed to resend OTP', 'error');
+            });
+    });
+    
+    function updateResendButton() {
+        if (countdown > 0) {
+            resendBtn.textContent = `Resend OTP (${countdown}s)`;
+            resendBtn.disabled = true;
+            countdown--;
+            resendTimer = setTimeout(updateResendButton, 1000);
+        } else {
+            resendBtn.textContent = 'Resend OTP';
+            resendBtn.disabled = false;
+        }
+    }
+    
+    function showMessage(message, type) {
+        // Create message element
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `p-4 rounded-lg mb-4 ${
+            type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' : 
+            'bg-red-100 text-red-800 border border-red-200'
+        }`;
+        messageDiv.textContent = message;
+        
+        // Insert at the top of the form
+        const form = document.querySelector('form');
+        form.parentNode.insertBefore(messageDiv, form);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 5000);
+    }
+    
+    // Focus on OTP input
+    otpInput.focus();
+});
+</script>
+{% endblock %}

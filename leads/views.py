@@ -4088,3 +4088,288 @@ def lead_upload_errors_csv(request, session_id):
     del request.session[f'lead_upload_errors_{session_id}']
     
     return response
+
+
+@login_required
+def revisit_visit(request):
+    """Create a revisit for an existing visit - search, pre-fill, verify OTP, mark as revisit"""
+    # Allow all user types to create revisits
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            request.user.is_site_head() or request.user.is_sourcing_manager() or
+            request.user.is_closing_manager() or request.user.is_telecaller()):
+        messages.error(request, 'You do not have permission to create revisits.')
+        return redirect('dashboard')
+    
+    # Get projects based on user role
+    if request.user.is_super_admin() or request.user.is_mandate_owner():
+        projects = Project.objects.filter(is_active=True).order_by('name')
+    elif request.user.is_site_head():
+        projects = Project.objects.filter(site_head=request.user, is_active=True).order_by('name')
+    elif request.user.is_sourcing_manager():
+        projects = request.user.assigned_projects.filter(is_active=True).order_by('name')
+    elif request.user.is_closing_manager() or request.user.is_telecaller():
+        projects = request.user.assigned_projects.filter(is_active=True).order_by('name')
+    else:
+        projects = Project.objects.none()
+    
+    if request.method == 'POST':
+        try:
+            # Get the existing visit association
+            association_id = request.POST.get('existing_visit_id')
+            if not association_id:
+                messages.error(request, 'Please select an existing visit to revisit.')
+                return redirect('leads:revisit_visit')
+            
+            existing_association = get_object_or_404(LeadProjectAssociation, id=association_id, is_archived=False)
+            
+            # Get form data
+            revisit_reason = request.POST.get('revisit_reason', '')
+            time_frame = request.POST.get('time_frame', '')
+            visit_scheduled_date_str = request.POST.get('visit_scheduled_date', '')
+            visit_scheduled_time_str = request.POST.get('visit_scheduled_time', '')
+            
+            # Parse visit date and time
+            visit_scheduled_date = None
+            if visit_scheduled_date_str:
+                try:
+                    visit_scheduled_date = datetime.strptime(visit_scheduled_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    messages.error(request, 'Invalid visit date format.')
+                    return redirect('leads:revisit_visit')
+            
+            visit_scheduled_time = None
+            if visit_scheduled_time_str:
+                try:
+                    visit_scheduled_time = datetime.strptime(visit_scheduled_time_str, '%H:%M').time()
+                except ValueError:
+                    messages.error(request, 'Invalid visit time format.')
+                    return redirect('leads:revisit_visit')
+            
+            # Create new association for revisit
+            revisit_association = LeadProjectAssociation.objects.create(
+                lead=existing_association.lead,
+                project=existing_association.project,
+                assigned_to=existing_association.assigned_to,
+                is_revisit=True,
+                revisit_count=existing_association.revisit_count + 1,
+                revisit_reason=revisit_reason,
+                previous_visit=existing_association,
+                time_frame=time_frame,
+                visit_scheduled_date=visit_scheduled_date,
+                visit_scheduled_time=visit_scheduled_time,
+                pretag_status='pending_verification',
+                is_pretagged=True,
+                created_by=request.user,
+            )
+            
+            # Copy configurations from original visit
+            revisit_association.configurations.set(existing_association.configurations.all())
+            
+            # Send OTP for verification
+            otp = generate_otp()
+            hashed_otp = hash_otp(otp)
+            
+            # Create OTP log
+            OtpLog.objects.create(
+                lead=existing_association.lead,
+                phone=existing_association.lead.phone,
+                otp_hash=hashed_otp,
+                created_by=request.user,
+                purpose='revisit_verification'
+            )
+            
+            # Send OTP via SMS (you'll need to implement SMS sending)
+            try:
+                from .utils import send_sms
+                message = f"Your revisit OTP for {existing_association.lead.name} is: {otp}. Please verify to confirm the revisit."
+                send_sms(existing_association.lead.phone, message)
+                messages.success(request, f'OTP sent to {existing_association.lead.phone} for revisit verification.')
+            except Exception as e:
+                messages.warning(request, f'OTP generated: {otp}. (SMS sending failed: {str(e)})')
+            
+            return redirect('leads:verify_revisit_otp', association_id=revisit_association.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating revisit: {str(e)}')
+            return redirect('leads:revisit_visit')
+    
+    context = {
+        'projects': projects,
+    }
+    return render(request, 'leads/revisit_visit.html', context)
+
+
+@login_required
+def search_existing_visits(request):
+    """AJAX endpoint to search existing visits for revisit"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    search_query = request.GET.get('q', '').strip()
+    project_id = request.GET.get('project_id', '')
+    
+    if not search_query:
+        return JsonResponse({'results': []})
+    
+    # Filter associations based on user role
+    associations = LeadProjectAssociation.objects.filter(
+        is_archived=False,
+        is_pretagged=True,
+        pretag_status='verified'  # Only show verified visits
+    ).select_related('lead', 'project', 'assigned_to')
+    
+    # Apply project filter if specified
+    if project_id:
+        associations = associations.filter(project_id=project_id)
+    
+    # Apply user role filtering
+    if request.user.is_telecaller():
+        associations = associations.filter(assigned_to=request.user)
+    elif request.user.is_closing_manager():
+        associations = associations.filter(assigned_to=request.user)
+    elif request.user.is_sourcing_manager():
+        # Sourcing managers see visits in their assigned projects
+        associations = associations.filter(project__in=request.user.assigned_projects.all())
+    elif request.user.is_site_head():
+        # Site heads see visits in their projects
+        associations = associations.filter(project__site_head=request.user)
+    
+    # Search by lead name, phone, or email
+    associations = associations.filter(
+        Q(lead__name__icontains=search_query) |
+        Q(lead__phone__icontains=search_query) |
+        Q(lead__email__icontains=search_query)
+    ).distinct()
+    
+    results = []
+    for assoc in associations[:20]:  # Limit to 20 results
+        results.append({
+            'id': assoc.id,
+            'lead_name': assoc.lead.name,
+            'lead_phone': assoc.lead.phone,
+            'lead_email': assoc.lead.email,
+            'project_name': assoc.project.name,
+            'assigned_to': assoc.assigned_to.get_full_name() or assoc.assigned_to.username,
+            'visit_date': assoc.visit_scheduled_date.strftime('%Y-%m-%d') if assoc.visit_scheduled_date else '',
+            'visit_time': assoc.visit_scheduled_time.strftime('%H:%M') if assoc.visit_scheduled_time else '',
+            'revisit_count': assoc.revisit_count,
+            'display_text': f"{assoc.lead.name} - {assoc.project.name} - {assoc.lead.phone}"
+        })
+    
+    return JsonResponse({'results': results})
+
+
+@login_required
+def verify_revisit_otp(request, association_id):
+    """Verify OTP for revisit and mark as confirmed"""
+    association = get_object_or_404(LeadProjectAssociation, id=association_id, is_revisit=True)
+    
+    if request.method == 'POST':
+        otp_entered = request.POST.get('otp', '')
+        
+        if not otp_entered:
+            messages.error(request, 'Please enter the OTP.')
+            return render(request, 'leads/verify_revisit_otp.html', {'association': association})
+        
+        # Verify OTP
+        latest_otp = OtpLog.objects.filter(
+            lead=association.lead,
+            phone=association.lead.phone,
+            purpose='revisit_verification'
+        ).order_by('-created_at').first()
+        
+        if latest_otp and verify_otp_hash(otp_entered, latest_otp.otp_hash):
+            # OTP verified - mark revisit as confirmed
+            association.pretag_status = 'verified'
+            association.is_pretagged = False
+            association.save()
+            
+            # Update original visit's revisit count
+            if association.previous_visit:
+                association.previous_visit.revisit_count = association.revisit_count
+                association.previous_visit.save()
+            
+            messages.success(request, f'Revisit for {association.lead.name} has been verified and confirmed!')
+            return redirect('leads:visit_detail', association_id=association.id)
+        else:
+            messages.error(request, 'Invalid OTP. Please try again.')
+    
+    context = {
+        'association': association,
+        'lead': association.lead,
+    }
+    return render(request, 'leads/verify_revisit_otp.html', context)
+
+
+@login_required
+def visit_detail(request, association_id):
+    """Show details of a visit (original or revisit)"""
+    association = get_object_or_404(LeadProjectAssociation, id=association_id, is_archived=False)
+    
+    # Check permissions based on user role
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner()):
+        if request.user.is_telecaller() and association.assigned_to != request.user:
+            messages.error(request, 'You can only view your assigned visits.')
+            return redirect('dashboard')
+        elif request.user.is_closing_manager() and association.assigned_to != request.user:
+            messages.error(request, 'You can only view your assigned visits.')
+            return redirect('dashboard')
+        elif request.user.is_sourcing_manager():
+            if not request.user.assigned_projects.filter(id=association.project.id).exists():
+                messages.error(request, 'You can only view visits in your assigned projects.')
+                return redirect('dashboard')
+        elif request.user.is_site_head():
+            if association.project.site_head != request.user:
+                messages.error(request, 'You can only view visits in your projects.')
+                return redirect('dashboard')
+    
+    # Get all revisits for this original visit
+    revisits = LeadProjectAssociation.objects.filter(
+        previous_visit=association,
+        is_archived=False
+    ).order_by('-created_at')
+    
+    context = {
+        'association': association,
+        'lead': association.lead,
+        'project': association.project,
+        'assigned_to': association.assigned_to,
+        'revisits': revisits,
+    }
+    return render(request, 'leads/visit_detail.html', context)
+
+
+@login_required
+def resend_revisit_otp(request, association_id):
+    """Resend OTP for revisit verification"""
+    if not request.is_ajax():
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    association = get_object_or_404(LeadProjectAssociation, id=association_id, is_revisit=True)
+    
+    try:
+        # Generate new OTP
+        otp = generate_otp()
+        hashed_otp = hash_otp(otp)
+        
+        # Create new OTP log
+        OtpLog.objects.create(
+            lead=association.lead,
+            phone=association.lead.phone,
+            otp_hash=hashed_otp,
+            created_by=request.user,
+            purpose='revisit_verification'
+        )
+        
+        # Send OTP via SMS
+        try:
+            from .utils import send_sms
+            message = f"Your revisit OTP for {association.lead.name} is: {otp}. Please verify to confirm the revisit."
+            send_sms(association.lead.phone, message)
+            return JsonResponse({'success': True, 'message': 'OTP sent successfully'})
+        except Exception as e:
+            # If SMS fails, return OTP in response for development
+            return JsonResponse({'success': True, 'message': f'OTP generated: {otp} (SMS sending failed)'})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

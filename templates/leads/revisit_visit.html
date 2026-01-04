@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+
+{% block title %}Revisit Visit - Bridgio CRM{% endblock %}
+
+{% block page_title %}Revisit Visit{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-heading font-semibold text-text-primary mb-2">Revisit Visit</h1>
+        <p class="text-text-secondary">Create a revisit for an existing visit. Search for the original visit, pre-fill the data, make changes if needed, verify OTP, and mark it as a revisit.</p>
+    </div>
+    
+    <div class="bg-card-bg rounded-lg shadow-premium border border-border-light p-8">
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+            
+            <!-- Visit Search Section -->
+            <div class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                <h3 class="text-lg font-semibold text-text-primary mb-3">Search Existing Visit *</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Project</label>
+                        <select name="project_filter" id="project-filter" class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">All Projects</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}">{{ project.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Search by Name, Phone, or Email *</label>
+                        <div class="relative">
+                            <input type="text" id="visit-search" placeholder="Search existing visits..." autocomplete="off"
+                                   class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <div id="visit-search-results" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                <!-- Results will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-600">Start typing to search for existing verified visits. Select a visit to pre-fill the form.</p>
+            </div>
+            
+            <!-- Selected Visit Details (Hidden initially) -->
+            <div id="selected-visit-details" class="hidden">
+                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 class="text-lg font-semibold text-text-primary mb-3">Selected Visit Details</h3>
+                    <div id="selected-visit-info" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Visit details will be populated here -->
+                    </div>
+                    <input type="hidden" name="existing_visit_id" id="existing-visit-id" required>
+                </div>
+            </div>
+            
+            <!-- Revisit Information -->
+            <div id="revisit-form-section" class="hidden">
+                <h2 class="text-xl font-heading font-semibold text-text-primary mb-6 pb-2 border-b border-border-light">Revisit Information</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Revisit Reason *</label>
+                        <textarea name="revisit_reason" id="revisit-reason" rows="3" required
+                                  class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition"
+                                  placeholder="Why is the client revisiting? (e.g., Further discussion, site visit, documentation, etc.)"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Preferred Time Frame</label>
+                        <select name="time_frame" id="time-frame" 
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                            <option value="">Select Time Frame</option>
+                            <option value="Morning">Morning (9 AM - 12 PM)</option>
+                            <option value="Afternoon">Afternoon (12 PM - 4 PM)</option>
+                            <option value="Evening">Evening (4 PM - 7 PM)</option>
+                            <option value="Flexible">Flexible</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Visit Date</label>
+                        <input type="date" name="visit_scheduled_date" id="visit-scheduled-date"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-text-primary mb-2">Visit Time</label>
+                        <input type="time" name="visit_scheduled_time" id="visit-scheduled-time"
+                               class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                    </div>
+                </div>
+                
+                <!-- Pre-filled Client Information (Read-only) -->
+                <div class="mt-8">
+                    <h3 class="text-lg font-semibold text-text-primary mb-4">Client Information (From Original Visit)</h3>
+                    <div id="client-info-display" class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg">
+                        <!-- Client info will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Submit Button -->
+                <div class="mt-8 flex justify-center">
+                    <button type="submit" 
+                            class="bg-olive-primary text-white px-8 py-3 rounded-lg hover:bg-olive-secondary transition font-semibold text-lg shadow-lg">
+                        Create Revisit & Send OTP
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const visitSearch = document.getElementById('visit-search');
+    const visitSearchResults = document.getElementById('visit-search-results');
+    const projectFilter = document.getElementById('project-filter');
+    const selectedVisitDetails = document.getElementById('selected-visit-details');
+    const selectedVisitInfo = document.getElementById('selected-visit-info');
+    const existingVisitId = document.getElementById('existing-visit-id');
+    const revisitFormSection = document.getElementById('revisit-form-section');
+    const clientInfoDisplay = document.getElementById('client-info-display');
+    
+    let searchTimeout;
+    
+    // Search functionality
+    visitSearch.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        const projectId = projectFilter.value;
+        
+        if (query.length < 2) {
+            visitSearchResults.classList.add('hidden');
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/leads/search-existing-visits/?q=${encodeURIComponent(query)}&project_id=${projectId}`)
+                .then(response => response.json())
+                .then(data => {
+                    displaySearchResults(data.results);
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    visitSearchResults.classList.add('hidden');
+                });
+        }, 300);
+    });
+    
+    // Project filter change
+    projectFilter.addEventListener('change', function() {
+        if (visitSearch.value.trim().length >= 2) {
+            visitSearch.dispatchEvent(new Event('input'));
+        }
+    });
+    
+    function displaySearchResults(results) {
+        if (results.length === 0) {
+            visitSearchResults.innerHTML = '<div class="p-3 text-gray-500">No visits found</div>';
+            visitSearchResults.classList.remove('hidden');
+            return;
+        }
+        
+        const html = results.map(visit => `
+            <div class="visit-result-item p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100" data-visit='${JSON.stringify(visit)}'>
+                <div class="font-semibold text-gray-800">${visit.lead_name}</div>
+                <div class="text-sm text-gray-600">${visit.project_name} - ${visit.lead_phone}</div>
+                <div class="text-xs text-gray-500">
+                    Assigned to: ${visit.assigned_to} | 
+                    Previous visits: ${visit.revisit_count}
+                    ${visit.visit_date ? ` | Last visit: ${visit.visit_date}` : ''}
+                </div>
+            </div>
+        `).join('');
+        
+        visitSearchResults.innerHTML = html;
+        visitSearchResults.classList.remove('hidden');
+        
+        // Add click handlers
+        document.querySelectorAll('.visit-result-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const visit = JSON.parse(this.dataset.visit);
+                selectVisit(visit);
+            });
+        });
+    }
+    
+    function selectVisit(visit) {
+        // Hide search results
+        visitSearchResults.classList.add('hidden');
+        visitSearch.value = visit.display_text;
+        
+        // Set hidden field
+        existingVisitId.value = visit.id;
+        
+        // Show selected visit details
+        selectedVisitInfo.innerHTML = `
+            <div>
+                <span class="text-sm font-medium text-gray-600">Client:</span>
+                <span class="text-sm font-semibold">${visit.lead_name}</span>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-600">Phone:</span>
+                <span class="text-sm font-semibold">${visit.lead_phone}</span>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-600">Email:</span>
+                <span class="text-sm font-semibold">${visit.lead_email || 'N/A'}</span>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-600">Project:</span>
+                <span class="text-sm font-semibold">${visit.project_name}</span>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-600">Assigned to:</span>
+                <span class="text-sm font-semibold">${visit.assigned_to}</span>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-600">Previous Revisits:</span>
+                <span class="text-sm font-semibold">${visit.revisit_count}</span>
+            </div>
+        `;
+        
+        // Show client information display
+        clientInfoDisplay.innerHTML = `
+            <div>
+                <span class="text-sm font-medium text-gray-600">Name:</span>
+                <span class="text-sm font-semibold">${visit.lead_name}</span>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-600">Phone:</span>
+                <span class="text-sm font-semibold">${visit.lead_phone}</span>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-600">Email:</span>
+                <span class="text-sm font-semibold">${visit.lead_email || 'N/A'}</span>
+            </div>
+            <div>
+                <span class="text-sm font-medium text-gray-600">Project:</span>
+                <span class="text-sm font-semibold">${visit.project_name}</span>
+            </div>
+        `;
+        
+        // Show sections
+        selectedVisitDetails.classList.remove('hidden');
+        revisitFormSection.classList.remove('hidden');
+    }
+    
+    // Click outside to close search results
+    document.addEventListener('click', function(e) {
+        if (!visitSearch.contains(e.target) && !visitSearchResults.contains(e.target)) {
+            visitSearchResults.classList.add('hidden');
+        }
+    });
+});
+</script>
+{% endblock %}
