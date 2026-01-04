@@ -474,31 +474,8 @@ def cp_performance(request):
             is_active=True
         ).distinct()
     elif user.is_sourcing_manager():
-        # Sourcing Manager sees CPs connected to them (via leads they created or projects assigned)
-        from leads.models import Lead
-        # Get CPs from leads created by this sourcing manager
-        cp_ids_from_leads = Lead.objects.filter(
-            created_by=user,
-            is_archived=False
-        ).exclude(
-            channel_partner__isnull=True
-        ).values_list('channel_partner_id', flat=True).distinct()
-        
-        # Get CPs linked to their assigned projects
-        sourcing_projects = user.assigned_projects.filter(is_active=True)
-        cp_ids_from_projects = ChannelPartner.objects.filter(
-            linked_projects__in=sourcing_projects,
-            status='active',
-            is_active=True
-        ).values_list('id', flat=True)
-        
-        # Combine both sources
-        all_cp_ids = set(list(cp_ids_from_leads) + list(cp_ids_from_projects))
-        cps = ChannelPartner.objects.filter(
-            id__in=all_cp_ids,
-            status='active',
-            is_active=True
-        ).distinct()
+        # Sourcing Manager sees all CPs (same as regular CP list)
+        cps = ChannelPartner.objects.filter(status='active', is_active=True)
     else:
         cps = ChannelPartner.objects.none()
     
@@ -555,27 +532,23 @@ def cp_performance(request):
                 Q(booking__lead__cp_phone=cp.phone),
                 booking__project__in=site_head_projects
             )
-        else:  # Sourcing Manager
-            sourcing_projects = user.assigned_projects.filter(is_active=True)
+        else:  # Sourcing Manager - sees all data like super admin
             cp_lead_ids = Lead.objects.filter(
                 Q(channel_partner=cp) | Q(cp_phone=cp.phone),
                 is_archived=False
             ).values_list('id', flat=True)
             cp_associations = LeadProjectAssociation.objects.filter(
                 lead_id__in=cp_lead_ids,
-                project__in=sourcing_projects,
                 is_archived=False
             )
             cp_bookings = Booking.objects.filter(
                 Q(channel_partner=cp) | Q(lead__channel_partner=cp) | Q(lead__cp_phone=cp.phone),
-                project__in=sourcing_projects,
                 is_archived=False
             )
             cp_payments = Payment.objects.filter(
                 Q(booking__channel_partner=cp) | 
                 Q(booking__lead__channel_partner=cp) | 
-                Q(booking__lead__cp_phone=cp.phone),
-                booking__project__in=sourcing_projects
+                Q(booking__lead__cp_phone=cp.phone)
             )
         
         # CPs active number (always 1 if CP is active, 0 if inactive)
