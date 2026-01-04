@@ -589,11 +589,20 @@ def cp_performance(request):
         ).count()
         
         # Revenue generated - DEBUG
+        print(f"DEBUG: CP {cp.cp_name} - cp_payments query: {cp_payments.query}")
+        print(f"DEBUG: CP {cp.cp_name} - cp_payments count: {cp_payments.count()}")
+        
+        # Check individual payments
+        for i, payment in enumerate(cp_payments):
+            print(f"DEBUG: CP {cp.cp_name} - Payment {i}: amount={payment.amount} (type: {type(payment.amount)}), id={payment.id}")
+        
         total_revenue_raw = cp_payments.aggregate(total=Sum('amount'))['total']
         print(f"DEBUG: CP {cp.cp_name} - total_revenue_raw: {total_revenue_raw} (type: {type(total_revenue_raw)})")
-        print(f"DEBUG: CP {cp.cp_name} - cp_payments count: {cp_payments.count()}")
-        if cp_payments.exists():
-            print(f"DEBUG: CP {cp.cp_name} - First payment amount: {cp_payments.first().amount} (type: {type(cp_payments.first().amount)})")
+        
+        # Try manual sum to compare
+        manual_sum = sum(float(p.amount) for p in cp_payments)
+        print(f"DEBUG: CP {cp.cp_name} - manual_sum: {manual_sum}")
+        
         metrics['total_revenue'] = float(total_revenue_raw) if total_revenue_raw is not None else 0
         print(f"DEBUG: CP {cp.cp_name} - final total_revenue: {metrics['total_revenue']} (type: {type(metrics['total_revenue'])})")
         
