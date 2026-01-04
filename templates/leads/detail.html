@@ -281,6 +281,15 @@
                                     <span class="text-gray-400">None selected</span>
                                 {% endif %}
                             </p>
+                            {% if lead.channel_partner %}
+                            <p><strong>Channel Partner:</strong> 
+                                <span class="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                                    {{ lead.channel_partner.cp_name }} ({{ lead.channel_partner.firm_name }})
+                                </span>
+                            </p>
+                            <p><strong>CP ID:</strong> {{ lead.channel_partner.cp_id|default:"-" }}</p>
+                            <p><strong>CP Phone:</strong> {{ lead.channel_partner.phone|default:"-" }}</p>
+                            {% endif %}
                             <p><strong>Assigned To:</strong> 
                                 {% if primary_association and primary_association.assigned_to %}
                                     {{ primary_association.assigned_to.username }}
@@ -574,6 +583,15 @@
                                 <span class="text-gray-400">None selected</span>
                             {% endif %}
                         </p>
+                        {% if lead.channel_partner %}
+                        <p><strong>Channel Partner:</strong> 
+                            <span class="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                                {{ lead.channel_partner.cp_name }} ({{ lead.channel_partner.firm_name }})
+                            </span>
+                        </p>
+                        <p><strong>CP ID:</strong> {{ lead.channel_partner.cp_id|default:"-" }}</p>
+                        <p><strong>CP Phone:</strong> {{ lead.channel_partner.phone|default:"-" }}</p>
+                        {% endif %}
                     </div>
                     <div>
                         <h3 class="font-heading font-bold mb-3 text-olive-primary">Assignment</h3>

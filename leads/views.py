@@ -1266,12 +1266,17 @@ def send_otp(request, pk):
         <script>
             // Automatically open WhatsApp when OTP is generated (fallback mode)
             (function() {{
-                const whatsappLink = '{whatsapp_link}';
+                const whatsappLink = '{whatsappLink}';
                 if (whatsappLink) {{
                     // Open WhatsApp in new tab/window
                     window.open(whatsappLink, '_blank');
                 }}
             }})();
+            
+            // Ensure HTMX processes the new content
+            if (window.htmx) {{
+                htmx.process(document.getElementById('otp-controls'));
+            }}
         </script>
         '''
     
@@ -1419,9 +1424,15 @@ def verify_otp(request, pk):
             if association.status != 'booked' and association.status != 'lost':
                 association.status = 'visit_completed'
             
-            # Assign to the closing manager who verified the OTP
-            # This ensures the lead appears in "My Visits" for that closer
-            if request.user.is_closing_manager():
+            # Handle assignment based on user role
+            if request.user.is_telecaller():
+                # When telecaller verifies OTP, queue for closing managers
+                association.assigned_to = None  # Unassign from telecaller
+                association.pretag_status = 'queued'
+                association.queued_at = timezone.now()
+                association.queued_by = request.user
+            elif request.user.is_closing_manager():
+                # When closing manager verifies OTP, assign to themselves
                 association.assigned_to = request.user
             
             association.save()
@@ -1732,21 +1743,32 @@ def upcoming_visits(request):
 
 @login_required
 def pretagged_leads(request):
-    """Pretagged Leads view for Sourcing Managers - shows all pretagged leads in their assigned projects"""
-    if not request.user.is_sourcing_manager():
-        messages.error(request, 'Only Sourcing Managers can view pretagged leads.')
+    """Pretagged Leads view for Sourcing Managers and Telecallers - shows pretagged leads"""
+    if not (request.user.is_sourcing_manager() or request.user.is_telecaller()):
+        messages.error(request, 'Only Sourcing Managers and Telecallers can view pretagged leads.')
         return redirect('dashboard')
     
-    # Get projects assigned to this sourcing manager
-    assigned_projects = request.user.assigned_projects.filter(is_active=True)
+    # Get projects based on user role
+    if request.user.is_sourcing_manager():
+        assigned_projects = request.user.assigned_projects.filter(is_active=True)
+    else:  # Telecaller
+        assigned_projects = Project.objects.filter(is_active=True)
     
-    # Get associations for pretagged leads in projects assigned to this sourcing manager
-    # This shows ALL pretagged leads in their projects, not just ones they created
-    associations = LeadProjectAssociation.objects.filter(
-        is_pretagged=True,
-        project__in=assigned_projects,
-        is_archived=False
-    ).select_related('lead', 'project', 'assigned_to', 'created_by')
+    # Get associations for pretagged leads
+    if request.user.is_sourcing_manager():
+        # Sourcing managers see ALL pretagged leads in their projects
+        associations = LeadProjectAssociation.objects.filter(
+            is_pretagged=True,
+            project__in=assigned_projects,
+            is_archived=False
+        ).select_related('lead', 'project', 'assigned_to', 'created_by')
+    else:  # Telecaller
+        # Telecallers see pretagged leads assigned to them
+        associations = LeadProjectAssociation.objects.filter(
+            is_pretagged=True,
+            assigned_to=request.user,
+            is_archived=False
+        ).select_related('lead', 'project', 'assigned_to', 'created_by')
     
     # Search
     search = request.GET.get('search', '')
@@ -4223,11 +4245,9 @@ def search_existing_visits(request):
     if not search_query:
         return JsonResponse({'results': []})
     
-    # Filter associations based on user role
+    # Filter associations based on user role - show all visits (not just pretagged)
     associations = LeadProjectAssociation.objects.filter(
-        is_archived=False,
-        is_pretagged=True,
-        pretag_status='verified'  # Only show verified visits
+        is_archived=False
     ).select_related('lead', 'project', 'assigned_to')
     
     # Apply project filter if specified
