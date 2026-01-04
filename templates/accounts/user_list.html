@@ -8,24 +8,24 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">User Management</h1>
         <a href="{% url 'accounts:user_create' %}" 
-           class="w-full sm:w-auto bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm sm:text-base">
+           class="w-full sm:w-auto bg-olive-primary text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-olive-secondary transition text-center text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-olive-primary focus:ring-offset-2">
             Create User
         </a>
     </div>
     
     <!-- Filters -->
-    <div class="bg-white rounded-custom shadow-md p-3 sm:p-4">
+    <div class="bg-white rounded-lg shadow-md p-3 sm:p-4">
         <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <input type="text" name="search" placeholder="Search by username, email, phone..." 
                    value="{{ search }}"
-                   class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
-            <select name="role" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                   class="px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary focus:outline-none focus:ring-offset-2">
+            <select name="role" class="px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary focus:outline-none focus:ring-offset-2">
                 <option value="">All Roles</option>
                 {% for value, label in role_choices %}
                 <option value="{{ value }}" {% if selected_role == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <button type="submit" class="bg-olive-primary text-white px-4 py-2 rounded-custom hover:bg-olive-secondary transition">
+            <button type="submit" class="bg-olive-primary text-white px-4 py-3 rounded-lg hover:bg-olive-secondary transition font-medium focus:outline-none focus:ring-2 focus:ring-olive-primary focus:ring-offset-2">
                 Filter
             </button>
         </form>
@@ -40,13 +40,13 @@
                     <h3 class="font-semibold text-base text-gray-900 mb-1">{{ user.username }}</h3>
                     <p class="text-sm text-gray-600">{{ user.get_full_name|default:"No name" }}</p>
                 </div>
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-3">
                     <a href="{% url 'accounts:user_edit' user.pk %}" 
-                       class="px-3 py-1.5 text-xs text-center text-olive-primary hover:text-olive-secondary border border-olive-primary rounded hover:bg-olive-primary/10">
+                       class="px-4 py-2.5 text-sm text-center text-olive-primary hover:text-olive-secondary border border-olive-primary rounded-lg hover:bg-olive-primary/10 font-medium focus:outline-none focus:ring-2 focus:ring-olive-primary focus:ring-offset-2 min-h-[44px] flex items-center justify-center">
                         Edit
                     </a>
                     <a href="{% url 'accounts:user_toggle_active' user.pk %}" 
-                       class="px-3 py-1.5 text-xs text-center text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50">
+                       class="px-4 py-2.5 text-sm text-center text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 min-h-[44px] flex items-center justify-center">
                         {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
                     </a>
                 </div>
@@ -88,7 +88,7 @@
     </div>
     
     <!-- Users Table - Desktop View -->
-    <div class="hidden lg:block bg-white rounded-custom shadow-md overflow-hidden">
+    <div class="hidden lg:block bg-white rounded-lg shadow-md overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">

@@ -9,26 +9,26 @@
         <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Attendance</h1>
         {% if user.is_super_admin or user.is_site_head %}
         <a href="{% url 'attendance:summary' %}" 
-           class="w-full sm:w-auto bg-olive-secondary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-primary transition text-center text-sm sm:text-base">
+           class="w-full sm:w-auto bg-olive-secondary text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-olive-primary transition text-center text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-olive-secondary focus:ring-offset-2">
             Summary
         </a>
         {% endif %}
     </div>
     
     <!-- Filters -->
-    <div class="bg-white rounded-custom shadow-md p-3 sm:p-4">
+    <div class="bg-white rounded-lg shadow-md p-3 sm:p-4">
         <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <input type="date" name="date" value="{{ selected_date }}"
-                   class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+                   class="px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary focus:outline-none focus:ring-offset-2">
             {% if projects %}
-            <select name="project" class="px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary">
+            <select name="project" class="px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary focus:outline-none focus:ring-offset-2">
                 <option value="">All Projects</option>
                 {% for project in projects %}
-                <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
+                <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}">{{ project.name }}</option>
                 {% endfor %}
             </select>
             {% endif %}
-            <button type="submit" class="bg-olive-primary text-white px-4 py-2 rounded-custom hover:bg-olive-secondary transition">
+            <button type="submit" class="bg-olive-primary text-white px-4 py-3 rounded-lg hover:bg-olive-secondary transition font-medium focus:outline-none focus:ring-2 focus:ring-olive-primary focus:ring-offset-2">
                 Filter
             </button>
         </form>
@@ -70,7 +70,7 @@
     </div>
     
     <!-- Attendance Table - Desktop View -->
-    <div class="hidden lg:block bg-white rounded-custom shadow-md overflow-hidden">
+    <div class="hidden lg:block bg-white rounded-lg shadow-md overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">

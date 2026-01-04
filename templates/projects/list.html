@@ -9,7 +9,7 @@
         <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">Projects</h1>
         {% if user.is_super_admin or user.is_mandate_owner %}
         <a href="{% url 'projects:create' %}" 
-           class="w-full sm:w-auto bg-olive-primary text-white px-4 sm:px-6 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-sm sm:text-base">
+           class="w-full sm:w-auto bg-olive-primary text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-olive-secondary transition text-center text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-olive-primary focus:ring-offset-2">
             Create Project
         </a>
         {% endif %}
@@ -18,7 +18,7 @@
     <!-- Projects Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {% for project in projects %}
-        <div class="bg-white rounded-custom shadow-md overflow-hidden hover:shadow-lg transition">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
             {% if project.image %}
             <img src="{{ project.image.url }}" alt="{{ project.name }}" class="w-full h-48 object-cover">
             {% else %}
@@ -53,14 +53,14 @@
                 </div>
             </div>
             
-            <div class="flex flex-col sm:flex-row gap-2 sm:space-x-2">
+            <div class="flex flex-col sm:flex-row gap-3 sm:space-x-3">
                 <a href="{% url 'projects:detail' project.pk %}" 
-                   class="flex-1 bg-olive-primary text-white px-3 sm:px-4 py-2 rounded-custom hover:bg-olive-secondary transition text-center text-xs sm:text-sm">
+                   class="flex-1 bg-olive-primary text-white px-4 sm:px-4 py-3 rounded-lg hover:bg-olive-secondary transition text-center text-sm sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-olive-primary focus:ring-offset-2 min-h-[44px] flex items-center justify-center">
                     View Details
                 </a>
                 {% if user.is_super_admin or user.is_mandate_owner %}
                 <a href="{% url 'projects:edit' project.pk %}" 
-                   class="px-3 sm:px-4 py-2 border border-gray-300 rounded-custom hover:bg-gray-50 transition text-xs sm:text-sm text-center">
+                   class="px-4 sm:px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm sm:text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 min-h-[44px] flex items-center justify-center">
                     Edit
                 </a>
                 {% endif %}

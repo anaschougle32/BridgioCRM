@@ -4,7 +4,7 @@
 
 {% block login_content %}
 <div class="min-h-screen flex items-center justify-center bg-beige-bg px-4 py-8">
-    <div class="max-w-md w-full bg-card-bg rounded-custom shadow-lg p-6 sm:p-8">
+    <div class="max-w-md w-full bg-card-bg rounded-lg shadow-lg p-6 sm:p-8">
         <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary mb-4 sm:mb-6 text-center">Bridgio CRM</h1>
         <h2 class="text-lg sm:text-xl font-heading mb-4 sm:mb-6 text-center">Login</h2>
         
@@ -12,7 +12,7 @@
             {% csrf_token %}
             
             {% if form.errors %}
-            <div class="mb-4 p-4 bg-red-100 text-red-800 rounded-custom">
+            <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg">
                 <ul>
                     {% for field, errors in form.errors.items %}
                         {% for error in errors %}
@@ -26,17 +26,17 @@
             <div class="mb-4">
                 <label for="id_username" class="block text-sm font-medium mb-2">Username</label>
                 <input type="text" name="username" id="id_username" required 
-                       class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary focus:border-transparent">
+                       class="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary focus:outline-none focus:ring-offset-2">
             </div>
             
             <div class="mb-6">
                 <label for="id_password" class="block text-sm font-medium mb-2">Password</label>
                 <input type="password" name="password" id="id_password" required
-                       class="w-full px-4 py-2 border border-gray-300 rounded-custom focus:ring-2 focus:ring-olive-primary focus:border-transparent">
+                       class="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary focus:outline-none focus:ring-offset-2">
             </div>
             
             <button type="submit" 
-                    class="w-full bg-olive-primary text-white py-2 px-4 rounded-custom hover:bg-olive-secondary transition font-medium">
+                    class="w-full bg-olive-primary text-white py-3 px-4 rounded-lg hover:bg-olive-secondary transition font-medium focus:outline-none focus:ring-2 focus:ring-olive-primary focus:ring-offset-2">
                 Login
             </button>
         </form>
