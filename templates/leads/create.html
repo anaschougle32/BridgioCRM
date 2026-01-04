@@ -344,13 +344,31 @@
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-text-primary mb-2">Visit Source *</label>
                         <select name="visit_source" id="visit_source" required
-                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition"
+                                onchange="toggleCPFields()">
                             <option value="walkin">Direct Walk-in</option>
                             <option value="call">Call Generated</option>
                             <option value="cp">Channel Partner</option>
                         </select>
                         <p class="text-xs text-gray-500 mt-1">How was this visit generated?</p>
                     </div>
+                    
+                    <!-- CP Search Section (shown when Channel Partner is selected) -->
+                    <div id="cp-search-section" class="md:col-span-2 hidden">
+                        <div class="mb-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                            <h3 class="text-lg font-semibold text-text-primary mb-3">Search Channel Partner</h3>
+                            <div class="relative">
+                                <input type="text" id="cp-search" placeholder="Search by firm name, CP name, phone, or CP ID..." autocomplete="off"
+                                       class="w-full px-4 py-2.5 border border-border-light rounded-lg focus:ring-2 focus:ring-olive-primary focus:border-olive-primary transition">
+                                <div id="cp-search-results" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                    <!-- Results will be populated here -->
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-2">Start typing to search for an existing channel partner. If found, select it to auto-fill the CP details.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual CP Entry Fields (always visible, but can be auto-filled) -->
                     <div>
                         <label class="block text-sm font-semibold text-text-primary mb-2">CP Firm Name</label>
                         <input type="text" name="cp_firm_name" id="cp_firm_name"
@@ -732,5 +750,118 @@
             }
         });
     })();
+    
+    // CP Search Functionality
+    (function() {
+        const cpSearch = document.getElementById('cp-search');
+        const cpSearchResults = document.getElementById('cp-search-results');
+        const cpFirmName = document.getElementById('cp_firm_name');
+        const cpName = document.getElementById('cp_name');
+        const cpPhone = document.getElementById('cp_phone');
+        const cpReraNumber = document.getElementById('cp_rera_number');
+        
+        if (!cpSearch) return; // Exit if element doesn't exist
+        
+        let searchTimeout;
+        
+        // Search CPs as user types
+        cpSearch.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            
+            clearTimeout(searchTimeout);
+            
+            if (query.length < 2) {
+                cpSearchResults.classList.add('hidden');
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                fetch(`{% url 'channel_partners:search' %}?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        displayCPSearchResults(data.results);
+                    })
+                    .catch(error => {
+                        console.error('Error searching CPs:', error);
+                    });
+            }, 300); // Debounce 300ms
+        });
+        
+        // Display CP search results
+        function displayCPSearchResults(results) {
+            if (results.length === 0) {
+                cpSearchResults.innerHTML = '<div class="p-4 text-gray-500 text-center">No channel partners found</div>';
+                cpSearchResults.classList.remove('hidden');
+                return;
+            }
+            
+            cpSearchResults.innerHTML = results.map(cp => `
+                <div class="cp-result-item p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
+                     data-cp-id="${cp.id}"
+                     data-firm-name="${cp.firm_name.replace(/"/g, '&quot;')}" 
+                     data-cp-name="${cp.cp_name.replace(/"/g, '&quot;')}" 
+                     data-phone="${cp.phone.replace(/"/g, '&quot;')}"
+                     data-rera-id="${(cp.rera_id || '').replace(/"/g, '&quot;')}">
+                    <div class="font-medium text-gray-900">${cp.firm_name}</div>
+                    <div class="text-sm text-gray-600">${cp.cp_name}</div>
+                    <div class="text-xs text-gray-500">${cp.phone}</div>
+                    ${cp.cp_unique_id ? `<div class="text-xs text-gray-500">ID: ${cp.cp_unique_id}</div>` : ''}
+                </div>
+            `).join('');
+            
+            cpSearchResults.classList.remove('hidden');
+            
+            // Add click handlers
+            cpSearchResults.querySelectorAll('.cp-result-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    cpFirmName.value = this.dataset.firmName;
+                    cpName.value = this.dataset.cpName;
+                    cpPhone.value = this.dataset.phone;
+                    cpReraNumber.value = this.dataset.reraId;
+                    
+                    // Clear search
+                    cpSearch.value = '';
+                    cpSearchResults.classList.add('hidden');
+                    
+                    // Show success feedback
+                    const originalBg = cpFirmName.style.backgroundColor;
+                    cpFirmName.style.backgroundColor = '#d4edda';
+                    cpName.style.backgroundColor = '#d4edda';
+                    cpPhone.style.backgroundColor = '#d4edda';
+                    cpReraNumber.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        cpFirmName.style.backgroundColor = originalBg;
+                        cpName.style.backgroundColor = originalBg;
+                        cpPhone.style.backgroundColor = originalBg;
+                        cpReraNumber.style.backgroundColor = originalBg;
+                    }, 1000);
+                });
+            });
+        }
+        
+        // Hide results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!cpSearch.contains(e.target) && !cpSearchResults.contains(e.target)) {
+                cpSearchResults.classList.add('hidden');
+            }
+        });
+    })();
+    
+    // Toggle CP fields based on visit source
+    function toggleCPFields() {
+        const visitSource = document.getElementById('visit_source');
+        const cpSearchSection = document.getElementById('cp-search-section');
+        
+        if (visitSource.value === 'cp') {
+            cpSearchSection.classList.remove('hidden');
+        } else {
+            cpSearchSection.classList.add('hidden');
+            // Clear CP fields if not Channel Partner
+            document.getElementById('cp_firm_name').value = '';
+            document.getElementById('cp_name').value = '';
+            document.getElementById('cp_phone').value = '';
+            document.getElementById('cp_rera_number').value = '';
+        }
+    }
 </script>
 {% endblock %}
