@@ -204,10 +204,11 @@ def cp_detail(request, pk):
         leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(project__in=site_head_projects, is_archived=False)
         from bookings.models import Payment
-        total_revenue = Payment.objects.filter(
+        total_revenue_raw = Payment.objects.filter(
             booking__channel_partner=cp,
             booking__project__in=site_head_projects
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        ).aggregate(total=Sum('amount'))['total']
+        total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.filter(id__in=site_head_projects)
     elif request.user.is_sourcing_manager():
         # Sourcing Manager sees all CP data
@@ -218,9 +219,10 @@ def cp_detail(request, pk):
         leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
-        total_revenue = Payment.objects.filter(booking__channel_partner=cp).aggregate(
+        total_revenue_raw = Payment.objects.filter(booking__channel_partner=cp).aggregate(
             total=Sum('amount')
-        )['total'] or 0
+        )['total']
+        total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.all()
     else:
         association_ids = LeadProjectAssociation.objects.filter(
@@ -230,9 +232,10 @@ def cp_detail(request, pk):
         leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
-        total_revenue = Payment.objects.filter(booking__channel_partner=cp).aggregate(
+        total_revenue_raw = Payment.objects.filter(booking__channel_partner=cp).aggregate(
             total=Sum('amount')
-        )['total'] or 0
+        )['total']
+        total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.all()
     
     # Get project-wise stats for Sourcing Managers

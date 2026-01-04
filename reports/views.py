@@ -281,12 +281,15 @@ def employee_performance(request):
             metrics['total_leads'] = emp_associations.filter(assigned_to=emp).count()
             metrics['leads_this_month'] = emp_associations.filter(assigned_to=emp, created_at__date__gte=this_month_start).count()
             metrics['leads_this_week'] = emp_associations.filter(assigned_to=emp, created_at__date__gte=this_week_start).count()
-            metrics['total_revenue'] = emp_payments.filter(booking__credited_to_closing_manager=emp).aggregate(total=Sum('amount'))['total'] or 0
-            metrics['revenue_this_month'] = emp_payments.filter(
+            total_revenue_raw = emp_payments.filter(booking__credited_to_closing_manager=emp).aggregate(total=Sum('amount'))['total']
+            metrics['total_revenue'] = float(total_revenue_raw) if total_revenue_raw is not None else 0
+            
+            revenue_this_month_raw = emp_payments.filter(
                 booking__credited_to_closing_manager=emp
             ).filter(
                 payment_date__gte=this_month_start
-            ).aggregate(total=Sum('amount'))['total'] or 0
+            ).aggregate(total=Sum('amount'))['total']
+            metrics['revenue_this_month'] = float(revenue_this_month_raw) if revenue_this_month_raw is not None else 0
             assigned_leads = emp_associations.filter(assigned_to=emp).count()
             if assigned_leads > 0:
                 metrics['conversion_rate'] = (metrics['total_bookings'] / assigned_leads) * 100
@@ -586,10 +589,13 @@ def cp_performance(request):
         ).count()
         
         # Revenue generated
-        metrics['total_revenue'] = cp_payments.aggregate(total=Sum('amount'))['total'] or 0
-        metrics['revenue_this_month'] = cp_payments.filter(
+        total_revenue_raw = cp_payments.aggregate(total=Sum('amount'))['total']
+        metrics['total_revenue'] = float(total_revenue_raw) if total_revenue_raw is not None else 0
+        
+        revenue_this_month_raw = cp_payments.filter(
             payment_date__gte=this_month_start
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        ).aggregate(total=Sum('amount'))['total']
+        metrics['revenue_this_month'] = float(revenue_this_month_raw) if revenue_this_month_raw is not None else 0
         
         # Overall visit to conversion ratio of CPs
         if metrics['cp_visits'] > 0:
@@ -665,7 +671,7 @@ def cp_performance(request):
     cp_metrics.sort(key=lambda x: x['total_bookings'], reverse=True)
     
     # Calculate total revenue
-    total_revenue = sum(m['total_revenue'] for m in cp_metrics)
+    total_revenue = sum(float(m['total_revenue']) for m in cp_metrics)
     
     context = {
         'cp_metrics': cp_metrics,
