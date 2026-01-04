@@ -606,12 +606,29 @@ def cp_performance(request):
             raw_payments = cursor.fetchall()
             print(f"DEBUG: Raw SQL payments for CP {cp.cp_name}: {raw_payments}")
         
+        # Try manual calculation as fallback
+        manual_total = 0
+        for payment in cp_payments:
+            try:
+                manual_total += float(payment.amount)
+            except (ValueError, TypeError):
+                print(f"DEBUG: Invalid payment amount: {payment.amount}")
+        
+        print(f"DEBUG: CP {cp.cp_name} - manual_total: {manual_total}")
+        
         total_revenue_raw = cp_payments.aggregate(
             total=Sum('amount')
         )['total']
         print(f"DEBUG: CP {cp.cp_name} - aggregated total: {total_revenue_raw} (type: {type(total_revenue_raw)})")
         
-        metrics['total_revenue'] = float(total_revenue_raw) if total_revenue_raw is not None else 0
+        # Use manual total as fallback if aggregation fails
+        if total_revenue_raw is None:
+            metrics['total_revenue'] = manual_total
+            print(f"DEBUG: CP {cp.cp_name} - using manual total")
+        else:
+            metrics['total_revenue'] = float(total_revenue_raw)
+            print(f"DEBUG: CP {cp.cp_name} - using aggregated total")
+        
         print(f"DEBUG: CP {cp.cp_name} - final total_revenue: {metrics['total_revenue']} (type: {type(metrics['total_revenue'])})")
         
         revenue_this_month_raw = cp_payments.filter(
