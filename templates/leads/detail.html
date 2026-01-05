@@ -615,7 +615,7 @@
                 <div class="mt-6">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="font-heading font-bold text-olive-primary">Complete Lead Information</h3>
-                        {% if request.user.is_closing_manager() or request.user.is_sourcing_manager() or request.user.is_site_head() or request.user.is_mandate_owner() %}
+                        {% if can_edit_lead_data %}
                         <button onclick="toggleEditMode()" id="edit-mode-btn"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
                             ✏️ Edit Data

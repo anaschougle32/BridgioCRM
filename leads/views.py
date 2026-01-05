@@ -1073,6 +1073,7 @@ def lead_detail(request, pk):
         'tel_link': get_tel_link(lead.phone),
         'budget_choices': budget_choices,
         'lead_source_choices': Lead.VISIT_SOURCE_CHOICES,
+        'can_edit_lead_data': request.user.is_closing_manager() or request.user.is_sourcing_manager() or request.user.is_site_head() or request.user.is_mandate_owner(),
     }
     return render(request, 'leads/detail.html', context)
 
