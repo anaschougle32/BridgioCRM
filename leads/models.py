@@ -179,8 +179,8 @@ class Lead(models.Model):
     def get_completion_status(self):
         """Calculate lead profile completion percentage and missing fields"""
         required_fields = ['name', 'phone']
-        important_fields = ['email', 'budget', 'address', 'occupation', 'company']
-        optional_fields = ['alternate_phone', 'whatsapp_number', 'annual_income', 'work_address', 'lead_source']
+        important_fields = ['email', 'budget', 'address', 'occupation', 'company_name']
+        optional_fields = ['alternate_phone', 'whatsapp_number', 'annual_income', 'work_address', 'visit_source']
         
         total_fields = len(required_fields) + len(important_fields) + len(optional_fields)
         filled_fields = 0

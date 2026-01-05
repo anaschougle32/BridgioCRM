@@ -1072,7 +1072,7 @@ def lead_detail(request, pk):
         'phone_display': get_phone_display(lead.phone),
         'tel_link': get_tel_link(lead.phone),
         'budget_choices': budget_choices,
-        'lead_source_choices': Lead.LEAD_SOURCE_CHOICES,
+        'lead_source_choices': Lead.VISIT_SOURCE_CHOICES,
     }
     return render(request, 'leads/detail.html', context)
 
@@ -2813,9 +2813,9 @@ def update_lead_data(request, pk):
         whatsapp_number = request.POST.get('whatsapp_number', '').strip()
         address = request.POST.get('address', '').strip()
         budget = request.POST.get('budget', '').strip()
-        lead_source = request.POST.get('lead_source', '').strip()
+        visit_source = request.POST.get('visit_source', '').strip()
         occupation = request.POST.get('occupation', '').strip()
-        company = request.POST.get('company', '').strip()
+        company_name = request.POST.get('company_name', '').strip()
         annual_income = request.POST.get('annual_income', '').strip()
         work_address = request.POST.get('work_address', '').strip()
         
@@ -2833,9 +2833,9 @@ def update_lead_data(request, pk):
         lead.whatsapp_number = whatsapp_number if whatsapp_number else lead.whatsapp_number
         lead.address = address if address else lead.address
         lead.budget = int(budget) if budget else lead.budget
-        lead.lead_source = lead_source if lead_source else lead.lead_source
+        lead.visit_source = visit_source if visit_source else lead.visit_source
         lead.occupation = occupation if occupation else lead.occupation
-        lead.company = company if company else lead.company
+        lead.company_name = company_name if company_name else lead.company_name
         lead.annual_income = annual_income if annual_income else lead.annual_income
         lead.work_address = work_address if work_address else lead.work_address
         
@@ -2860,9 +2860,9 @@ def update_lead_data(request, pk):
             'whatsapp_number': lead.whatsapp_number or '-',
             'address': lead.address or '-',
             'budget_display': '',
-            'lead_source_display': lead.get_lead_source_display() or '-',
+            'lead_source_display': lead.get_visit_source_display() or '-',
             'occupation': lead.occupation or '-',
-            'company': lead.company or '-',
+            'company': lead.company_name or '-',
             'annual_income': lead.annual_income or '-',
             'work_address': lead.work_address or '-',
         }

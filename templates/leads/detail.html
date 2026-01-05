@@ -668,7 +668,7 @@
                                     </span>
                                 </div>
                                 <div><strong>Preferred Project:</strong> <span id="display-preferred-project">{{ lead.preferred_project.name|default:"-" }}</span></div>
-                                <div><strong>Lead Source:</strong> <span id="display-lead-source">{{ lead.get_lead_source_display|default:"-" }}</span></div>
+                                <div><strong>Lead Source:</strong> <span id="display-lead-source">{{ lead.get_visit_source_display|default:"-" }}</span></div>
                             </div>
                         </div>
                         
@@ -677,7 +677,7 @@
                             <h4 class="font-semibold text-gray-700 mb-3">Professional Information</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                                 <div><strong>Occupation:</strong> <span id="display-occupation">{{ lead.occupation|default:"-" }}</span></div>
-                                <div><strong>Company:</strong> <span id="display-company">{{ lead.company|default:"-" }}</span></div>
+                                <div><strong>Company:</strong> <span id="display-company">{{ lead.company_name|default:"-" }}</span></div>
                                 <div><strong>Annual Income:</strong> <span id="display-income">{{ lead.annual_income|default:"-" }}</span></div>
                                 <div><strong>Work Address:</strong> <span id="display-work-address">{{ lead.work_address|default:"-" }}</span></div>
                             </div>
@@ -792,11 +792,11 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Lead Source</label>
-                                        <select name="lead_source" id="edit-lead-source"
+                                        <select name="visit_source" id="edit-lead-source"
                                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                             <option value="">Select Source</option>
                                             {% for value, label in lead_source_choices %}
-                                            <option value="{{ value }}" {% if lead.lead_source == value %}selected{% endif %}>{{ label }}</option>
+                                            <option value="{{ value }}" {% if lead.visit_source == value %}selected{% endif %}>{{ label }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -814,7 +814,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                                        <input type="text" name="company" id="edit-company" value="{{ lead.company }}"
+                                        <input type="text" name="company_name" id="edit-company" value="{{ lead.company_name }}"
                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                     </div>
                                     <div>
