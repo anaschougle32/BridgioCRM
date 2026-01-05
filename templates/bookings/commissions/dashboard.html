@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block title %}Commission Dashboard - Bridgio CRM{% endblock %}
+
+{% block page_title %}Commission Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-heading font-bold text-olive-primary">Commission Dashboard</h1>
+        <a href="{% url 'bookings:commission_list' %}" 
+           class="bg-olive-primary text-white px-6 py-3 rounded-lg hover:bg-olive-secondary transition font-medium">
+            📋 Manage Commissions
+        </a>
+    </div>
+    
+    <!-- Monthly Comparison -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 font-medium">This Month</p>
+                    <p class="text-2xl font-bold text-olive-primary">₹{{ this_month_total|floatformat:2 }}</p>
+                    <p class="text-sm text-gray-500">{{ this_month_count }} commissions</p>
+                </div>
+                <div class="bg-olive-light rounded-full p-3">
+                    <svg class="w-6 h-6 text-olive-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 font-medium">Last Month</p>
+                    <p class="text-2xl font-bold text-gray-700">₹{{ last_month_total|floatformat:2 }}</p>
+                    <p class="text-sm text-gray-500">{{ last_month_count }} commissions</p>
+                </div>
+                <div class="bg-gray-100 rounded-full p-3">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-yellow-50 rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-yellow-600 font-medium">Pending</p>
+                    <p class="text-2xl font-bold text-yellow-800">₹{{ pending_total|floatformat:2 }}</p>
+                    <p class="text-sm text-yellow-600">{{ pending_count }} commissions</p>
+                </div>
+                <div class="bg-yellow-100 rounded-full p-3">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-green-50 rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-green-600 font-medium">Paid</p>
+                    <p class="text-2xl font-bold text-green-800">₹{{ paid_total|floatformat:2 }}</p>
+                    <p class="text-sm text-green-600">{{ paid_count }} commissions</p>
+                </div>
+                <div class="bg-green-100 rounded-full p-3">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Status Breakdown -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-heading font-semibold mb-4">Status Breakdown</h2>
+            <div class="space-y-3">
+                {% for status_data in status_breakdown %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="px-2 py-1 text-xs rounded-full
+                            {% if status_data.status == 'pending' %}bg-yellow-100 text-yellow-800
+                            {% elif status_data.status == 'approved' %}bg-blue-100 text-blue-800
+                            {% elif status_data.status == 'paid' %}bg-green-100 text-green-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ status_data.get_status_display }}
+                        </span>
+                        <span class="ml-2 text-sm text-gray-600">{{ status_data.count }} commissions</span>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold">₹{{ status_data.total_amount|floatformat:2 }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-center py-4">No commission data available</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Type Breakdown -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-heading font-semibold mb-4">Commission Type Breakdown</h2>
+            <div class="space-y-3">
+                {% for type_data in type_breakdown %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="px-2 py-1 text-xs rounded-full
+                            {% if type_data.commission_type == 'cp' %}bg-purple-100 text-purple-800
+                            {% elif type_data.commission_type == 'employee' %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ type_data.get_commission_type_display }}
+                        </span>
+                        <span class="ml-2 text-sm text-gray-600">{{ type_data.count }} commissions</span>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold">₹{{ type_data.total_amount|floatformat:2 }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-center py-4">No commission data available</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Top Channel Partners -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-heading font-semibold mb-4">Top Channel Partners</h2>
+            <div class="space-y-3">
+                {% for cp in top_cps %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="font-medium text-gray-900">{{ cp.cp_name }}</p>
+                        <p class="text-sm text-gray-500">{{ cp.firm_name }}</p>
+                        <p class="text-xs text-gray-400">{{ cp.commission_count }} commissions</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold text-olive-primary">₹{{ cp.total_commission|floatformat:2 }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-center py-4">No CP commissions data available</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Top Employees -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-heading font-semibold mb-4">Top Employees</h2>
+            <div class="space-y-3">
+                {% for employee in top_employees %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="font-medium text-gray-900">{{ employee.get_full_name|default:employee.username }}</p>
+                        <p class="text-sm text-gray-500">{{ employee.get_role_display }}</p>
+                        <p class="text-xs text-gray-400">{{ employee.commission_count }} commissions</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold text-olive-primary">₹{{ employee.total_commission|floatformat:2 }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-center py-4">No employee commissions data available</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Commissions -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-heading font-semibold mb-4">Recent Commissions</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booking</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for commission in recent_commissions %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900">
+                            {{ commission.created_at|date:"d M Y" }}
+                        </td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="px-2 py-1 text-xs rounded-full 
+                                {% if commission.commission_type == 'cp' %}bg-purple-100 text-purple-800
+                                {% elif commission.commission_type == 'employee' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ commission.get_commission_type_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-900">
+                            {% if commission.channel_partner %}
+                                {{ commission.channel_partner.cp_name }}
+                            {% elif commission.employee %}
+                                {{ commission.employee.get_full_name|default:commission.employee.username }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-900">
+                            <a href="{% url 'bookings:detail' commission.booking.id %}" 
+                               class="text-olive-primary hover:text-olive-secondary">
+                                {{ commission.booking.lead.name }} - {{ commission.booking.unit_number }}
+                            </a>
+                        </td>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                            ₹{{ commission.commission_amount|floatformat:2 }}
+                        </td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="px-2 py-1 text-xs rounded-full
+                                {% if commission.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                {% elif commission.status == 'approved' %}bg-blue-100 text-blue-800
+                                {% elif commission.status == 'paid' %}bg-green-100 text-green-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ commission.get_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                            No recent commissions found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

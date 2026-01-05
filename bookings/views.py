@@ -352,6 +352,9 @@ def booking_create(request, lead_id):
                                     created_by=request.user,
                                 )
                             
+                            # Calculate and create commissions automatically
+                            booking.calculate_and_create_commissions()
+                            
                             # Create audit log
                             from accounts.models import AuditLog
                             AuditLog.objects.create(
@@ -433,6 +436,9 @@ def booking_create(request, lead_id):
                             notes=f'Initial token payment for booking {booking.id}',
                             created_by=request.user,
                         )
+                    
+                    # Calculate and create commissions automatically
+                    booking.calculate_and_create_commissions()
                     
                     # Update association status
                     association.status = 'booked'
