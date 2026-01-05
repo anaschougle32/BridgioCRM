@@ -1296,7 +1296,9 @@ def unit_selection(request, pk):
     # Filter out non-commercial ground floors (floor 0) - they're vacant/parking
     unit_configs = UnitConfiguration.objects.filter(project=project).select_related(
         'area_type', 
-        'area_type__configuration'
+        'area_type__configuration',
+        'booking',
+        'blocked_by'
     ).exclude(
         floor_number=0,
         is_commercial=False
@@ -1383,18 +1385,33 @@ def unit_selection(request, pk):
                 'area_display': area_type.get_display_name(),
             }
         
-        # Check if unit is booked
-        # Match by tower, floor, and unit number to avoid matching units from different towers
+        # Check unit status using our new unit status system
+        # The unit_config now has status, booking, and blocked_by fields
+        unit_status = unit_config.status
+        is_booked = unit_config.status == 'booked'
+        is_blocked = unit_config.status == 'blocked'
+        is_available = unit_config.is_available  # This checks for block expiration
+        
+        # Also check legacy booking data for backward compatibility
         booking_key = f"{unit_config.tower_number}_{unit_config.floor_number}_{unit_config.unit_number}"
-        # Also check fallback key (without tower) for older bookings that might not have tower info
         fallback_key = f"{unit_config.floor_number}_{unit_config.unit_number}"
-        is_booked = booking_key in booked_units or fallback_key in booked_units
+        legacy_booked = booking_key in booked_units or fallback_key in booked_units
+        
+        # Use the most accurate status information
+        final_status = unit_status
+        if legacy_booked and unit_status == 'available':
+            final_status = 'booked'  # Override with legacy booking data
         
         units_by_tower[tower_key][floor_key].append({
             'unit_config': unit_config,
             'pricing_info': pricing_info,
-            'is_booked': is_booked,
-            'booking': booked_units.get(booking_key) or booked_units.get(fallback_key),
+            'status': final_status,
+            'is_booked': final_status == 'booked',
+            'is_blocked': final_status == 'blocked',
+            'is_available': final_status == 'available',
+            'booking': unit_config.booking or booked_units.get(booking_key) or booked_units.get(fallback_key),
+            'blocked_by': unit_config.blocked_by,
+            'blocked_until': unit_config.blocked_until,
         })
     
     context = {

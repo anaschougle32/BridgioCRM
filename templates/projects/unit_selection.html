@@ -17,6 +17,10 @@
                    class="bg-gray-200 text-gray-800 px-4 py-2 rounded-custom hover:bg-gray-300 transition">
                     ← Back to Project
                 </a>
+                <a href="{% url 'projects:unit_inventory' project.pk %}" 
+                   class="bg-purple-600 text-white px-4 py-2 rounded-custom hover:bg-purple-700 transition">
+                    📊 Unit Inventory
+                </a>
             </div>
         </div>
     </div>
@@ -52,6 +56,22 @@
                         <span class="text-sm">Booked</span>
                     </div>
                     <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-yellow-100 border-2 border-yellow-500 rounded"></div>
+                        <span class="text-sm">Blocked</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-purple-100 border-2 border-purple-500 rounded"></div>
+                        <span class="text-sm">Reserved</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-orange-100 border-2 border-orange-500 rounded"></div>
+                        <span class="text-sm">Maintenance</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-gray-100 border-2 border-gray-500 rounded"></div>
+                        <span class="text-sm">Sold</span>
+                    </div>
+                    <div class="flex items-center gap-2">
                         <div class="w-6 h-6 bg-gray-200 border-2 border-gray-400 rounded"></div>
                         <span class="text-sm">Excluded</span>
                     </div>
@@ -79,19 +99,30 @@
                         </h3>
                         <div class="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                             {% for unit_data in floor_units %}
-                            {% with unit=unit_data.unit_config pricing=unit_data.pricing_info is_booked=unit_data.is_booked %}
+                            {% with unit=unit_data.unit_config pricing=unit_data.pricing_info status=unit_data.status is_booked=unit_data.is_booked is_blocked=unit_data.is_blocked is_available=unit_data.is_available %}
                             <div class="unit-card relative group" 
                                  data-unit-id="{{ unit.id }}"
                                  data-tower="{{ unit.tower_number }}"
                                  data-floor="{{ unit.floor_number }}"
                                  data-unit-number="{{ unit.unit_number }}"
                                  data-config-id="{% if unit.area_type %}{{ unit.area_type.configuration.id }}{% endif %}"
-                                 onclick="selectUnit({{ unit.id }}, {{ unit.tower_number }}, {{ unit.floor_number }}, {{ unit.unit_number }}, event)">
+                                 data-status="{{ status }}"
+                                 onclick="selectUnit('{{ unit.id }}', '{{ unit.tower_number }}', '{{ unit.floor_number }}', '{{ unit.unit_number }}', event)">
                                 <div class="unit-box p-3 rounded-lg border-2 transition-all cursor-pointer
                                     {% if unit.is_excluded %}
                                         bg-gray-200 border-gray-400 opacity-60
-                                    {% elif is_booked %}
+                                    {% elif status == 'booked' %}
                                         bg-red-100 border-red-500
+                                    {% elif status == 'blocked' %}
+                                        bg-yellow-100 border-yellow-500
+                                    {% elif status == 'reserved' %}
+                                        bg-purple-100 border-purple-500
+                                    {% elif status == 'maintenance' %}
+                                        bg-orange-100 border-orange-500
+                                    {% elif status == 'sold' %}
+                                        bg-gray-100 border-gray-500
+                                    {% elif is_available %}
+                                        bg-green-100 border-green-500 hover:border-blue-500 hover:bg-blue-100
                                     {% else %}
                                         bg-green-100 border-green-500 hover:border-blue-500 hover:bg-blue-100
                                     {% endif %}
