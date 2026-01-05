@@ -23,7 +23,7 @@
                 <div>
                     <p class="text-sm text-yellow-600 font-medium">Pending Commissions</p>
                     <p class="text-2xl font-bold text-yellow-800">₹{{ total_pending|floatformat:2 }}</p>
-                    <p class="text-sm text-yellow-600">{{ commissions|selectattr:"status"|selectequal:"pending"|list|length }} commissions</p>
+                    <p class="text-sm text-yellow-600">{{ pending_count }} commissions</p>
                 </div>
                 <div class="bg-yellow-100 rounded-full p-3">
                     <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +38,7 @@
                 <div>
                     <p class="text-sm text-blue-600 font-medium">Approved Commissions</p>
                     <p class="text-2xl font-bold text-blue-800">₹{{ total_approved|floatformat:2 }}</p>
-                    <p class="text-sm text-blue-600">{{ commissions|selectattr:"status"|selectequal:"approved"|list|length }} commissions</p>
+                    <p class="text-sm text-blue-600">{{ approved_count }} commissions</p>
                 </div>
                 <div class="bg-blue-100 rounded-full p-3">
                     <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,7 +53,7 @@
                 <div>
                     <p class="text-sm text-green-600 font-medium">Paid Commissions</p>
                     <p class="text-2xl font-bold text-green-800">₹{{ total_paid|floatformat:2 }}</p>
-                    <p class="text-sm text-green-600">{{ commissions|selectattr:"status"|selectequal:"paid"|list|length }} commissions</p>
+                    <p class="text-sm text-green-600">{{ paid_count }} commissions</p>
                 </div>
                 <div class="bg-green-100 rounded-full p-3">
                     <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

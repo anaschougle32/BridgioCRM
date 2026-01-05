@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -228,6 +229,42 @@ class UnitConfiguration(models.Model):
     is_excluded = models.BooleanField(default=False, help_text="Exclude this unit (e.g., for commercial floors)")
     is_commercial = models.BooleanField(default=False, help_text="Is this unit on a commercial floor?")
     
+    # Unit status tracking
+    STATUS_CHOICES = [
+        ('available', 'Available'),
+        ('reserved', 'Reserved'),
+        ('booked', 'Booked'),
+        ('blocked', 'Blocked'),
+        ('maintenance', 'Under Maintenance'),
+        ('sold', 'Sold'),
+    ]
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available', 
+                             help_text="Current status of this unit")
+    blocked_by = models.ForeignKey(
+        'accounts.User', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='blocked_units',
+        help_text="User who blocked this unit"
+    )
+    blocked_at = models.DateTimeField(null=True, blank=True, help_text="When this unit was blocked")
+    blocked_until = models.DateTimeField(null=True, blank=True, help_text="Block expiry time")
+    booking = models.ForeignKey(
+        'bookings.Booking',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='unit_configuration',
+        help_text="Booking associated with this unit"
+    )
+    notes = models.TextField(blank=True, help_text="Notes about this unit")
+    
+    # System fields
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
     class Meta:
         db_table = 'unit_configurations'
         unique_together = ['project', 'tower_number', 'floor_number', 'unit_number']
@@ -239,6 +276,144 @@ class UnitConfiguration(models.Model):
         if self.area_type:
             return f"{self.project.name} - Tower {self.tower_number} - Floor {self.floor_number} - Unit {self.unit_number} - {self.area_type.configuration.name}-{self.area_type.carpet_area}sqft"
         return f"{self.project.name} - Tower {self.tower_number} - Floor {self.floor_number} - Unit {self.unit_number} (Unassigned)"
+    
+    @property
+    def is_available(self):
+        """Check if unit is available for booking"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        # Check basic status
+        if self.status != 'available':
+            return False
+        
+        # Check if block has expired
+        if self.blocked_until and self.blocked_until < now:
+            self.status = 'available'
+            self.blocked_by = None
+            self.blocked_at = None
+            self.blocked_until = None
+            self.save(update_fields=['status', 'blocked_by', 'blocked_at', 'blocked_until'])
+        
+        return self.status == 'available'
+    
+    @property
+    def full_unit_number(self):
+        """Get full unit identifier (e.g., T1-F2-U101)"""
+        return f"T{self.tower_number}-F{self.floor_number}-U{self.unit_number}"
+    
+    def block_unit(self, user, hours=24):
+        """Block this unit for a specified time period"""
+        from django.utils import timezone, timedelta
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Check if unit is still available
+            if not self.is_available:
+                return False, "Unit is not available for blocking"
+            
+            # Block the unit
+            self.status = 'blocked'
+            self.blocked_by = user
+            self.blocked_at = timezone.now()
+            self.blocked_until = timezone.now() + timedelta(hours=hours)
+            self.save()
+            
+            return True, f"Unit blocked for {hours} hours"
+    
+    def unblock_unit(self, user=None):
+        """Unblock this unit"""
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Only allow unblocking by the same user who blocked it or admin
+            if user and self.blocked_by and self.blocked_by != user and not user.is_super_admin():
+                return False, "You can only unblock units you blocked"
+            
+            self.status = 'available'
+            self.blocked_by = None
+            self.blocked_at = None
+            self.blocked_until = None
+            self.save(update_fields=['status', 'blocked_by', 'blocked_at', 'blocked_until'])
+            
+            return True, "Unit unblocked successfully"
+    
+    def book_unit(self, booking):
+        """Mark this unit as booked"""
+        from django.db import transaction
+        
+        with transaction.atomic():
+            if not self.is_available:
+                return False, "Unit is not available for booking"
+            
+            self.status = 'booked'
+            self.booking = booking
+            self.blocked_by = None
+            self.blocked_at = None
+            self.blocked_until = None
+            self.save()
+            
+            return True, "Unit booked successfully"
+    
+    def release_unit(self):
+        """Release this unit back to available"""
+        from django.db import transaction
+        
+        with transaction.atomic():
+            self.status = 'available'
+            self.booking = None
+            self.blocked_by = None
+            self.blocked_at = None
+            self.blocked_until = None
+            self.save()
+            
+            return True, "Unit released successfully"
+    
+    @classmethod
+    def get_available_units(cls, project):
+        """Get all available units for a project"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        # Clear expired blocks
+        cls.objects.filter(
+            project=project,
+            status='blocked',
+            blocked_until__lt=now
+        ).update(
+            status='available',
+            blocked_by=None,
+            blocked_at=None,
+            blocked_until=None
+        )
+        
+        return cls.objects.filter(
+            project=project,
+            status='available',
+            is_excluded=False
+        ).order_by('tower_number', 'floor_number', 'unit_number')
+    
+    @classmethod
+    def get_unit_by_identifier(cls, project, identifier):
+        """Get unit by full identifier (e.g., T1-F2-U101)"""
+        try:
+            # Parse identifier like "T1-F2-U101"
+            parts = identifier.split('-')
+            if len(parts) == 3 and parts[0].startswith('T') and parts[1].startswith('F') and parts[2].startswith('U'):
+                tower = int(parts[0][1:])
+                floor = int(parts[1][1:])
+                unit = int(parts[2][1:])
+                
+                return cls.objects.get(
+                    project=project,
+                    tower_number=tower,
+                    floor_number=floor,
+                    unit_number=unit
+                )
+        except (ValueError, cls.DoesNotExist):
+            pass
+        
+        return None
 
 
 class TowerFloorConfig(models.Model):

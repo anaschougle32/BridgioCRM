@@ -76,6 +76,11 @@ def commission_list(request):
         total=Sum('commission_amount')
     )['total'] or 0
     
+    # Calculate counts
+    pending_count = commissions.filter(status='pending').count()
+    approved_count = commissions.filter(status='approved').count()
+    paid_count = commissions.filter(status='paid').count()
+    
     context = {
         'commissions': commissions_page,
         'projects': projects,
@@ -84,6 +89,9 @@ def commission_list(request):
         'total_pending': total_pending,
         'total_approved': total_approved,
         'total_paid': total_paid,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'paid_count': paid_count,
         'status_choices': Commission.STATUS_CHOICES,
         'commission_type_choices': Commission.COMMISSION_TYPE_CHOICES,
         'filters': {

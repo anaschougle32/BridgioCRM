@@ -307,6 +307,18 @@ def booking_create(request, lead_id):
                     for unit_id in selected_unit_ids:
                         try:
                             unit_config = UnitConfiguration.objects.get(id=unit_id, project=project)
+                            
+                            # Check unit availability
+                            if not unit_config.is_available:
+                                messages.error(request, f'Unit {unit_config.full_unit_number} is not available for booking.')
+                                continue
+                            
+                            # Book the unit
+                            success, message = unit_config.book_unit(None)  # We'll set the booking after creation
+                            if not success:
+                                messages.error(request, f'Cannot book unit {unit_config.full_unit_number}: {message}')
+                                continue
+                            
                             tower_wing = f"Tower {unit_config.tower_number}" if unit_config.tower_number else ''
                             unit_number = str(unit_config.unit_number) if unit_config.unit_number else ''
                             
@@ -327,6 +339,10 @@ def booking_create(request, lead_id):
                                 created_by=request.user,
                             )
                             created_bookings.append(booking)
+                            
+                            # Link the booking to the unit configuration
+                            unit_config.booking = booking
+                            unit_config.save(update_fields=['booking'])
                             
                             # Create downpayment entry for this unit if downpayment > 0
                             if downpayment_per_unit > 0:
@@ -387,7 +403,26 @@ def booking_create(request, lead_id):
                     else:
                         messages.error(request, 'No bookings were created. Please check unit selection.')
                 else:
-                    # Single unit booking (existing logic)
+                    # Single unit booking - check unit availability first
+                    unit_identifier = request.POST.get('unit_identifier', '')  # e.g., T1-F2-U101
+                    unit_config = None
+                    
+                    if unit_identifier:
+                        # Try to find unit by identifier
+                        unit_config = UnitConfiguration.get_unit_by_identifier(project, unit_identifier)
+                    
+                    if unit_config:
+                        # Check unit availability
+                        if not unit_config.is_available:
+                            messages.error(request, f'Unit {unit_config.full_unit_number} is not available for booking.')
+                            return redirect('leads:detail', pk=lead_id)
+                        
+                        # Book the unit
+                        success, message = unit_config.book_unit(None)  # We'll set the booking after creation
+                        if not success:
+                            messages.error(request, f'Cannot book unit {unit_config.full_unit_number}: {message}')
+                            return redirect('leads:detail', pk=lead_id)
+                    
                     booking = Booking.objects.create(
                         lead=lead,
                         project=project,
@@ -404,6 +439,11 @@ def booking_create(request, lead_id):
                         credited_to_telecaller=credited_to_telecaller,
                         created_by=request.user,
                     )
+                    
+                    # Link the booking to the unit configuration if found
+                    if unit_config:
+                        unit_config.booking = booking
+                        unit_config.save(update_fields=['booking'])
                     
                     # Update lead notes with funding information if provided
                     if funding_notes:
