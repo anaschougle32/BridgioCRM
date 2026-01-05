@@ -268,9 +268,31 @@ def employee_performance(request):
             ).count()
             
             # Total bookings done (using credit fields)
-            metrics['total_bookings'] = emp_bookings.filter(credited_to_closing_manager=emp).count()
-            metrics['bookings_this_month'] = emp_bookings.filter(credited_to_closing_manager=emp, created_at__date__gte=this_month_start).count()
-            metrics['bookings_this_week'] = emp_bookings.filter(credited_to_closing_manager=emp, created_at__date__gte=this_week_start).count()
+            # Include both direct bookings and CP bookings when telecallers handle CP data
+            direct_bookings = emp_bookings.filter(credited_to_closing_manager=emp)
+            cp_bookings = emp_bookings.filter(
+                lead__channel_partner__isnull=False,
+                credited_to_telecaller__isnull=False  # Telecaller handled this CP booking
+            )
+            
+            # For closing managers, count both direct bookings and CP bookings from telecallers
+            if user.is_super_admin() or user.is_mandate_owner():
+                total_bookings = direct_bookings.count() + cp_bookings.count()
+            else:
+                site_head_projects = Project.objects.filter(site_head=user, is_active=True)
+                direct_bookings_filtered = direct_bookings.filter(project__in=site_head_projects)
+                cp_bookings_filtered = cp_bookings.filter(project__in=site_head_projects)
+                total_bookings = direct_bookings_filtered.count() + cp_bookings_filtered.count()
+            
+            metrics['total_bookings'] = total_bookings
+            metrics['bookings_this_month'] = (direct_bookings.filter(created_at__date__gte=this_month_start).count() + 
+                                            cp_bookings.filter(created_at__date__gte=this_month_start).count())
+            metrics['bookings_this_week'] = (direct_bookings.filter(created_at__date__gte=this_week_start).count() + 
+                                           cp_bookings.filter(created_at__date__gte=this_week_start).count())
+            
+            # Additional breakdown for reporting
+            metrics['direct_bookings'] = direct_bookings.count()
+            metrics['cp_bookings_from_telecallers'] = cp_bookings.count()
             
             # Total visit to conversion ratio
             if metrics['total_visits_handled'] > 0:
@@ -324,20 +346,41 @@ def employee_performance(request):
                 ).distinct().count()
             
             # Total visits done by CPs (leads with CP that have visits)
+            # Include visits handled by telecallers for CP data
             cp_lead_ids = Lead.objects.filter(
                 channel_partner__isnull=False,
                 is_archived=False
             ).values_list('id', flat=True)
-            cp_visits = emp_associations.filter(
-                lead_id__in=cp_lead_ids
+            
+            # Get all CP visits (including those handled by telecallers)
+            all_cp_visits = LeadProjectAssociation.objects.filter(
+                lead_id__in=cp_lead_ids,
+                is_archived=False
             ).filter(
                 Q(status='visit_completed') | Q(phone_verified=True)
             )
+            
+            # Filter by user permissions
             if user.is_super_admin() or user.is_mandate_owner():
-                metrics['total_visits_by_cps'] = cp_visits.count()
+                cp_visits = all_cp_visits
             else:
                 site_head_projects = Project.objects.filter(site_head=user, is_active=True)
-                metrics['total_visits_by_cps'] = cp_visits.filter(project__in=site_head_projects).count()
+                cp_visits = all_cp_visits.filter(project__in=site_head_projects)
+            
+            metrics['total_visits_by_cps'] = cp_visits.count()
+            
+            # Split CP visits by who handled them (for reporting)
+            cp_visits_by_telecallers = cp_visits.filter(
+                assigned_to__role='telecaller'
+            ).count()
+            cp_visits_by_sourcing_managers = cp_visits.filter(
+                assigned_to__role='sourcing_manager'
+            ).count()
+            cp_visits_by_others = cp_visits.count() - cp_visits_by_telecallers - cp_visits_by_sourcing_managers
+            
+            metrics['cp_visits_by_telecallers'] = cp_visits_by_telecallers
+            metrics['cp_visits_by_sourcing_managers'] = cp_visits_by_sourcing_managers
+            metrics['cp_visits_by_others'] = cp_visits_by_others
             
             # Total conversion done (CP client handled by closer) - using credit fields
             cp_bookings = emp_bookings.filter(credited_to_sourcing_manager=emp)
@@ -407,18 +450,42 @@ def employee_performance(request):
                 created_at__date__gte=this_month_start
             ).count()
             
-            # Visits completed (OTP verified)
-            metrics['visits_completed'] = emp_associations.filter(
+            # Visits completed (OTP verified) - Split by CP vs Non-CP
+            visits_with_cp = emp_associations.filter(
                 assigned_to=emp,
-                phone_verified=True
+                phone_verified=True,
+                lead__channel_partner__isnull=False
             ).count()
+            visits_without_cp = emp_associations.filter(
+                assigned_to=emp,
+                phone_verified=True,
+                lead__channel_partner__isnull=True
+            ).count()
+            metrics['visits_completed'] = visits_with_cp + visits_without_cp
+            metrics['visits_with_cp'] = visits_with_cp
+            metrics['visits_without_cp'] = visits_without_cp
+            
+            # Bookings - Split by CP vs Non-CP
+            bookings_with_cp = emp_bookings.filter(
+                credited_to_telecaller=emp,
+                lead__channel_partner__isnull=False
+            ).count()
+            bookings_without_cp = emp_bookings.filter(
+                credited_to_telecaller=emp,
+                lead__channel_partner__isnull=True
+            ).count()
+            total_telecaller_bookings = bookings_with_cp + bookings_without_cp
             
             # Visit to conversion ratio (if applicable) - using credit fields
-            telecaller_bookings = emp_bookings.filter(credited_to_telecaller=emp).count()
             if metrics['visits_completed'] > 0:
-                metrics['visit_to_conversion_ratio'] = (telecaller_bookings / metrics['visits_completed']) * 100
+                metrics['visit_to_conversion_ratio'] = (total_telecaller_bookings / metrics['visits_completed']) * 100
             else:
                 metrics['visit_to_conversion_ratio'] = 0
+            
+            # Additional CP-specific metrics
+            metrics['bookings_with_cp'] = bookings_with_cp
+            metrics['bookings_without_cp'] = bookings_without_cp
+            metrics['total_bookings'] = total_telecaller_bookings
             
             # Follow-up reminders
             lead_ids = emp_associations.values_list('lead_id', flat=True)

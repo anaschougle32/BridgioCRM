@@ -611,6 +611,239 @@
                     </div>
                 </div>
                 
+                <!-- Complete Lead Data Section -->
+                <div class="mt-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-heading font-bold text-olive-primary">Complete Lead Information</h3>
+                        {% if request.user.is_closing_manager() or request.user.is_sourcing_manager() or request.user.is_site_head() or request.user.is_mandate_owner() %}
+                        <button onclick="toggleEditMode()" id="edit-mode-btn"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+                            ✏️ Edit Data
+                        </button>
+                        {% endif %}
+                    </div>
+                    
+                    <div id="lead-data-display" class="space-y-4">
+                        <!-- Personal Information -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-gray-700 mb-3">Personal Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                <div><strong>Full Name:</strong> <span id="display-name">{{ lead.name|default:"-" }}</span></div>
+                                <div><strong>Phone:</strong> <span id="display-phone">{{ phone_display }}</span></div>
+                                <div><strong>Email:</strong> <span id="display-email">{{ lead.email|default:"-" }}</span></div>
+                                <div><strong>Alternate Phone:</strong> <span id="display-alt-phone">{{ lead.alternate_phone|default:"-" }}</span></div>
+                                <div><strong>WhatsApp:</strong> <span id="display-whatsapp">{{ lead.whatsapp_number|default:"-" }}</span></div>
+                                <div><strong>Address:</strong> <span id="display-address">{{ lead.address|default:"-" }}</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Budget & Preferences -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-gray-700 mb-3">Budget & Preferences</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                <div><strong>Budget:</strong> 
+                                    <span id="display-budget">
+                                        {% if lead.budget %}
+                                            {% if lead.budget >= 10000000 %}
+                                                {% widthratio lead.budget 10000000 1 as budget_cr %}
+                                                ₹{{ budget_cr }} Cr
+                                            {% else %}
+                                                {% widthratio lead.budget 100000 1 as budget_l %}
+                                                ₹{{ budget_l }} L
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div><strong>Preferred Configuration:</strong> 
+                                    <span id="display-configurations">
+                                        {% if lead.configurations.all %}
+                                            {% for config in lead.configurations.all %}
+                                                {{ config.display_name }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div><strong>Preferred Project:</strong> <span id="display-preferred-project">{{ lead.preferred_project.name|default:"-" }}</span></div>
+                                <div><strong>Lead Source:</strong> <span id="display-lead-source">{{ lead.get_lead_source_display|default:"-" }}</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Professional Information -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-gray-700 mb-3">Professional Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                <div><strong>Occupation:</strong> <span id="display-occupation">{{ lead.occupation|default:"-" }}</span></div>
+                                <div><strong>Company:</strong> <span id="display-company">{{ lead.company|default:"-" }}</span></div>
+                                <div><strong>Annual Income:</strong> <span id="display-income">{{ lead.annual_income|default:"-" }}</span></div>
+                                <div><strong>Work Address:</strong> <span id="display-work-address">{{ lead.work_address|default:"-" }}</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Data Source Attribution -->
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-700 mb-3">Data Source & Attribution</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                <div><strong>Data Source:</strong> 
+                                    <span id="display-data-source">
+                                        {% if lead.channel_partner %}
+                                            <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">Channel Partner</span>
+                                        {% else %}
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Owner Data</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div><strong>Created By:</strong> <span id="display-created-by">{{ lead.created_by.username|default:"-" }}</span></div>
+                                <div><strong>Created At:</strong> <span id="display-created-at">{{ lead.created_at|date:"d M Y, h:i A" }}</span></div>
+                                <div><strong>Last Updated:</strong> <span id="display-updated-at">{{ lead.updated_at|date:"d M Y, h:i A" }}</span></div>
+                                {% if lead.channel_partner %}
+                                <div><strong>Channel Partner:</strong> <span id="display-cp-name">{{ lead.channel_partner.cp_name }} ({{ lead.channel_partner.firm_name }})</span></div>
+                                <div><strong>CP ID:</strong> <span id="display-cp-id">{{ lead.channel_partner.cp_unique_id|default:"-" }}</span></div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Completion Status -->
+                        <div class="bg-yellow-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-yellow-700 mb-3">Data Completion Status</h4>
+                            <div class="space-y-2 text-sm">
+                                {% with completion_status=lead.get_completion_status %}
+                                <div class="flex justify-between">
+                                    <span>Profile Completion:</span>
+                                    <span class="font-semibold {% if completion_status.percentage >= 80 %}text-green-600{% elif completion_status.percentage >= 50 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                        {{ completion_status.percentage }}%
+                                    </span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-600 h-2 rounded-full" style="width: {{ completion_status.percentage }}%"></div>
+                                </div>
+                                {% if completion_status.missing_fields %}
+                                <div class="mt-2">
+                                    <strong>Missing Fields:</strong>
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        {% for field in completion_status.missing_fields %}
+                                        <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">{{ field }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Edit Form (Hidden by default) -->
+                    <div id="lead-data-edit" class="hidden space-y-4">
+                        <form id="lead-data-form" method="post" action="{% url 'leads:update_lead_data' lead.id %}">
+                            {% csrf_token %}
+                            <!-- Personal Information -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-semibold text-gray-700 mb-3">Personal Information</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                                        <input type="text" name="name" id="edit-name" value="{{ lead.name }}" required
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                                        <input type="tel" name="phone" id="edit-phone" value="{{ lead.phone }}" required
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                        <input type="email" name="email" id="edit-email" value="{{ lead.email }}"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Alternate Phone</label>
+                                        <input type="tel" name="alternate_phone" id="edit-alt-phone" value="{{ lead.alternate_phone }}"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
+                                        <input type="tel" name="whatsapp_number" id="edit-whatsapp" value="{{ lead.whatsapp_number }}"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                        <textarea name="address" id="edit-address" rows="2"
+                                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{{ lead.address }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Budget & Preferences -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-semibold text-gray-700 mb-3">Budget & Preferences</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Budget</label>
+                                        <select name="budget" id="edit-budget"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                            <option value="">Select Budget</option>
+                                            {% for value, label in budget_choices %}
+                                            <option value="{{ value }}" {% if lead.budget == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Lead Source</label>
+                                        <select name="lead_source" id="edit-lead-source"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                            <option value="">Select Source</option>
+                                            {% for value, label in lead_source_choices %}
+                                            <option value="{{ value }}" {% if lead.lead_source == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Professional Information -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-semibold text-gray-700 mb-3">Professional Information</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
+                                        <input type="text" name="occupation" id="edit-occupation" value="{{ lead.occupation }}"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                                        <input type="text" name="company" id="edit-company" value="{{ lead.company }}"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Annual Income</label>
+                                        <input type="text" name="annual_income" id="edit-income" value="{{ lead.annual_income }}"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Work Address</label>
+                                        <textarea name="work_address" id="edit-work-address" rows="2"
+                                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{{ lead.work_address }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="toggleEditMode()"
+                                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                                    💾 Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- Notes Section -->
                 <div class="mt-6">
                     <div class="flex justify-between items-center mb-3">
@@ -1033,6 +1266,114 @@
         </div>
     </div>
 </div>
+
+<script>
+function toggleEditMode() {
+    const displaySection = document.getElementById('lead-data-display');
+    const editSection = document.getElementById('lead-data-edit');
+    const editBtn = document.getElementById('edit-mode-btn');
+    
+    if (displaySection.classList.contains('hidden')) {
+        // Switch to display mode
+        displaySection.classList.remove('hidden');
+        editSection.classList.add('hidden');
+        editBtn.innerHTML = '✏️ Edit Data';
+        editBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+        editBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+    } else {
+        // Switch to edit mode
+        displaySection.classList.add('hidden');
+        editSection.classList.remove('hidden');
+        editBtn.innerHTML = '❌ Cancel Edit';
+        editBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        editBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+    }
+}
+
+// Handle form submission with AJAX
+document.getElementById('lead-data-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Disable submit button and show loading
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Saving...';
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update display fields with new data
+            updateDisplayFields(data.updated_data);
+            
+            // Show success message
+            showNotification('Lead data updated successfully!', 'success');
+            
+            // Switch back to display mode
+            toggleEditMode();
+            
+            // Reload page after a short delay to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(data.error || 'Update failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification(error.message || 'An error occurred. Please try again.', 'error');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+
+function updateDisplayFields(data) {
+    // Update display fields with new data
+    if (data.name) document.getElementById('display-name').textContent = data.name;
+    if (data.phone) document.getElementById('display-phone').textContent = data.phone;
+    if (data.email) document.getElementById('display-email').textContent = data.email || '-';
+    if (data.alternate_phone) document.getElementById('display-alt-phone').textContent = data.alternate_phone || '-';
+    if (data.whatsapp_number) document.getElementById('display-whatsapp').textContent = data.whatsapp_number || '-';
+    if (data.address) document.getElementById('display-address').textContent = data.address || '-';
+    if (data.budget_display) document.getElementById('display-budget').innerHTML = data.budget_display;
+    if (data.lead_source_display) document.getElementById('display-lead-source').textContent = data.lead_source_display || '-';
+    if (data.occupation) document.getElementById('display-occupation').textContent = data.occupation || '-';
+    if (data.company) document.getElementById('display-company').textContent = data.company || '-';
+    if (data.annual_income) document.getElementById('display-income').textContent = data.annual_income || '-';
+    if (data.work_address) document.getElementById('display-work-address').textContent = data.work_address || '-';
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+    }`;
+    notification.textContent = message;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+</script>
 
 {% endblock %}
 

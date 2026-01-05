@@ -175,6 +175,44 @@ class Lead(models.Model):
             lead_associations__lead=self,
             lead_associations__is_archived=False
         ).distinct()
+    
+    def get_completion_status(self):
+        """Calculate lead profile completion percentage and missing fields"""
+        required_fields = ['name', 'phone']
+        important_fields = ['email', 'budget', 'address', 'occupation', 'company']
+        optional_fields = ['alternate_phone', 'whatsapp_number', 'annual_income', 'work_address', 'lead_source']
+        
+        total_fields = len(required_fields) + len(important_fields) + len(optional_fields)
+        filled_fields = 0
+        missing_fields = []
+        
+        # Check required fields
+        for field in required_fields:
+            if getattr(self, field, None):
+                filled_fields += 1
+            else:
+                missing_fields.append(field.replace('_', ' ').title())
+        
+        # Check important fields
+        for field in important_fields:
+            if getattr(self, field, None):
+                filled_fields += 1
+            else:
+                missing_fields.append(field.replace('_', ' ').title())
+        
+        # Check optional fields
+        for field in optional_fields:
+            if getattr(self, field, None):
+                filled_fields += 1
+        
+        percentage = int((filled_fields / total_fields) * 100) if total_fields > 0 else 0
+        
+        return {
+            'percentage': percentage,
+            'filled_fields': filled_fields,
+            'total_fields': total_fields,
+            'missing_fields': missing_fields
+        }
 
 
 class LeadProjectAssociation(models.Model):

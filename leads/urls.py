@@ -4,7 +4,7 @@ from .views import (
     upcoming_visits, visits_list, pretagged_leads, schedule_visit, scheduled_visits, closing_manager_visits, log_call, create_reminder, complete_reminder, whatsapp, 
     lead_assign, lead_upload, lead_assign_admin, update_status, update_notes,
     upload_analyze, upload_preview, lead_upload_errors_csv, lead_download,
-    update_budget, update_configuration, track_call_click, search_channel_partners, search_leads, followups_list,
+    update_budget, update_configuration, update_lead_data, track_call_click, search_channel_partners, search_leads, followups_list,
     revisit_visit, search_existing_visits, verify_revisit_otp, visit_detail, resend_revisit_otp
 )
 from .views_revisit_queue import schedule_revisit, queue_visit, visit_queue, mark_visit_done, prepare_lead_for_otp
@@ -41,6 +41,7 @@ urlpatterns = [
     path('<int:pk>/update-status/', update_status, name='update_status'),
     path('<int:pk>/update-budget/', update_budget, name='update_budget'),
     path('<int:pk>/update-configuration/', update_configuration, name='update_configuration'),
+    path('<int:pk>/update-lead-data/', update_lead_data, name='update_lead_data'),
     path('<int:pk>/log-call/', log_call, name='log_call'),
     path('<int:pk>/track-call-click/', track_call_click, name='track_call_click'),
     path('<int:pk>/create-reminder/', create_reminder, name='create_reminder'),

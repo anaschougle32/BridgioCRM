@@ -1034,6 +1034,32 @@ def lead_detail(request, pk):
     # Get WhatsApp templates
     whatsapp_templates = get_whatsapp_templates()
     
+    # Get budget choices for dropdown
+    budget_choices = [
+        ('2000000', '₹20L'),
+        ('2500000', '₹25L'),
+        ('3000000', '₹30L'),
+        ('3500000', '₹35L'),
+        ('4000000', '₹40L'),
+        ('4500000', '₹45L'),
+        ('5000000', '₹50L'),
+        ('5500000', '₹55L'),
+        ('6000000', '₹60L'),
+        ('6500000', '₹65L'),
+        ('7000000', '₹70L'),
+        ('7500000', '₹75L'),
+        ('8000000', '₹80L'),
+        ('8500000', '₹85L'),
+        ('9000000', '₹90L'),
+        ('9500000', '₹95L'),
+        ('10000000', '₹1Cr'),
+        ('12000000', '₹1.2Cr'),
+        ('15000000', '₹1.5Cr'),
+        ('20000000', '₹2Cr'),
+        ('25000000', '₹2.5Cr'),
+        ('30000000', '₹3Cr'),
+    ]
+    
     context = {
         'lead': lead,
         'associations': associations,
@@ -1045,6 +1071,8 @@ def lead_detail(request, pk):
         'whatsapp_templates': whatsapp_templates,
         'phone_display': get_phone_display(lead.phone),
         'tel_link': get_tel_link(lead.phone),
+        'budget_choices': budget_choices,
+        'lead_source_choices': Lead.LEAD_SOURCE_CHOICES,
     }
     return render(request, 'leads/detail.html', context)
 
@@ -2761,6 +2789,106 @@ def update_configuration(request, pk):
     
     messages.success(request, 'Configuration updated successfully.')
     return redirect('leads:list')
+
+
+@login_required
+def update_lead_data(request, pk):
+    """Update lead data - Only Closing Managers, Sourcing Managers, Site Heads, and Super Admins"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    lead = get_object_or_404(Lead, pk=pk, is_archived=False)
+    
+    # Permission check - Closing Managers, Sourcing Managers, Site Heads, Mandate Owners, and Super Admins can update lead data
+    if not (request.user.is_closing_manager() or request.user.is_sourcing_manager() or 
+            request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
+        return JsonResponse({'success': False, 'error': 'You do not have permission to update lead data.'}, status=403)
+    
+    try:
+        # Get form data
+        name = request.POST.get('name', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        email = request.POST.get('email', '').strip()
+        alternate_phone = request.POST.get('alternate_phone', '').strip()
+        whatsapp_number = request.POST.get('whatsapp_number', '').strip()
+        address = request.POST.get('address', '').strip()
+        budget = request.POST.get('budget', '').strip()
+        lead_source = request.POST.get('lead_source', '').strip()
+        occupation = request.POST.get('occupation', '').strip()
+        company = request.POST.get('company', '').strip()
+        annual_income = request.POST.get('annual_income', '').strip()
+        work_address = request.POST.get('work_address', '').strip()
+        
+        # Validate required fields
+        if not name:
+            return JsonResponse({'success': False, 'error': 'Name is required.'}, status=400)
+        if not phone:
+            return JsonResponse({'success': False, 'error': 'Phone is required.'}, status=400)
+        
+        # Update lead fields
+        lead.name = name
+        lead.phone = phone
+        lead.email = email if email else lead.email
+        lead.alternate_phone = alternate_phone if alternate_phone else lead.alternate_phone
+        lead.whatsapp_number = whatsapp_number if whatsapp_number else lead.whatsapp_number
+        lead.address = address if address else lead.address
+        lead.budget = int(budget) if budget else lead.budget
+        lead.lead_source = lead_source if lead_source else lead.lead_source
+        lead.occupation = occupation if occupation else lead.occupation
+        lead.company = company if company else lead.company
+        lead.annual_income = annual_income if annual_income else lead.annual_income
+        lead.work_address = work_address if work_address else lead.work_address
+        
+        lead.save()
+        
+        # Create audit log
+        from accounts.models import AuditLog
+        AuditLog.objects.create(
+            user=request.user,
+            action='lead_data_updated',
+            model_name='Lead',
+            object_id=str(lead.id),
+            changes={'lead_name': lead.name, 'message': 'Lead data updated via detail page'},
+        )
+        
+        # Prepare updated data for response
+        updated_data = {
+            'name': lead.name,
+            'phone': lead.phone,
+            'email': lead.email or '-',
+            'alternate_phone': lead.alternate_phone or '-',
+            'whatsapp_number': lead.whatsapp_number or '-',
+            'address': lead.address or '-',
+            'budget_display': '',
+            'lead_source_display': lead.get_lead_source_display() or '-',
+            'occupation': lead.occupation or '-',
+            'company': lead.company or '-',
+            'annual_income': lead.annual_income or '-',
+            'work_address': lead.work_address or '-',
+        }
+        
+        # Format budget for display
+        if lead.budget:
+            if lead.budget >= 10000000:
+                budget_cr = lead.budget // 10000000
+                updated_data['budget_display'] = f'₹{budget_cr} Cr'
+            else:
+                budget_l = lead.budget // 100000
+                updated_data['budget_display'] = f'₹{budget_l} L'
+        else:
+            updated_data['budget_display'] = '-'
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Lead data updated successfully!',
+            'updated_data': updated_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error updating lead data: {str(e)}'
+        }, status=500)
 
 
 @login_required
