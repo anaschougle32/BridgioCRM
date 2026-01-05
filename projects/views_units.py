@@ -11,9 +11,9 @@ from accounts.models import User
 
 
 @login_required
-def unit_inventory(request, project_id):
+def unit_inventory(request, pk):
     """Unit inventory management for a project"""
-    project = get_object_or_404(Project, pk=project_id)
+    project = get_object_or_404(Project, pk=pk)
     
     # Permission check
     if request.user.is_super_admin() or request.user.is_mandate_owner():
@@ -97,16 +97,16 @@ def unit_inventory(request, project_id):
 
 
 @login_required
-def block_unit(request, project_id, unit_id):
+def block_unit(request, pk, unit_id):
     """Block a unit for a specified time period"""
-    project = get_object_or_404(Project, pk=project_id)
+    project = get_object_or_404(Project, pk=pk)
     unit = get_object_or_404(UnitConfiguration, pk=unit_id, project=project)
     
     # Permission check
     if not (request.user.is_closing_manager() or request.user.is_sourcing_manager() or 
             request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
         messages.error(request, 'You do not have permission to block units.')
-        return redirect('projects:unit_inventory', project_id=project_id)
+        return redirect('projects:unit_inventory', pk=project.pk)
     
     if request.method == 'POST':
         hours = int(request.POST.get('hours', 24))
@@ -122,20 +122,20 @@ def block_unit(request, project_id, unit_id):
         else:
             messages.error(request, message)
     
-    return redirect('projects:unit_inventory', project_id=project_id)
+    return redirect('projects:unit_inventory', pk=project.pk)
 
 
 @login_required
-def unblock_unit(request, project_id, unit_id):
+def unblock_unit(request, pk, unit_id):
     """Unblock a unit"""
-    project = get_object_or_404(Project, pk=project_id)
+    project = get_object_or_404(Project, pk=pk)
     unit = get_object_or_404(UnitConfiguration, pk=unit_id, project=project)
     
     # Permission check
     if not (request.user.is_closing_manager() or request.user.is_sourcing_manager() or 
             request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
         messages.error(request, 'You do not have permission to unblock units.')
-        return redirect('projects:unit_inventory', project_id=project_id)
+        return redirect('projects:unit_inventory', pk=project.pk)
     
     success, message = unit.unblock_unit(request.user)
     
@@ -144,19 +144,19 @@ def unblock_unit(request, project_id, unit_id):
     else:
         messages.error(request, message)
     
-    return redirect('projects:unit_inventory', project_id=project_id)
+    return redirect('projects:unit_inventory', pk=project.pk)
 
 
 @login_required
-def update_unit_status(request, project_id, unit_id):
+def update_unit_status(request, pk, unit_id):
     """Update unit status"""
-    project = get_object_or_404(Project, pk=project_id)
+    project = get_object_or_404(Project, pk=pk)
     unit = get_object_or_404(UnitConfiguration, pk=unit_id, project=project)
     
     # Permission check
     if not (request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
         messages.error(request, 'You do not have permission to update unit status.')
-        return redirect('projects:unit_inventory', project_id=project_id)
+        return redirect('projects:unit_inventory', pk=project.pk)
     
     if request.method == 'POST':
         new_status = request.POST.get('status')
@@ -181,13 +181,13 @@ def update_unit_status(request, project_id, unit_id):
         else:
             messages.error(request, 'Invalid status selected.')
     
-    return redirect('projects:unit_inventory', project_id=project_id)
+    return redirect('projects:unit_inventory', pk=project.pk)
 
 
 @login_required
-def unit_availability_api(request, project_id):
+def unit_availability_api(request, pk):
     """API endpoint to check unit availability"""
-    project = get_object_or_404(Project, pk=project_id)
+    project = get_object_or_404(Project, pk=pk)
     
     # Permission check
     if request.user.is_telecaller():
@@ -222,14 +222,14 @@ def unit_availability_api(request, project_id):
 
 
 @login_required
-def bulk_unit_actions(request, project_id):
+def bulk_unit_actions(request, pk):
     """Bulk actions on multiple units"""
-    project = get_object_or_404(Project, pk=project_id)
+    project = get_object_or_404(Project, pk=pk)
     
     # Permission check
     if not (request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
         messages.error(request, 'You do not have permission to perform bulk actions.')
-        return redirect('projects:unit_inventory', project_id=project_id)
+        return redirect('projects:unit_inventory', pk=project.pk)
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -237,7 +237,7 @@ def bulk_unit_actions(request, project_id):
         
         if not unit_ids:
             messages.error(request, 'No units selected.')
-            return redirect('projects:unit_inventory', project_id=project_id)
+            return redirect('projects:unit_inventory', pk=project.pk)
         
         units = UnitConfiguration.objects.filter(
             pk__in=unit_ids,
@@ -276,4 +276,4 @@ def bulk_unit_actions(request, project_id):
         else:
             messages.error(request, 'Invalid action selected.')
     
-    return redirect('projects:unit_inventory', project_id=project_id)
+    return redirect('projects:unit_inventory', pk=project.pk)
