@@ -89,20 +89,20 @@ def cp_list(request):
         cps = cps.annotate(
             lead_count=Count('leads__project_associations', filter=Q(leads__project_associations__project__mandate_owner=request.user, leads__project_associations__is_archived=False), distinct=True),
             booking_count=Count('bookings', filter=Q(bookings__project__mandate_owner=request.user, bookings__is_archived=False)),
-            total_revenue=Sum('bookings__payments__amount', filter=Q(bookings__project__mandate_owner=request.user))
+            total_revenue=Sum('bookings__final_negotiated_price', filter=Q(bookings__project__mandate_owner=request.user))
         ).order_by('-total_revenue', '-booking_count')
     elif request.user.is_site_head():
         site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
         cps = cps.annotate(
             lead_count=Count('leads__project_associations', filter=Q(leads__project_associations__project__in=site_head_projects, leads__project_associations__is_archived=False), distinct=True),
             booking_count=Count('bookings', filter=Q(bookings__project__in=site_head_projects, bookings__is_archived=False)),
-            total_revenue=Sum('bookings__payments__amount', filter=Q(bookings__project__in=site_head_projects))
+            total_revenue=Sum('bookings__final_negotiated_price', filter=Q(bookings__project__in=site_head_projects))
         ).order_by('-total_revenue', '-booking_count')
     else:
         cps = cps.annotate(
             lead_count=Count('leads__project_associations', filter=Q(leads__project_associations__is_archived=False), distinct=True),
             booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-            total_revenue=Sum('bookings__payments__amount')
+            total_revenue=Sum('bookings__final_negotiated_price')
         ).order_by('-total_revenue', '-booking_count')
     
     # Pagination
@@ -188,10 +188,7 @@ def cp_detail(request, pk):
         leads = Lead.objects.filter(id__in=association_ids, is_archived=False)
         bookings = cp.bookings.filter(project__mandate_owner=request.user, is_archived=False)
         from bookings.models import Payment
-        total_revenue = Payment.objects.filter(
-            booking__channel_partner=cp,
-            booking__project__mandate_owner=request.user
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        total_revenue = bookings.aggregate(total=Sum('final_negotiated_price'))['total'] or 0
         linked_projects = cp.linked_projects.filter(mandate_owner=request.user)
     elif request.user.is_site_head():
         site_head_projects = Project.objects.filter(site_head=request.user, is_active=True)
@@ -205,10 +202,7 @@ def cp_detail(request, pk):
         bookings = cp.bookings.filter(project__in=site_head_projects, is_archived=False)
         from bookings.models import Payment
         # Use simple Sum with float conversion to avoid string concatenation issues
-        total_revenue_raw = Payment.objects.filter(
-            booking__channel_partner=cp,
-            booking__project__in=site_head_projects
-        ).aggregate(total=Sum('amount'))['total']
+        total_revenue_raw = bookings.aggregate(total=Sum('final_negotiated_price'))['total']
         total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.filter(id__in=site_head_projects)
     elif request.user.is_sourcing_manager():
@@ -221,9 +215,7 @@ def cp_detail(request, pk):
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
         # Use simple Sum with float conversion to avoid string concatenation issues
-        total_revenue_raw = Payment.objects.filter(booking__channel_partner=cp).aggregate(
-            total=Sum('amount')
-        )['total']
+        total_revenue_raw = bookings.aggregate(total=Sum('final_negotiated_price'))['total']
         total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.all()
     else:
@@ -235,9 +227,7 @@ def cp_detail(request, pk):
         bookings = cp.bookings.filter(is_archived=False)
         from bookings.models import Payment
         # Use simple Sum with float conversion to avoid string concatenation issues
-        total_revenue_raw = Payment.objects.filter(booking__channel_partner=cp).aggregate(
-            total=Sum('amount')
-        )['total']
+        total_revenue_raw = bookings.aggregate(total=Sum('final_negotiated_price'))['total']
         total_revenue = float(total_revenue_raw) if total_revenue_raw is not None else 0
         linked_projects = cp.linked_projects.all()
     
@@ -247,10 +237,7 @@ def cp_detail(request, pk):
         for project in linked_projects:
             project_leads = leads.filter(project=project)
             project_bookings = bookings.filter(project=project)
-            project_revenue = Payment.objects.filter(
-                booking__channel_partner=cp,
-                booking__project=project
-            ).aggregate(total=Sum('amount'))['total'] or 0
+            project_revenue = project_bookings.aggregate(total=Sum('final_negotiated_price'))['total'] or 0
             
             project_stats.append({
                 'project': project,

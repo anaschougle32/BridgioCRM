@@ -38,10 +38,15 @@ def dashboard(request):
             except Exception:
                 all_bookings = Booking.objects.none()
             
-            # Revenue calculations - handle None values
+            # Total Worth Sold and Revenue calculations - handle None values
             try:
+                # Total Worth Sold = sum of all agreement values (final negotiated prices)
+                total_worth_sold = all_bookings.aggregate(total=Sum('final_negotiated_price'))['total'] or 0
+                
+                # Revenue = sum of all commissions (only for commissions page)
                 total_revenue = Payment.objects.aggregate(total=Sum('amount'))['total'] or 0
             except Exception:
+                total_worth_sold = 0
                 total_revenue = 0
             
             bookings_count = all_bookings.count() if all_bookings else 0
@@ -57,12 +62,13 @@ def dashboard(request):
                 for cp in ChannelPartner.objects.filter(is_active=True):
                     booking_count = cp.bookings.filter(is_archived=False).count()
                     if booking_count > 0:
-                        total_revenue = Payment.objects.filter(booking__channel_partner=cp, booking__is_archived=False).aggregate(total=Sum('amount'))['total'] or 0
+                        # Total Worth Sold = sum of agreement values for this CP
+                        total_worth = cp.bookings.filter(is_archived=False).aggregate(total=Sum('final_negotiated_price'))['total'] or 0
                         cp_leaderboard.append({
                             'cp_name': cp.cp_name,
                             'firm_name': cp.firm_name,
                             'booking_count': booking_count,
-                            'total_revenue': total_revenue
+                            'total_revenue': total_worth
                         })
                 cp_leaderboard.sort(key=lambda x: x['total_revenue'], reverse=True)
                 cp_leaderboard = cp_leaderboard[:10]
@@ -76,7 +82,7 @@ def dashboard(request):
                 project_stats = list(Project.objects.filter(is_active=True).annotate(
                     lead_count=Count('lead_associations', filter=Q(lead_associations__is_archived=False)),
                     booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-                    revenue=Coalesce(Sum('bookings__payments__amount'), Value(Decimal('0')), output_field=DecimalField())
+                    revenue=Coalesce(Sum('bookings__final_negotiated_price'), Value(Decimal('0')), output_field=DecimalField())
                 ).order_by('-revenue')[:10])
             except Exception as e:
                 import traceback
@@ -118,6 +124,7 @@ def dashboard(request):
                 'new_visits_today': all_leads.filter(created_at__date=today).count(),
                 'total_bookings': bookings_count,
                 'pending_otp': pending_otp,
+                'total_worth_sold': total_worth_sold,
                 'total_revenue': total_revenue,
                 'avg_booking_value': avg_booking_value,
                 'total_projects': total_projects,
@@ -141,10 +148,15 @@ def dashboard(request):
             except Exception:
                 all_bookings = Booking.objects.none()
             
-            # Revenue calculations - handle None values
+            # Total Worth Sold and Revenue calculations - handle None values
             try:
+                # Total Worth Sold = sum of all agreement values (final negotiated prices)
+                total_worth_sold = all_bookings.aggregate(total=Sum('final_negotiated_price'))['total'] or 0
+                
+                # Revenue = sum of all commissions (only for commissions page)
                 total_revenue = Payment.objects.aggregate(total=Sum('amount'))['total'] or 0
             except Exception:
+                total_worth_sold = 0
                 total_revenue = 0
             
             bookings_count = all_bookings.count() if all_bookings else 0
@@ -160,12 +172,13 @@ def dashboard(request):
                 for cp in ChannelPartner.objects.filter(is_active=True):
                     booking_count = cp.bookings.filter(is_archived=False).count()
                     if booking_count > 0:
-                        total_revenue = Payment.objects.filter(booking__channel_partner=cp, booking__is_archived=False).aggregate(total=Sum('amount'))['total'] or 0
+                        # Total Worth Sold = sum of agreement values for this CP
+                        total_worth = cp.bookings.filter(is_archived=False).aggregate(total=Sum('final_negotiated_price'))['total'] or 0
                         cp_leaderboard.append({
                             'cp_name': cp.cp_name,
                             'firm_name': cp.firm_name,
                             'booking_count': booking_count,
-                            'total_revenue': total_revenue
+                            'total_revenue': total_worth
                         })
                 cp_leaderboard.sort(key=lambda x: x['total_revenue'], reverse=True)
                 cp_leaderboard = cp_leaderboard[:10]
@@ -179,7 +192,7 @@ def dashboard(request):
                 project_stats = list(Project.objects.filter(is_active=True).annotate(
                     lead_count=Count('lead_associations', filter=Q(lead_associations__is_archived=False)),
                     booking_count=Count('bookings', filter=Q(bookings__is_archived=False)),
-                    revenue=Coalesce(Sum('bookings__payments__amount'), Value(Decimal('0')), output_field=DecimalField())
+                    revenue=Coalesce(Sum('bookings__final_negotiated_price'), Value(Decimal('0')), output_field=DecimalField())
                 ).order_by('-revenue')[:10])
             except Exception as e:
                 import traceback
@@ -221,6 +234,7 @@ def dashboard(request):
                 'new_visits_today': all_leads.filter(created_at__date=today).count(),
                 'total_bookings': bookings_count,
                 'pending_otp': pending_otp,
+                'total_worth_sold': total_worth_sold,
                 'total_revenue': total_revenue,
                 'avg_booking_value': avg_booking_value,
                 'total_projects': total_projects,

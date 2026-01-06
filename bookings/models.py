@@ -94,6 +94,23 @@ class Booking(models.Model):
     def remaining_balance(self):
         return self.final_negotiated_price - self.total_paid
     
+    @property
+    def agreement_value(self):
+        """Get the agreement value (final negotiated price)"""
+        return self.final_negotiated_price
+    
+    @property
+    def commission_amount(self):
+        """Calculate commission amount based on project's default commission percent"""
+        if self.final_negotiated_price and self.project.default_commission_percent:
+            return (self.final_negotiated_price * self.project.default_commission_percent) / 100
+        return 0
+    
+    @property
+    def total_worth_sold(self):
+        """Alias for agreement value for consistency in reporting"""
+        return self.agreement_value
+    
     def calculate_and_create_commissions(self):
         """Automatically calculate and create commissions for CP and employees"""
         from django.utils import timezone
