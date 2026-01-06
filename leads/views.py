@@ -1295,7 +1295,7 @@ def send_otp(request, pk):
         <script>
             // Automatically open WhatsApp when OTP is generated (fallback mode)
             (function() {{
-                const whatsappLink = '{whatsappLink}';
+                const whatsappLink = '{whatsapp_link}';
                 if (whatsappLink) {{
                     // Open WhatsApp in new tab/window
                     window.open(whatsappLink, '_blank');

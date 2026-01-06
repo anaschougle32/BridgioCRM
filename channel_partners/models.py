@@ -61,6 +61,14 @@ class ChannelPartner(models.Model):
     
     # Relationships
     linked_projects = models.ManyToManyField(Project, related_name='channel_partners', blank=True)
+    sourcing_manager = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='managed_channel_partners',
+        help_text="Sourcing Manager assigned to this Channel Partner (1:1 relationship)"
+    )
     
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

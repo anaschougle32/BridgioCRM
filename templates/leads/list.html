@@ -462,7 +462,7 @@
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Configuration</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CP ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase max-w-xs">Notes</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none sortable-column" data-column="status">
                             Status
                             <span class="sort-icon inline-block ml-1 text-gray-400">⇅</span>
@@ -590,10 +590,12 @@
                         {% endif %}
                         {% endwith %}
                     </td>
-                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-sm">
+                    <td class="px-3 py-3 sm:py-4 text-sm max-w-xs">
                         {% if lead.notes %}
                             {% load lead_filters %}
-                            <span class="text-gray-700 truncate max-w-xs" title="{{ lead.notes|get_last_note }}">{{ lead.notes|get_last_note|truncatewords:8 }}</span>
+                            <div class="text-gray-700 truncate" title="{{ lead.notes|get_last_note }}" style="max-width: 200px;">
+                                {{ lead.notes|get_last_note|truncatewords:6 }}
+                            </div>
                         {% else %}
                             <span class="text-gray-400">—</span>
                         {% endif %}
@@ -1247,8 +1249,49 @@
                     document.querySelectorAll('[id^="status-menu-"], [id^="budget-menu-"], [id^="config-menu-"]').forEach(m => {
                         m.classList.add('hidden');
                     });
-                    // Reload page to show updated status and metrics
-                    location.reload();
+                    
+                    // Find the status button and update it
+                    const leadId = this.getAttribute('data-lead-id');
+                    const statusForm = document.querySelector(`form[action*="update-status"][data-lead-id="${leadId}"]`);
+                    if (statusForm) {
+                        const statusButton = statusForm.querySelector('button');
+                        if (statusButton) {
+                            // Update button text and styling based on new status
+                            const newStatus = formData.get('status');
+                            statusButton.textContent = data.message || 'Status updated';
+                            statusButton.className = statusButton.className.replace(/bg-\w+-100|bg-\w+-200|text-\w+-700|text-\w+-800/g, '');
+                            // Add appropriate styling based on status
+                            switch(newStatus) {
+                                case 'new':
+                                    statusButton.classList.add('bg-gray-100', 'text-gray-700');
+                                    break;
+                                case 'contacted':
+                                    statusButton.classList.add('bg-blue-100', 'text-blue-700');
+                                    break;
+                                case 'visit_scheduled':
+                                    statusButton.classList.add('bg-yellow-100', 'text-yellow-700');
+                                    break;
+                                case 'visit_completed':
+                                    statusButton.classList.add('bg-green-100', 'text-green-700');
+                                    break;
+                                case 'booked':
+                                    statusButton.classList.add('bg-purple-100', 'text-purple-700');
+                                    break;
+                                case 'lost':
+                                    statusButton.classList.add('bg-red-100', 'text-red-700');
+                                    break;
+                                default:
+                                    statusButton.classList.add('bg-gray-100', 'text-gray-700');
+                            }
+                        }
+                    }
+                    
+                    // Show success message briefly
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                    successMsg.textContent = data.message || 'Status updated successfully';
+                    document.body.appendChild(successMsg);
+                    setTimeout(() => successMsg.remove(), 3000);
                 } else {
                     throw new Error(data?.error || 'Update failed');
                 }

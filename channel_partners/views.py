@@ -990,19 +990,47 @@ def cp_edit(request, pk):
             normalized_phone2 = normalize_phone(request.POST.get('phone2', '')) if request.POST.get('phone2') else ''
             normalized_owner_number = normalize_phone(request.POST.get('owner_number', '')) if request.POST.get('owner_number') else ''
             
-            cp.cp_name = request.POST.get('cp_name')
-            cp.firm_name = request.POST.get('firm_name')
+            # Only name and phone are required
+            cp_name = request.POST.get('cp_name', '').strip()
+            phone = request.POST.get('phone', '').strip()
+            
+            if not cp_name or not phone:
+                messages.error(request, 'Channel Partner name and phone number are required.')
+                return render(request, 'channel_partners/edit.html', {
+                    'cp': cp,
+                    'cp_type_choices': ChannelPartner.CP_TYPE_CHOICES,
+                })
+            
+            cp.cp_name = cp_name
             cp.phone = normalized_phone
-            cp.phone2 = normalized_phone2
-            cp.locality = request.POST.get('locality', '')
-            cp.team_size = int(request.POST.get('team_size')) if request.POST.get('team_size') else None
-            cp.owner_name = request.POST.get('owner_name', '')
-            cp.owner_number = normalized_owner_number
-            cp.rera_id = request.POST.get('rera_id', '')
-            cp.status = request.POST.get('status', 'active')
-            cp.email = request.POST.get('email', '')
-            cp.cp_type = request.POST.get('cp_type', 'broker')
-            cp.working_area = request.POST.get('working_area', '')
+            
+            # Optional fields - only update if provided
+            if request.POST.get('firm_name'):
+                cp.firm_name = request.POST.get('firm_name')
+            if request.POST.get('phone2'):
+                cp.phone2 = normalized_phone2
+            if request.POST.get('locality'):
+                cp.locality = request.POST.get('locality')
+            if request.POST.get('team_size'):
+                try:
+                    cp.team_size = int(request.POST.get('team_size'))
+                except ValueError:
+                    pass  # Keep existing value if invalid
+            if request.POST.get('owner_name'):
+                cp.owner_name = request.POST.get('owner_name')
+            if request.POST.get('owner_number'):
+                cp.owner_number = normalized_owner_number
+            if request.POST.get('rera_id'):
+                cp.rera_id = request.POST.get('rera_id')
+            if request.POST.get('status'):
+                cp.status = request.POST.get('status')
+            if request.POST.get('email'):
+                cp.email = request.POST.get('email')
+            if request.POST.get('cp_type'):
+                cp.cp_type = request.POST.get('cp_type')
+            if request.POST.get('working_area'):
+                cp.working_area = request.POST.get('working_area')
+            
             cp.save()
             messages.success(request, f'Channel Partner {cp.cp_name} updated successfully!')
             return redirect('channel_partners:detail', pk=cp.pk)
