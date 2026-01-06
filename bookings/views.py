@@ -597,4 +597,4 @@ def clear_confetti(request, pk):
     if 'show_confetti' in request.session:
         del request.session['show_confetti']
         request.session.modified = True
-    return HttpResponse(status=204)
+    return JsonResponse({'success': True})

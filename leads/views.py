@@ -2806,19 +2806,23 @@ def update_lead_data(request, pk):
         return JsonResponse({'success': False, 'error': 'You do not have permission to update lead data.'}, status=403)
     
     try:
-        # Get form data
+        # Get form data - only use fields that exist in Lead model
         name = request.POST.get('name', '').strip()
         phone = request.POST.get('phone', '').strip()
         email = request.POST.get('email', '').strip()
-        alternate_phone = request.POST.get('alternate_phone', '').strip()
-        whatsapp_number = request.POST.get('whatsapp_number', '').strip()
-        address = request.POST.get('address', '').strip()
+        age = request.POST.get('age', '').strip()
+        gender = request.POST.get('gender', '').strip()
+        locality = request.POST.get('locality', '').strip()
+        current_residence = request.POST.get('current_residence', '').strip()
         budget = request.POST.get('budget', '').strip()
+        purpose = request.POST.get('purpose', '').strip()
+        visit_type = request.POST.get('visit_type', '').strip()
         visit_source = request.POST.get('visit_source', '').strip()
+        how_did_you_hear = request.POST.get('how_did_you_hear', '').strip()
         occupation = request.POST.get('occupation', '').strip()
         company_name = request.POST.get('company_name', '').strip()
-        annual_income = request.POST.get('annual_income', '').strip()
-        work_address = request.POST.get('work_address', '').strip()
+        designation = request.POST.get('designation', '').strip()
+        notes = request.POST.get('notes', '').strip()
         
         # Validate required fields
         if not name:
@@ -2826,19 +2830,37 @@ def update_lead_data(request, pk):
         if not phone:
             return JsonResponse({'success': False, 'error': 'Phone is required.'}, status=400)
         
-        # Update lead fields
+        # Update lead fields - only update fields that exist in the model
         lead.name = name
         lead.phone = phone
-        lead.email = email if email else lead.email
-        lead.alternate_phone = alternate_phone if alternate_phone else lead.alternate_phone
-        lead.whatsapp_number = whatsapp_number if whatsapp_number else lead.whatsapp_number
-        lead.address = address if address else lead.address
-        lead.budget = int(budget) if budget else lead.budget
-        lead.visit_source = visit_source if visit_source else lead.visit_source
-        lead.occupation = occupation if occupation else lead.occupation
-        lead.company_name = company_name if company_name else lead.company_name
-        lead.annual_income = annual_income if annual_income else lead.annual_income
-        lead.work_address = work_address if work_address else lead.work_address
+        if email:
+            lead.email = email
+        if age:
+            lead.age = int(age) if age else lead.age
+        if gender:
+            lead.gender = gender
+        if locality:
+            lead.locality = locality
+        if current_residence:
+            lead.current_residence = current_residence
+        if budget:
+            lead.budget = float(budget) if budget else lead.budget
+        if purpose:
+            lead.purpose = purpose
+        if visit_type:
+            lead.visit_type = visit_type
+        if visit_source:
+            lead.visit_source = visit_source
+        if how_did_you_hear:
+            lead.how_did_you_hear = how_did_you_hear
+        if occupation:
+            lead.occupation = occupation
+        if company_name:
+            lead.company_name = company_name
+        if designation:
+            lead.designation = designation
+        if notes:
+            lead.notes = notes
         
         lead.save()
         
@@ -4394,6 +4416,10 @@ def search_existing_visits(request):
     elif request.user.is_site_head():
         # Site heads see visits in their projects
         associations = associations.filter(project__site_head=request.user)
+    elif request.user.is_mandate_owner():
+        # Mandate owners see visits in their projects
+        associations = associations.filter(project__mandate_owner=request.user)
+    # Super admins see all visits (no additional filtering needed)
     
     # Search by lead name, phone, or email
     associations = associations.filter(
