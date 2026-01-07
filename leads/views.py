@@ -4431,15 +4431,18 @@ def search_existing_visits(request):
     
     results = []
     for assoc in associations[:20]:  # Limit to 20 results
+        assigned_to_name = ''
+        if assoc.assigned_to:
+            assigned_to_name = assoc.assigned_to.get_full_name() or assoc.assigned_to.username
+        
         results.append({
             'id': assoc.id,
             'lead_name': assoc.lead.name,
             'lead_phone': assoc.lead.phone,
             'lead_email': assoc.lead.email,
             'project_name': assoc.project.name,
-            'assigned_to': assoc.assigned_to.get_full_name() or assoc.assigned_to.username,
+            'assigned_to': assigned_to_name,
             'visit_date': assoc.visit_scheduled_date.strftime('%Y-%m-%d') if assoc.visit_scheduled_date else '',
-            'visit_time': assoc.visit_scheduled_time.strftime('%H:%M') if assoc.visit_scheduled_time else '',
             'revisit_count': assoc.revisit_count,
             'display_text': f"{assoc.lead.name} - {assoc.project.name} - {assoc.lead.phone}"
         })
