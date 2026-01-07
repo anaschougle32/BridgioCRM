@@ -4305,21 +4305,20 @@ def revisit_visit(request):
             visit_scheduled_time_str = request.POST.get('visit_scheduled_time', '')
             add_to_queue = request.POST.get('add_to_queue') == 'true'
             
-            # Parse visit date and time
-            visit_scheduled_date = None
+            # Parse visit date and time - combine into datetime
+            visit_scheduled_datetime = None
             if visit_scheduled_date_str:
                 try:
-                    visit_scheduled_date = datetime.strptime(visit_scheduled_date_str, '%Y-%m-%d').date()
+                    if visit_scheduled_time_str:
+                        datetime_str = f"{visit_scheduled_date_str} {visit_scheduled_time_str}"
+                        visit_scheduled_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M')
+                    else:
+                        visit_scheduled_datetime = datetime.strptime(visit_scheduled_date_str, '%Y-%m-%d')
+                    # Make timezone aware
+                    from django.utils import timezone
+                    visit_scheduled_datetime = timezone.make_aware(visit_scheduled_datetime)
                 except ValueError:
-                    messages.error(request, 'Invalid visit date format.')
-                    return redirect('leads:revisit_visit')
-            
-            visit_scheduled_time = None
-            if visit_scheduled_time_str:
-                try:
-                    visit_scheduled_time = datetime.strptime(visit_scheduled_time_str, '%H:%M').time()
-                except ValueError:
-                    messages.error(request, 'Invalid visit time format.')
+                    messages.error(request, 'Invalid visit date or time format.')
                     return redirect('leads:revisit_visit')
             
             # Create new association for revisit
@@ -4332,8 +4331,7 @@ def revisit_visit(request):
                 revisit_reason=revisit_reason,
                 previous_visit=existing_association,
                 time_frame=time_frame,
-                visit_scheduled_date=visit_scheduled_date,
-                visit_scheduled_time=visit_scheduled_time,
+                visit_scheduled_date=visit_scheduled_datetime,
                 pretag_status='pending_verification' if not add_to_queue else 'queued',
                 is_pretagged=True,
                 created_by=request.user,
