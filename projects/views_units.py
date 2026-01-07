@@ -285,9 +285,11 @@ def revoke_booked_unit(request, pk, unit_id):
     project = get_object_or_404(Project, pk=pk)
     unit = get_object_or_404(UnitConfiguration, pk=unit_id, project=project)
     
-    # Permission check - only super admins, mandate owners, and site heads can revoke
+    # Permission check - super admins, mandate owners, site heads, closing managers, and sourcing managers can revoke
     if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
-            (request.user.is_site_head() and project.site_head == request.user)):
+            (request.user.is_site_head() and project.site_head == request.user) or
+            (request.user.is_closing_manager() and project in request.user.assigned_projects.all()) or
+            (request.user.is_sourcing_manager() and project in request.user.assigned_projects.all())):
         messages.error(request, 'You do not have permission to revoke booked units.')
         return redirect('projects:unit_inventory', pk=project.pk)
     

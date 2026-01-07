@@ -4399,9 +4399,10 @@ def search_existing_visits(request):
     if not search_query:
         return JsonResponse({'results': []})
     
-    # Filter associations based on user role - show all visits (not just pretagged)
+    # Filter associations based on user role - show only verified visits
     associations = LeadProjectAssociation.objects.filter(
-        is_archived=False
+        is_archived=False,
+        status='visit_completed'  # Only show completed visits for revisit
     ).select_related('lead', 'project', 'assigned_to')
     
     # Apply project filter if specified

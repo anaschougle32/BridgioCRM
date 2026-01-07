@@ -134,14 +134,21 @@ def get_phone_display(phone):
 
 def get_tel_link(phone):
     """Generate tel: link for calling"""
-    clean_phone = phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    if not phone:
+        return 'tel:'
     
-    # Add country code if not present
-    if not clean_phone.startswith('+91') and not clean_phone.startswith('91'):
+    # Use normalize_phone to get proper international format
+    clean_phone = normalize_phone(phone)
+    
+    # If normalize_phone returns the original without +, add +91
+    if not clean_phone.startswith('+'):
         if clean_phone.startswith('0'):
             clean_phone = '+91' + clean_phone[1:]
-        else:
+        elif len(clean_phone) == 10 and clean_phone.isdigit():
             clean_phone = '+91' + clean_phone
+        else:
+            # Default to +91 if we can't determine format
+            clean_phone = '+91' + clean_phone[-10:] if len(clean_phone) >= 10 else '+91' + clean_phone
     
     return f'tel:{clean_phone}'
 
