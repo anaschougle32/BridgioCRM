@@ -2469,8 +2469,11 @@ def update_status(request, pk):
     
     messages.success(request, f'Lead status updated to {association.get_status_display()}.')
     
-    # Return JSON for AJAX requests, redirect for regular form submissions
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Content-Type') == 'application/json':
+    # Check if this is an HTMX request
+    is_htmx = request.headers.get('HX-Request') or request.headers.get('hx-request')
+    
+    # Return JSON for AJAX/HTMX requests, redirect for regular form submissions
+    if is_htmx or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Content-Type') == 'application/json':
         return JsonResponse({'success': True, 'message': f'Lead status updated to {association.get_status_display()}.'})
     
     return redirect('leads:detail', pk=lead.id)

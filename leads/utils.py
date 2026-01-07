@@ -81,13 +81,15 @@ def get_sms_deep_link(phone, otp, project_name=None):
 
 def normalize_phone(phone):
     """
-    Normalize phone number to +91 format.
+    Normalize phone number to international format.
     Handles various input formats:
-    - +91XXXXXXXXXX
-    - 91XXXXXXXXXX
-    - 0XXXXXXXXXX
-    - XXXXXXXXXX (10 digits)
-    Returns: +91XXXXXXXXXX (always with +91 prefix)
+    - +91XXXXXXXXXX (already international)
+    - +1XXXXXXXXXX (US numbers)
+    - +44XXXXXXXXXX (UK numbers)
+    - 91XXXXXXXXXX (India without +)
+    - 0XXXXXXXXXX (India with 0 prefix)
+    - XXXXXXXXXX (10 digits - assume India)
+    Returns: International format (+CountryCodeXXXXXXXXXX)
     """
     if not phone:
         return ''
@@ -95,21 +97,30 @@ def normalize_phone(phone):
     # Convert to string and remove all spaces, dashes, parentheses
     clean_phone = str(phone).strip().replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
     
-    # Remove +91 or 91 prefix if present
-    if clean_phone.startswith('+91'):
-        clean_phone = clean_phone[3:]
-    elif clean_phone.startswith('91') and len(clean_phone) > 10:
-        clean_phone = clean_phone[2:]
-    elif clean_phone.startswith('0') and len(clean_phone) > 10:
+    # If already in international format (+CountryCode), return as-is
+    if clean_phone.startswith('+') and len(clean_phone) >= 12:
+        # Validate international format (should have + followed by country code and number)
+        country_part = clean_phone[1:]  # Remove +
+        if country_part.isdigit() and len(country_part) >= 11:
+            return clean_phone
+    
+    # Check for common country codes without + (91, 1, 44, etc.)
+    if clean_phone.startswith('91') and len(clean_phone) == 12:  # India
+        return f'+{clean_phone}'
+    elif clean_phone.startswith('1') and len(clean_phone) == 11:  # US
+        return f'+{clean_phone}'
+    elif clean_phone.startswith('44') and len(clean_phone) == 12:  # UK
+        return f'+{clean_phone}'
+    
+    # Handle India-specific formats
+    if clean_phone.startswith('0') and len(clean_phone) == 11:  # India with 0 prefix
         clean_phone = clean_phone[1:]
+        return f'+91{clean_phone}'
+    elif len(clean_phone) == 10 and clean_phone.isdigit():  # 10-digit number (assume India)
+        return f'+91{clean_phone}'
     
-    # Ensure it's 10 digits
-    if len(clean_phone) != 10 or not clean_phone.isdigit():
-        # Return as-is if invalid (let validation handle it)
-        return phone
-    
-    # Return with +91 prefix
-    return f'+91{clean_phone}'
+    # If we can't determine the format, return original
+    return phone
 
 
 def get_phone_display(phone):

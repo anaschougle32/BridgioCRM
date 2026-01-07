@@ -1005,7 +1005,6 @@
         let scrollTimeout;
         
         if (mobileBottomNav && window.innerWidth <= 768) {
-            const mainContent = document.getElementById('main-content');
             if (mainContent) {
                 mainContent.addEventListener('scroll', function() {
                     clearTimeout(scrollTimeout);

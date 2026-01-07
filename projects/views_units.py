@@ -277,3 +277,36 @@ def bulk_unit_actions(request, pk):
             messages.error(request, 'Invalid action selected.')
     
     return redirect('projects:unit_inventory', pk=project.pk)
+
+
+@login_required
+def revoke_booked_unit(request, pk, unit_id):
+    """Revoke a booked unit back to available"""
+    project = get_object_or_404(Project, pk=pk)
+    unit = get_object_or_404(UnitConfiguration, pk=unit_id, project=project)
+    
+    # Permission check - only super admins, mandate owners, and site heads can revoke
+    if not (request.user.is_super_admin() or request.user.is_mandate_owner() or 
+            (request.user.is_site_head() and project.site_head == request.user)):
+        messages.error(request, 'You do not have permission to revoke booked units.')
+        return redirect('projects:unit_inventory', pk=project.pk)
+    
+    # Check if unit is actually booked
+    if unit.status != 'booked':
+        messages.error(request, 'Unit is not currently booked.')
+        return redirect('projects:unit_inventory', pk=project.pk)
+    
+    # Check if there's an active booking
+    if unit.booking and not unit.booking.is_archived:
+        # Archive the booking instead of just changing unit status
+        unit.booking.is_archived = True
+        unit.booking.save()
+        messages.info(request, f'Booking for {unit.unit_number} has been archived.')
+    
+    # Revoke the unit status
+    unit.status = 'available'
+    unit.booking = None  # Clear the booking reference
+    unit.save()
+    
+    messages.success(request, f'Unit {unit.unit_number} has been revoked and is now available.')
+    return redirect('projects:unit_inventory', pk=project.pk)

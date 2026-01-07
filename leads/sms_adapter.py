@@ -81,15 +81,13 @@ class TwilioSMSAdapter(BaseSMSAdapter):
             
             client = Client(self.account_sid, self.auth_token)
             
-            # Format phone number (ensure +91 prefix)
-            clean_phone = phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-            if not clean_phone.startswith('+91'):
-                if clean_phone.startswith('91'):
-                    clean_phone = '+' + clean_phone
-                elif clean_phone.startswith('0'):
-                    clean_phone = '+91' + clean_phone[1:]
-                else:
-                    clean_phone = '+91' + clean_phone
+            # Use normalize_phone to format the number properly
+            from .utils import normalize_phone
+            clean_phone = normalize_phone(phone)
+            
+            # Validate that we have a proper international number
+            if not clean_phone.startswith('+') or len(clean_phone) < 12:
+                raise ValueError(f"Invalid phone number format: {phone}")
             
             message_obj = client.messages.create(
                 body=message,

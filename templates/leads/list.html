@@ -286,7 +286,7 @@
                     {% endwith %}
                     <!-- Quick Actions -->
                     <div class="flex items-center gap-2 mt-3" onclick="event.stopPropagation();">
-                        <a href="{{ notifications.tel_link }}" 
+                        <a href="{{ lead.tel_link }}" 
                            target="_blank" 
                            onclick="trackCallClick({{ lead.id }});"
                            class="inline-flex items-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 hover:shadow-md transition-all text-sm font-semibold min-h-[48px] shadow-sm">
@@ -492,7 +492,7 @@
                         </div>
                     </td>
                     <td class="px-3 sm:px-6 py-3 sm:py-4">
-                        <a href="{{ notif.tel_link }}" 
+                        <a href="{{ lead.tel_link }}" 
                            class="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium"
                            title="Call Now"
                            onclick="event.stopPropagation(); trackCallClick({{ lead.id }});"
