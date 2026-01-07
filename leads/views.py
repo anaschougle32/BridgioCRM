@@ -4399,10 +4399,9 @@ def search_existing_visits(request):
     if not search_query:
         return JsonResponse({'results': []})
     
-    # Filter associations based on user role - show visits that can be revisited
+    # Filter associations based on user role - show all non-archived visits that can be revisited
     associations = LeadProjectAssociation.objects.filter(
-        is_archived=False,
-        status__in=['visit_completed', 'booked', 'interested']  # Show completed, booked, and interested visits for revisit
+        is_archived=False
     ).select_related('lead', 'project', 'assigned_to')
     
     # Apply project filter if specified
