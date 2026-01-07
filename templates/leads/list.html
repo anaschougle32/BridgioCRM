@@ -286,7 +286,7 @@
                     {% endwith %}
                     <!-- Quick Actions -->
                     <div class="flex items-center gap-2 mt-3" onclick="event.stopPropagation();">
-                        <a href="{{ lead.tel_link }}" 
+                        <a href="{{ notif.tel_link }}" 
                            target="_blank" 
                            onclick="trackCallClick({{ lead.id }});"
                            class="inline-flex items-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 hover:shadow-md transition-all text-sm font-semibold min-h-[48px] shadow-sm">
@@ -403,7 +403,7 @@
                                 <div class="py-1">
                                     <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase border-b">Status</div>
                                     {% for value, label in status_choices %}
-                                    <form method="post" action="{% url 'leads:update_status' lead.pk %}" class="inline">
+                                    <form method="post" action="{% url 'leads:update_status' lead.pk %}" class="inline" data-lead-id="{{ lead.id }}">
                                         {% csrf_token %}
                                         {% if primary_assoc %}<input type="hidden" name="project_id" value="{{ primary_assoc.project_id }}">{% endif %}
                                         <input type="hidden" name="status" value="{{ value }}">
@@ -492,7 +492,7 @@
                         </div>
                     </td>
                     <td class="px-3 sm:px-6 py-3 sm:py-4">
-                        <a href="{{ lead.tel_link }}" 
+                        <a href="{{ notif.tel_link }}" 
                            class="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium"
                            title="Call Now"
                            onclick="event.stopPropagation(); trackCallClick({{ lead.id }});"
@@ -625,7 +625,7 @@
                                     <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase border-b">Status</div>
                                     {% with primary_assoc=lead_primary_associations|get_item:lead.id %}
                                     {% for value, label in status_choices %}
-                                    <form method="post" action="{% url 'leads:update_status' lead.pk %}" class="inline">
+                                    <form method="post" action="{% url 'leads:update_status' lead.pk %}" class="inline" data-lead-id="{{ lead.id }}">
                                         {% csrf_token %}
                                         {% if primary_assoc %}<input type="hidden" name="project_id" value="{{ primary_assoc.project_id }}">{% endif %}
                                         <input type="hidden" name="status" value="{{ value }}">
@@ -1262,71 +1262,81 @@
                     const leadId = this.getAttribute('data-lead-id');
                     const newStatus = formData.get('status');
                     
-                    // Find all status displays for this lead and update them
-                    const statusElements = document.querySelectorAll(`[data-lead-id="${leadId}"] .status-display, [data-lead-id="${leadId}"] .status-badge`);
-                    statusElements.forEach(element => {
-                        // Update status text
-                        const statusText = element.querySelector('span') || element;
-                        if (statusText) {
-                            // Get the display label for the new status
-                            const statusLabels = {
-                                'new': 'New',
-                                'contacted': 'Contacted',
-                                'visit_scheduled': 'Visit Scheduled',
-                                'visit_completed': 'Visit Completed',
-                                'interested': 'Interested',
-                                'booked': 'Booked',
-                                'lost': 'Lost',
-                                'not_interested': 'Not Interested'
-                            };
-                            statusText.textContent = statusLabels[newStatus] || 'Updated';
+                    // Find the lead container (card or table row)
+                    const leadContainers = document.querySelectorAll(`[data-lead-id="${leadId}"]`);
+                    leadContainers.forEach(container => {
+                        // Find the parent lead card/row
+                        let leadElement = container.closest('.bg-white') || container.closest('tr');
+                        if (!leadElement) {
+                            // Try finding by ID
+                            leadElement = document.getElementById(`lead-card-${leadId}`) || 
+                                           document.querySelector(`[onclick*="loadLeadDetail(${leadId})"]`);
                         }
                         
-                        // Update status styling
-                        element.className = element.className.replace(/bg-\w+-100|bg-\w+-200|text-\w+-700|text-\w+-800|bg-\w+-50|border-\w+-200/g, '');
-                        switch(newStatus) {
-                            case 'new':
-                                element.classList.add('bg-gray-100', 'text-gray-800', 'border', 'border-gray-200');
-                                break;
-                            case 'contacted':
-                                element.classList.add('bg-blue-100', 'text-blue-800', 'border', 'border-blue-200');
-                                break;
-                            case 'visit_scheduled':
-                                element.classList.add('bg-yellow-100', 'text-yellow-800', 'border', 'border-yellow-200');
-                                break;
-                            case 'visit_completed':
-                                element.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-200');
-                                break;
-                            case 'interested':
-                                element.classList.add('bg-purple-100', 'text-purple-800', 'border', 'border-purple-200');
-                                break;
-                            case 'booked':
-                                element.classList.add('bg-purple-100', 'text-purple-800', 'border', 'border-purple-200');
-                                break;
-                            case 'lost':
-                                element.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-200');
-                                break;
-                            default:
-                                element.classList.add('bg-gray-100', 'text-gray-800', 'border', 'border-gray-200');
-                        }
-                    });
-                    
-                    // Update dropdown button text
-                    const dropdownButtons = document.querySelectorAll(`[data-lead-id="${leadId}"] button[onclick*="toggleStatusMenu"]`);
-                    dropdownButtons.forEach(button => {
-                        const statusLabels = {
-                            'new': 'New',
-                            'contacted': 'Contacted',
-                            'visit_scheduled': 'Visit Scheduled',
-                            'visit_completed': 'Visit Completed',
-                            'interested': 'Interested',
-                            'booked': 'Booked',
-                            'lost': 'Lost',
-                            'not_interested': 'Not Interested'
-                        };
-                        const span = button.querySelector('span');
-                        if (span) {
-                            span.textContent = statusLabels[newStatus] || 'Updated';
+                        if (leadElement) {
+                            // Update all status badges in this lead element
+                            const statusBadges = leadElement.querySelectorAll('.status-badge');
+                            statusBadges.forEach(badge => {
+                                const statusText = badge.querySelector('span') || badge;
+                                const statusLabels = {
+                                    'new': 'New',
+                                    'contacted': 'Contacted',
+                                    'visit_scheduled': 'Visit Scheduled',
+                                    'visit_completed': 'Visit Completed',
+                                    'interested': 'Interested',
+                                    'booked': 'Booked',
+                                    'lost': 'Lost',
+                                    'not_interested': 'Not Interested'
+                                };
+                                statusText.textContent = statusLabels[newStatus] || 'Updated';
+                                
+                                // Update styling
+                                badge.className = badge.className.replace(/bg-\w+-100|bg-\w+-200|text-\w+-700|text-\w+-800|bg-\w+-50|border-\w+-200/g, '');
+                                switch(newStatus) {
+                                    case 'new':
+                                        badge.classList.add('bg-gray-100', 'text-gray-800', 'border', 'border-gray-200');
+                                        break;
+                                    case 'contacted':
+                                        badge.classList.add('bg-blue-100', 'text-blue-800', 'border', 'border-blue-200');
+                                        break;
+                                    case 'visit_scheduled':
+                                        badge.classList.add('bg-yellow-100', 'text-yellow-800', 'border', 'border-yellow-200');
+                                        break;
+                                    case 'visit_completed':
+                                        badge.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-200');
+                                        break;
+                                    case 'interested':
+                                        badge.classList.add('bg-purple-100', 'text-purple-800', 'border', 'border-purple-200');
+                                        break;
+                                    case 'booked':
+                                        badge.classList.add('bg-purple-100', 'text-purple-800', 'border', 'border-purple-200');
+                                        break;
+                                    case 'lost':
+                                        badge.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-200');
+                                        break;
+                                    default:
+                                        badge.classList.add('bg-gray-100', 'text-gray-800', 'border', 'border-gray-200');
+                                }
+                            });
+                            
+                            // Update dropdown button text
+                            const dropdownButtons = leadElement.querySelectorAll('button[onclick*="toggleStatusMenu"]');
+                            dropdownButtons.forEach(button => {
+                                const statusLabels = {
+                                    'new': 'New',
+                                    'contacted': 'Contacted',
+                                    'visit_scheduled': 'Visit Scheduled',
+                                    'visit_completed': 'Visit Completed',
+                                    'interested': 'Interested',
+                                    'booked': 'Booked',
+                                    'lost': 'Lost',
+                                    'not_interested': 'Not Interested'
+                                };
+                                const span = button.querySelector('span');
+                                if (span) {
+                                    span.textContent = statusLabels[newStatus] || 'Updated';
+                                }
+                            });
                         }
                     });
                     

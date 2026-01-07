@@ -138,7 +138,7 @@
                     {% endif %}
                 </div>
             </div>
-            <button onclick="window.history.back()" class="ml-3 p-2 text-gray-600 hover:text-gray-800 min-h-[48px] min-w-[48px] flex items-center justify-center">
+            <button onclick="closeMobileLeadDetail()" class="ml-3 p-2 text-gray-600 hover:text-gray-800 min-h-[48px] min-w-[48px] flex items-center justify-center">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -1160,6 +1160,22 @@
     
     function closeRevisitModal() {
         document.getElementById('revisit-modal').classList.add('hidden');
+    }
+    
+    function closeMobileLeadDetail() {
+        // Restore main header and content scrolling
+        const mainHeader = document.getElementById('main-header');
+        const mainContent = document.getElementById('main-content');
+        
+        if (mainHeader) mainHeader.style.display = '';
+        if (mainContent) {
+            mainContent.style.overflow = '';
+            mainContent.style.height = '';
+        }
+        document.body.style.overflow = '';
+        
+        // Go back to the previous page
+        window.history.back();
     }
     
     function scheduleRevisit() {
