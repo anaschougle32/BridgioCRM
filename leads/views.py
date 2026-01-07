@@ -4408,12 +4408,9 @@ def search_existing_visits(request):
     if project_id:
         associations = associations.filter(project_id=project_id)
     
-    # Apply user role filtering
-    if request.user.is_telecaller():
-        associations = associations.filter(assigned_to=request.user)
-    elif request.user.is_closing_manager():
-        associations = associations.filter(assigned_to=request.user)
-    elif request.user.is_sourcing_manager():
+    # For revisit, users should see all visits they've been involved with, not just currently assigned
+    # Apply minimal filtering - only restrict based on project access, not assignment
+    if request.user.is_sourcing_manager():
         # Sourcing managers see visits in their assigned projects
         associations = associations.filter(project__in=request.user.assigned_projects.all())
     elif request.user.is_site_head():
@@ -4422,6 +4419,7 @@ def search_existing_visits(request):
     elif request.user.is_mandate_owner():
         # Mandate owners see visits in their projects
         associations = associations.filter(project__mandate_owner=request.user)
+    # Telecallers and closing managers can see all visits (for revisit purposes)
     # Super admins see all visits (no additional filtering needed)
     
     # Search by lead name, phone, or email
