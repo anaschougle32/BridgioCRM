@@ -4321,24 +4321,17 @@ def revisit_visit(request):
                     messages.error(request, 'Invalid visit date or time format.')
                     return redirect('leads:revisit_visit')
             
-            # Create new association for revisit
-            revisit_association = LeadProjectAssociation.objects.create(
-                lead=existing_association.lead,
-                project=existing_association.project,
-                assigned_to=existing_association.assigned_to,
-                is_revisit=True,
-                revisit_count=existing_association.revisit_count + 1,
-                revisit_reason=revisit_reason,
-                previous_visit=existing_association,
-                time_frame=time_frame,
-                visit_scheduled_date=visit_scheduled_datetime,
-                pretag_status='pending_verification' if not add_to_queue else 'queued',
-                is_pretagged=True,
-                created_by=request.user,
-            )
-            
-            # Copy configurations from original visit
-            revisit_association.configurations.set(existing_association.configurations.all())
+            # Update existing association for revisit
+            revisit_association = existing_association
+            revisit_association.is_revisit = True
+            revisit_association.revisit_count = existing_association.revisit_count + 1
+            revisit_association.revisit_reason = revisit_reason
+            revisit_association.previous_visit = existing_association  # Self-reference to current state
+            revisit_association.time_frame = time_frame
+            revisit_association.visit_scheduled_date = visit_scheduled_datetime
+            revisit_association.pretag_status = 'pending_verification' if not add_to_queue else 'queued'
+            revisit_association.is_pretagged = True
+            revisit_association.save()
             
             # Handle queue option
             if add_to_queue:

@@ -251,15 +251,10 @@
             
             <!-- Main Info (Mobile) -->
             <div class="space-y-4">
-                <!-- Collapsible Section: Client Information -->
-                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                    <button onclick="toggleMobileSection('client-info')" class="w-full flex justify-between items-center p-4 text-left">
-                        <h3 class="font-heading font-bold text-olive-primary">Client Information</h3>
-                        <svg id="client-info-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="client-info-content" class="hidden px-4 pb-4">
+                <!-- Client Information -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 p-4">
+                    <h3 class="font-heading font-bold mb-4 text-olive-primary">Client Information</h3>
+                    <div>
                         <div class="space-y-3">
                             <p><strong>Phone:</strong> <span class="font-mono">{{ phone_display }}</span></p>
                             <p><strong>Email:</strong> {{ lead.email|default:"-" }}</p>
@@ -308,17 +303,13 @@
                             {% endif %}
                         </div>
                     </div>
+                    </div>
                 </div>
                 
-                <!-- Collapsible Section: Notes -->
-                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                    <button onclick="toggleMobileSection('notes')" class="w-full flex justify-between items-center p-4 text-left">
-                        <h3 class="font-heading font-bold text-olive-primary">Notes</h3>
-                        <svg id="notes-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="notes-content" class="hidden px-4 pb-4">
+                <!-- Notes -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 p-4">
+                    <h3 class="font-heading font-bold mb-4 text-olive-primary">Notes</h3>
+                    <div>
                         <div class="mb-3">
                             <button onclick="document.getElementById('notes-modal').classList.remove('hidden'); document.getElementById('notes-textarea-detail').value = '';" 
                                     class="w-full px-4 py-2 bg-olive-primary text-white rounded-lg hover:bg-olive-secondary transition text-sm min-h-[48px]">
@@ -342,30 +333,21 @@
                             {% endif %}
                         </div>
                     </div>
+                    </div>
                 </div>
                 
-                <!-- Collapsible Section: OTP -->
-                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                    <button onclick="toggleMobileSection('otp')" class="w-full flex justify-between items-center p-4 text-left">
-                        <h3 class="font-heading font-bold text-olive-primary">OTP Verification</h3>
-                        <svg id="otp-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="otp-content" class="hidden px-4 pb-4">
+                <!-- OTP Verification -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 p-4">
+                    <h3 class="font-heading font-bold mb-4 text-olive-primary">OTP Verification</h3>
+                    <div>
                         {% include 'leads/otp_section.html' %}
                     </div>
                 </div>
                 
-                <!-- Collapsible Section: Call History -->
-                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                    <button onclick="toggleMobileSection('call-history')" class="w-full flex justify-between items-center p-4 text-left">
-                        <h3 class="font-heading font-bold text-olive-primary">Call History</h3>
-                        <svg id="call-history-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="call-history-content" class="hidden px-4 pb-4">
+                <!-- Call History -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 p-4">
+                    <h3 class="font-heading font-bold mb-4 text-olive-primary">Call History</h3>
+                    <div>
                         {% if call_logs %}
                 <div class="space-y-3">
                     {% for call in call_logs %}
@@ -386,17 +368,13 @@
                         <p class="text-gray-500 text-sm">No call logs yet.</p>
                         {% endif %}
                     </div>
+                    </div>
                 </div>
                 
-                <!-- Collapsible Section: Reminders -->
-                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                    <button onclick="toggleMobileSection('reminders')" class="w-full flex justify-between items-center p-4 text-left">
-                        <h3 class="font-heading font-bold text-olive-primary">Upcoming Reminders</h3>
-                        <svg id="reminders-icon" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div id="reminders-content" class="hidden px-4 pb-4">
+                <!-- Upcoming Reminders -->
+                <div class="bg-card-bg rounded-lg shadow-md border border-gray-200 p-4">
+                    <h3 class="font-heading font-bold mb-4 text-olive-primary">Upcoming Reminders</h3>
+                    <div>
                 {% if reminders %}
                 <div class="space-y-3">
                     {% for reminder in reminders %}
