@@ -2457,6 +2457,11 @@ def update_status(request, pk):
     association.status = new_status
     association.save()
     
+    # Verify the save was successful
+    association.refresh_from_db()
+    if association.status != new_status:
+        return JsonResponse({'success': False, 'error': 'Failed to save status. Please try again.'}, status=500)
+    
     # Create audit log
     from accounts.models import AuditLog
     AuditLog.objects.create(
