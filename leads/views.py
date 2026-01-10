@@ -288,6 +288,13 @@ def lead_list(request):
             primary_assoc = associations.filter(project_id=project_id).first()
         if not primary_assoc:
             primary_assoc = associations.first()
+        
+        # Debug: Log which association is primary
+        if primary_assoc:
+            print(f"DEBUG: Lead {lead.id} primary assoc is project {primary_assoc.project.name} with status '{primary_assoc.status}' (assoc {primary_assoc.id})")
+        else:
+            print(f"DEBUG: Lead {lead.id} has no primary association")
+        
         lead_primary_associations[lead.id] = primary_assoc
     
     context = {
@@ -2461,6 +2468,9 @@ def update_status(request, pk):
     association.refresh_from_db()
     if association.status != new_status:
         return JsonResponse({'success': False, 'error': 'Failed to save status. Please try again.'}, status=500)
+    
+    # Debug: Log the update
+    print(f"DEBUG: Updated lead {lead.id} status to {new_status} for project {project.name} (association {association.id})")
     
     # Create audit log
     from accounts.models import AuditLog
