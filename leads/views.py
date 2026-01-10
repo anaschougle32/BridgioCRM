@@ -287,13 +287,8 @@ def lead_list(request):
         if project_id:
             primary_assoc = associations.filter(project_id=project_id).first()
         if not primary_assoc:
-            primary_assoc = associations.first()
-        
-        # Debug: Log which association is primary
-        if primary_assoc:
-            print(f"DEBUG: Lead {lead.id} primary assoc is project {primary_assoc.project.name} with status '{primary_assoc.status}' (assoc {primary_assoc.id})")
-        else:
-            print(f"DEBUG: Lead {lead.id} has no primary association")
+            # Order by created_at to ensure consistent primary association selection
+            primary_assoc = associations.order_by('created_at').first()
         
         lead_primary_associations[lead.id] = primary_assoc
     
@@ -2469,9 +2464,6 @@ def update_status(request, pk):
     if association.status != new_status:
         return JsonResponse({'success': False, 'error': 'Failed to save status. Please try again.'}, status=500)
     
-    # Debug: Log the update
-    print(f"DEBUG: Updated lead {lead.id} status to {new_status} for project {project.name} (association {association.id})")
-    
     # Create audit log
     from accounts.models import AuditLog
     AuditLog.objects.create(
@@ -2489,7 +2481,13 @@ def update_status(request, pk):
     
     # Return JSON for AJAX/HTMX requests, redirect for regular form submissions
     if is_htmx or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Content-Type') == 'application/json':
-        return JsonResponse({'success': True, 'message': f'Lead status updated to {association.get_status_display()}.'})
+        # For AJAX requests, include the updated status in response
+        return JsonResponse({
+            'success': True, 
+            'message': f'Lead status updated to {association.get_status_display()}.',
+            'new_status': new_status,
+            'status_display': association.get_status_display()
+        })
     
     return redirect('leads:detail', pk=lead.id)
 

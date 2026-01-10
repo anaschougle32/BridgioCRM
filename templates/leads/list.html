@@ -287,7 +287,6 @@
                     <!-- Quick Actions -->
                     <div class="flex items-center gap-2 mt-3" onclick="event.stopPropagation();">
                         <a href="{{ notif.tel_link }}" 
-                           target="_blank" 
                            onclick="event.stopPropagation(); trackCallClick({{ lead.id }});"
                            class="inline-flex items-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 hover:shadow-md transition-all text-sm font-semibold min-h-[48px] shadow-sm">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -623,7 +622,6 @@
                     <td class="px-3 sm:px-6 py-3 sm:py-4">
                         <div class="flex items-center gap-2">
                             <a href="{{ notif.tel_link }}" 
-                               target="_blank" 
                                onclick="event.stopPropagation(); trackCallClick({{ lead.id }});"
                                class="px-2 py-1 text-xs bg-green-600 text-white hover:bg-green-700 rounded">
                                 Call
