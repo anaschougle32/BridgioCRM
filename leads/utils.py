@@ -124,37 +124,46 @@ def normalize_phone(phone):
 
 
 def get_phone_display(phone):
-    """Mask phone number for display (show only last 4 digits)"""
+    """Show full phone number without masking"""
     if not phone:
         return '-'
-    if len(phone) <= 4:
-        return '****'
-    return '****' + phone[-4:]
+    return str(phone)
 
 
 def get_tel_link(phone):
     """Generate tel: link for calling"""
     if not phone:
-        return 'tel:+91'  # Return default with country code instead of just tel:
+        return 'tel:+910000000000'  # Return a placeholder number instead of empty
     
-    # Use normalize_phone to get proper international format
-    clean_phone = normalize_phone(phone)
+    # Clean the phone number first
+    clean_phone = str(phone).strip().replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
     
-    # If normalize_phone returns empty or invalid, create a default
-    if not clean_phone or len(clean_phone) < 10:
-        return 'tel:+91'
+    # If already in international format, use as-is
+    if clean_phone.startswith('+') and len(clean_phone) >= 12:
+        return f'tel:{clean_phone}'
     
-    # If normalize_phone returns the original without +, add +91
-    if not clean_phone.startswith('+'):
-        if clean_phone.startswith('0'):
-            clean_phone = '+91' + clean_phone[1:]
-        elif len(clean_phone) == 10 and clean_phone.isdigit():
-            clean_phone = '+91' + clean_phone
-        else:
-            # Default to +91 if we can't determine format
-            clean_phone = '+91' + clean_phone[-10:] if len(clean_phone) >= 10 else '+91'
+    # Remove any existing 91 prefix if present
+    if clean_phone.startswith('91') and len(clean_phone) == 12:
+        clean_phone = clean_phone[2:]
+    elif clean_phone.startswith('091') and len(clean_phone) == 13:
+        clean_phone = clean_phone[3:]
     
-    return f'tel:{clean_phone}'
+    # Remove leading 0 for Indian numbers
+    if clean_phone.startswith('0') and len(clean_phone) == 11:
+        clean_phone = clean_phone[1:]
+    
+    # If we have a 10-digit number, add +91
+    if len(clean_phone) == 10 and clean_phone.isdigit():
+        return f'tel:+91{clean_phone}'
+    
+    # If we have some other format, try to extract last 10 digits
+    if len(clean_phone) >= 10:
+        last_10 = clean_phone[-10:]
+        if last_10.isdigit():
+            return f'tel:+91{last_10}'
+    
+    # Fallback - return the original with +91 if possible
+    return f'tel:+91{clean_phone[-10:] if len(clean_phone) >= 10 else "0000000000"}'
 
 
 def get_whatsapp_link(phone, message=''):
