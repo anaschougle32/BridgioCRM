@@ -286,7 +286,7 @@
                     {% endwith %}
                     <!-- Quick Actions -->
                     <div class="flex items-center gap-2 mt-3" onclick="event.stopPropagation();">
-                        <a href="{{ notif.tel_link }}" 
+                        <a href="{{ notif.tel_link|default:'tel:' }}" 
                            onclick="event.stopPropagation(); trackCallClick({{ lead.id }});"
                            class="inline-flex items-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 hover:shadow-md transition-all text-sm font-semibold min-h-[48px] shadow-sm">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -461,7 +461,7 @@
                         </div>
                     </td>
                     <td class="px-3 sm:px-6 py-3 sm:py-4">
-                        <a href="{{ notif.tel_link }}" 
+                        <a href="{{ notif.tel_link|default:'tel:' }}" 
                            class="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium"
                            title="Call Now"
                            onclick="event.stopPropagation(); trackCallClick({{ lead.id }});"
@@ -596,8 +596,12 @@
                                     {% for value, label in status_choices %}
                                     <form method="post" action="{% url 'leads:update_status' lead.pk %}" class="inline" data-lead-id="{{ lead.id }}">
                                         {% csrf_token %}
-                                        {% if primary_assoc %}<input type="hidden" name="project_id" value="{{ primary_assoc.project_id }}">{% endif %}
                                         <input type="hidden" name="status" value="{{ value }}">
+                                        {% if primary_assoc %}
+                                            <input type="hidden" name="project_id" value="{{ primary_assoc.project_id }}">
+                                        {% else %}
+                                            <input type="hidden" name="project_id" value="">
+                                        {% endif %}
                                         <button type="submit" 
                                                 class="block w-full text-left px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm {% if primary_assoc and primary_assoc.status == value %}bg-blue-50 text-blue-800 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                                             {{ label }}
@@ -621,7 +625,7 @@
                     </td>
                     <td class="px-3 sm:px-6 py-3 sm:py-4">
                         <div class="flex items-center gap-2">
-                            <a href="{{ notif.tel_link }}" 
+                            <a href="{{ notif.tel_link|default:'tel:' }}" 
                                onclick="event.stopPropagation(); trackCallClick({{ lead.id }});"
                                class="px-2 py-1 text-xs bg-green-600 text-white hover:bg-green-700 rounded">
                                 Call
@@ -1211,6 +1215,16 @@
         document.querySelectorAll('form[action*="update-status"], form[action*="update-budget"], form[action*="update-configuration"]').forEach(form => {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            // Store button state for error recovery
+            const submitButton = this.querySelector('button[type="submit"], input[type="submit"]');
+            const originalText = submitButton ? submitButton.textContent : '';
+            
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Updating...';
+            }
+            
             const formData = new FormData(this);
             fetch(this.action, {
                 method: 'POST',

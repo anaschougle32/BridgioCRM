@@ -235,6 +235,7 @@ class LeadProjectAssociation(models.Model):
         ('ready_to_book', 'Ready to Book'),
         ('booked', 'Booked'),
         ('lost', 'Lost'),
+        ('not_interested', 'Not Interested'),
     ]
     
     # Core Association

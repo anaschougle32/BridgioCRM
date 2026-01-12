@@ -2400,14 +2400,19 @@ def update_status(request, pk):
     
     # Get project_id from request (required for association-based status update)
     project_id = request.POST.get('project_id') or request.GET.get('project_id')
-    if not project_id:
+    if not project_id or project_id == '':
         # Try to get primary project
         primary_project = lead.primary_project
         if not primary_project:
-            return JsonResponse({'success': False, 'error': 'Project is required to update status.'}, status=400)
-        project_id = primary_project.id
-    
-    project = get_object_or_404(Project, pk=project_id, is_active=True)
+            # If no primary project, get any associated project
+            first_association = lead.project_associations.filter(is_archived=False).first()
+            if not first_association:
+                return JsonResponse({'success': False, 'error': 'Lead must be associated with a project to update status.'}, status=400)
+            project = first_association.project
+        else:
+            project = primary_project
+    else:
+        project = get_object_or_404(Project, pk=project_id, is_active=True)
     
     # Get association for this project
     association = LeadProjectAssociation.objects.filter(
