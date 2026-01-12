@@ -314,6 +314,11 @@
 
 <!-- Desktop View (≥1024px) -->
 <div class="hidden lg:block max-w-6xl mx-auto space-y-4 sm:space-y-6">
+    <!-- DEBUG: Desktop View Test -->
+    <div class="bg-red-500 text-white p-4 mb-4">
+        DEBUG: Desktop view is working! If you see this, desktop container is visible.
+    </div>
+    
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
         <h1 class="text-2xl sm:text-3xl font-heading font-bold text-olive-primary">{{ lead.name }}</h1>
         <a href="{% url 'leads:list' %}" class="text-sm sm:text-base text-olive-primary hover:text-olive-secondary">← Back to Leads</a>
@@ -408,7 +413,13 @@
         </div>
     </div>
     
+    <!-- Main Content Section -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <!-- DEBUG: Main Content Test -->
+        <div class="bg-blue-500 text-white p-4 lg:col-span-3">
+            DEBUG: Main content is rendering! Lead name: {{ lead.name }}
+        </div>
+        
         <!-- Main Info -->
         <div class="lg:col-span-2 space-y-4 sm:space-y-6">
             <div class="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6">
