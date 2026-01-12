@@ -575,7 +575,7 @@
                                     </span>
                                 </div>
                                 <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-blue-600 h-2 rounded-full" style="width: {{ completion_status.percentage }}%"></div>
+                                    <div class="bg-blue-600 h-2 rounded-full" data-percentage="{{ completion_status.percentage }}" style="width: 0%"></div>
                                 </div>
                                 {% if completion_status.missing_fields %}
                                 <div class="mt-2">
@@ -824,6 +824,17 @@
             const button = event.target.closest('button[onclick*="' + menuId + '"]');
             if (menu && !menu.contains(event.target) && !button) {
                 menu.classList.add('hidden');
+            }
+        });
+    });
+    
+    // Set progress bar width from data attributes
+    document.addEventListener('DOMContentLoaded', function() {
+        const progressBars = document.querySelectorAll('[data-percentage]');
+        progressBars.forEach(bar => {
+            const percentage = bar.getAttribute('data-percentage');
+            if (percentage) {
+                bar.style.width = percentage + '%';
             }
         });
     });
