@@ -2725,9 +2725,13 @@ def update_configuration(request, pk):
     
     lead = get_object_or_404(Lead, pk=pk, is_archived=False)
     
-    # Permission check
+    # Permission check - check if user has assignment through LeadProjectAssociation
     if request.user.is_telecaller() or request.user.is_closing_manager():
-        if lead.assigned_to != request.user:
+        user_association = lead.project_associations.filter(
+            assigned_to=request.user,
+            is_archived=False
+        ).first()
+        if not user_association:
             return JsonResponse({'success': False, 'error': 'You do not have permission to update this lead.'}, status=403)
     
     # Get configuration IDs (multiple selection)
