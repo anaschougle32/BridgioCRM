@@ -287,9 +287,7 @@ def lead_list(request):
         if project_id:
             primary_assoc = associations.filter(project_id=project_id).first()
         if not primary_assoc:
-            # Order by created_at to ensure consistent primary association selection
-            primary_assoc = associations.order_by('created_at').first()
-        
+            primary_assoc = associations.first()
         lead_primary_associations[lead.id] = primary_assoc
     
     context = {
@@ -1036,32 +1034,6 @@ def lead_detail(request, pk):
     # Get WhatsApp templates
     whatsapp_templates = get_whatsapp_templates()
     
-    # Get budget choices for dropdown
-    budget_choices = [
-        ('2000000', '₹20L'),
-        ('2500000', '₹25L'),
-        ('3000000', '₹30L'),
-        ('3500000', '₹35L'),
-        ('4000000', '₹40L'),
-        ('4500000', '₹45L'),
-        ('5000000', '₹50L'),
-        ('5500000', '₹55L'),
-        ('6000000', '₹60L'),
-        ('6500000', '₹65L'),
-        ('7000000', '₹70L'),
-        ('7500000', '₹75L'),
-        ('8000000', '₹80L'),
-        ('8500000', '₹85L'),
-        ('9000000', '₹90L'),
-        ('9500000', '₹95L'),
-        ('10000000', '₹1Cr'),
-        ('12000000', '₹1.2Cr'),
-        ('15000000', '₹1.5Cr'),
-        ('20000000', '₹2Cr'),
-        ('25000000', '₹2.5Cr'),
-        ('30000000', '₹3Cr'),
-    ]
-    
     context = {
         'lead': lead,
         'associations': associations,
@@ -1073,9 +1045,6 @@ def lead_detail(request, pk):
         'whatsapp_templates': whatsapp_templates,
         'phone_display': get_phone_display(lead.phone),
         'tel_link': get_tel_link(lead.phone),
-        'budget_choices': budget_choices,
-        'lead_source_choices': Lead.VISIT_SOURCE_CHOICES,
-        'can_edit_lead_data': request.user.is_closing_manager() or request.user.is_sourcing_manager() or request.user.is_site_head() or request.user.is_mandate_owner(),
     }
     return render(request, 'leads/detail.html', context)
 
@@ -1297,7 +1266,7 @@ def send_otp(request, pk):
         <script>
             // Automatically open WhatsApp when OTP is generated (fallback mode)
             (function() {{
-                const whatsappLink = '{whatsapp_link}';
+                const whatsappLink = '{whatsappLink}';
                 if (whatsappLink) {{
                     // Open WhatsApp in new tab/window
                     window.open(whatsappLink, '_blank');
@@ -2400,19 +2369,14 @@ def update_status(request, pk):
     
     # Get project_id from request (required for association-based status update)
     project_id = request.POST.get('project_id') or request.GET.get('project_id')
-    if not project_id or project_id == '':
+    if not project_id:
         # Try to get primary project
         primary_project = lead.primary_project
         if not primary_project:
-            # If no primary project, get any associated project
-            first_association = lead.project_associations.filter(is_archived=False).first()
-            if not first_association:
-                return JsonResponse({'success': False, 'error': 'Lead must be associated with a project to update status.'}, status=400)
-            project = first_association.project
-        else:
-            project = primary_project
-    else:
-        project = get_object_or_404(Project, pk=project_id, is_active=True)
+            return JsonResponse({'success': False, 'error': 'Project is required to update status.'}, status=400)
+        project_id = primary_project.id
+    
+    project = get_object_or_404(Project, pk=project_id, is_active=True)
     
     # Get association for this project
     association = LeadProjectAssociation.objects.filter(
@@ -2464,11 +2428,6 @@ def update_status(request, pk):
     association.status = new_status
     association.save()
     
-    # Verify the save was successful
-    association.refresh_from_db()
-    if association.status != new_status:
-        return JsonResponse({'success': False, 'error': 'Failed to save status. Please try again.'}, status=500)
-    
     # Create audit log
     from accounts.models import AuditLog
     AuditLog.objects.create(
@@ -2481,18 +2440,9 @@ def update_status(request, pk):
     
     messages.success(request, f'Lead status updated to {association.get_status_display()}.')
     
-    # Check if this is an HTMX request
-    is_htmx = request.headers.get('HX-Request') or request.headers.get('hx-request')
-    
-    # Return JSON for AJAX/HTMX requests, redirect for regular form submissions
-    if is_htmx or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Content-Type') == 'application/json':
-        # For AJAX requests, include the updated status in response
-        return JsonResponse({
-            'success': True, 
-            'message': f'Lead status updated to {association.get_status_display()}.',
-            'new_status': new_status,
-            'status_display': association.get_status_display()
-        })
+    # Return JSON for AJAX requests, redirect for regular form submissions
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Content-Type') == 'application/json':
+        return JsonResponse({'success': True, 'message': f'Lead status updated to {association.get_status_display()}.'})
     
     return redirect('leads:detail', pk=lead.id)
 
@@ -2811,128 +2761,6 @@ def update_configuration(request, pk):
     
     messages.success(request, 'Configuration updated successfully.')
     return redirect('leads:list')
-
-
-@login_required
-def update_lead_data(request, pk):
-    """Update lead data - Only Closing Managers, Sourcing Managers, Site Heads, and Super Admins"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
-    
-    lead = get_object_or_404(Lead, pk=pk, is_archived=False)
-    
-    # Permission check - Closing Managers, Sourcing Managers, Site Heads, Mandate Owners, and Super Admins can update lead data
-    if not (request.user.is_closing_manager() or request.user.is_sourcing_manager() or 
-            request.user.is_site_head() or request.user.is_super_admin() or request.user.is_mandate_owner()):
-        return JsonResponse({'success': False, 'error': 'You do not have permission to update lead data.'}, status=403)
-    
-    try:
-        # Get form data - only use fields that exist in Lead model
-        name = request.POST.get('name', '').strip()
-        phone = request.POST.get('phone', '').strip()
-        email = request.POST.get('email', '').strip()
-        age = request.POST.get('age', '').strip()
-        gender = request.POST.get('gender', '').strip()
-        locality = request.POST.get('locality', '').strip()
-        current_residence = request.POST.get('current_residence', '').strip()
-        budget = request.POST.get('budget', '').strip()
-        purpose = request.POST.get('purpose', '').strip()
-        visit_type = request.POST.get('visit_type', '').strip()
-        visit_source = request.POST.get('visit_source', '').strip()
-        how_did_you_hear = request.POST.get('how_did_you_hear', '').strip()
-        occupation = request.POST.get('occupation', '').strip()
-        company_name = request.POST.get('company_name', '').strip()
-        designation = request.POST.get('designation', '').strip()
-        notes = request.POST.get('notes', '').strip()
-        
-        # Validate required fields
-        if not name:
-            return JsonResponse({'success': False, 'error': 'Name is required.'}, status=400)
-        if not phone:
-            return JsonResponse({'success': False, 'error': 'Phone is required.'}, status=400)
-        
-        # Update lead fields - only update fields that exist in the model
-        lead.name = name
-        lead.phone = phone
-        if email:
-            lead.email = email
-        if age:
-            lead.age = int(age) if age else lead.age
-        if gender:
-            lead.gender = gender
-        if locality:
-            lead.locality = locality
-        if current_residence:
-            lead.current_residence = current_residence
-        if budget:
-            lead.budget = float(budget) if budget else lead.budget
-        if purpose:
-            lead.purpose = purpose
-        if visit_type:
-            lead.visit_type = visit_type
-        if visit_source:
-            lead.visit_source = visit_source
-        if how_did_you_hear:
-            lead.how_did_you_hear = how_did_you_hear
-        if occupation:
-            lead.occupation = occupation
-        if company_name:
-            lead.company_name = company_name
-        if designation:
-            lead.designation = designation
-        if notes:
-            lead.notes = notes
-        
-        lead.save()
-        
-        # Create audit log
-        from accounts.models import AuditLog
-        AuditLog.objects.create(
-            user=request.user,
-            action='lead_data_updated',
-            model_name='Lead',
-            object_id=str(lead.id),
-            changes={'lead_name': lead.name, 'message': 'Lead data updated via detail page'},
-        )
-        
-        # Prepare updated data for response
-        updated_data = {
-            'name': lead.name,
-            'phone': lead.phone,
-            'email': lead.email or '-',
-            'alternate_phone': lead.alternate_phone or '-',
-            'whatsapp_number': lead.whatsapp_number or '-',
-            'address': lead.address or '-',
-            'budget_display': '',
-            'lead_source_display': lead.get_visit_source_display() or '-',
-            'occupation': lead.occupation or '-',
-            'company': lead.company_name or '-',
-            'annual_income': lead.annual_income or '-',
-            'work_address': lead.work_address or '-',
-        }
-        
-        # Format budget for display
-        if lead.budget:
-            if lead.budget >= 10000000:
-                budget_cr = lead.budget // 10000000
-                updated_data['budget_display'] = f'₹{budget_cr} Cr'
-            else:
-                budget_l = lead.budget // 100000
-                updated_data['budget_display'] = f'₹{budget_l} L'
-        else:
-            updated_data['budget_display'] = '-'
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Lead data updated successfully!',
-            'updated_data': updated_data
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': f'Error updating lead data: {str(e)}'
-        }, status=500)
 
 
 @login_required
@@ -4323,33 +4151,42 @@ def revisit_visit(request):
             visit_scheduled_time_str = request.POST.get('visit_scheduled_time', '')
             add_to_queue = request.POST.get('add_to_queue') == 'true'
             
-            # Parse visit date and time - combine into datetime
-            visit_scheduled_datetime = None
+            # Parse visit date and time
+            visit_scheduled_date = None
             if visit_scheduled_date_str:
                 try:
-                    if visit_scheduled_time_str:
-                        datetime_str = f"{visit_scheduled_date_str} {visit_scheduled_time_str}"
-                        visit_scheduled_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M')
-                    else:
-                        visit_scheduled_datetime = datetime.strptime(visit_scheduled_date_str, '%Y-%m-%d')
-                    # Make timezone aware
-                    from django.utils import timezone
-                    visit_scheduled_datetime = timezone.make_aware(visit_scheduled_datetime)
+                    visit_scheduled_date = datetime.strptime(visit_scheduled_date_str, '%Y-%m-%d').date()
                 except ValueError:
-                    messages.error(request, 'Invalid visit date or time format.')
+                    messages.error(request, 'Invalid visit date format.')
                     return redirect('leads:revisit_visit')
             
-            # Update existing association for revisit
-            revisit_association = existing_association
-            revisit_association.is_revisit = True
-            revisit_association.revisit_count = existing_association.revisit_count + 1
-            revisit_association.revisit_reason = revisit_reason
-            revisit_association.previous_visit = existing_association  # Self-reference to current state
-            revisit_association.time_frame = time_frame
-            revisit_association.visit_scheduled_date = visit_scheduled_datetime
-            revisit_association.pretag_status = 'pending_verification' if not add_to_queue else 'queued'
-            revisit_association.is_pretagged = True
-            revisit_association.save()
+            visit_scheduled_time = None
+            if visit_scheduled_time_str:
+                try:
+                    visit_scheduled_time = datetime.strptime(visit_scheduled_time_str, '%H:%M').time()
+                except ValueError:
+                    messages.error(request, 'Invalid visit time format.')
+                    return redirect('leads:revisit_visit')
+            
+            # Create new association for revisit
+            revisit_association = LeadProjectAssociation.objects.create(
+                lead=existing_association.lead,
+                project=existing_association.project,
+                assigned_to=existing_association.assigned_to,
+                is_revisit=True,
+                revisit_count=existing_association.revisit_count + 1,
+                revisit_reason=revisit_reason,
+                previous_visit=existing_association,
+                time_frame=time_frame,
+                visit_scheduled_date=visit_scheduled_date,
+                visit_scheduled_time=visit_scheduled_time,
+                pretag_status='pending_verification' if not add_to_queue else 'queued',
+                is_pretagged=True,
+                created_by=request.user,
+            )
+            
+            # Copy configurations from original visit
+            revisit_association.configurations.set(existing_association.configurations.all())
             
             # Handle queue option
             if add_to_queue:
@@ -4408,7 +4245,7 @@ def search_existing_visits(request):
     if not search_query:
         return JsonResponse({'results': []})
     
-    # Filter associations based on user role - show all non-archived visits that can be revisited
+    # Filter associations based on user role - show all visits (not just pretagged)
     associations = LeadProjectAssociation.objects.filter(
         is_archived=False
     ).select_related('lead', 'project', 'assigned_to')
@@ -4417,19 +4254,17 @@ def search_existing_visits(request):
     if project_id:
         associations = associations.filter(project_id=project_id)
     
-    # For revisit, users should see all visits they've been involved with, not just currently assigned
-    # Apply minimal filtering - only restrict based on project access, not assignment
-    if request.user.is_sourcing_manager():
+    # Apply user role filtering
+    if request.user.is_telecaller():
+        associations = associations.filter(assigned_to=request.user)
+    elif request.user.is_closing_manager():
+        associations = associations.filter(assigned_to=request.user)
+    elif request.user.is_sourcing_manager():
         # Sourcing managers see visits in their assigned projects
         associations = associations.filter(project__in=request.user.assigned_projects.all())
     elif request.user.is_site_head():
         # Site heads see visits in their projects
         associations = associations.filter(project__site_head=request.user)
-    elif request.user.is_mandate_owner():
-        # Mandate owners see visits in their projects
-        associations = associations.filter(project__mandate_owner=request.user)
-    # Telecallers and closing managers can see all visits (for revisit purposes)
-    # Super admins see all visits (no additional filtering needed)
     
     # Search by lead name, phone, or email
     associations = associations.filter(
@@ -4440,18 +4275,15 @@ def search_existing_visits(request):
     
     results = []
     for assoc in associations[:20]:  # Limit to 20 results
-        assigned_to_name = ''
-        if assoc.assigned_to:
-            assigned_to_name = assoc.assigned_to.get_full_name() or assoc.assigned_to.username
-        
         results.append({
             'id': assoc.id,
             'lead_name': assoc.lead.name,
             'lead_phone': assoc.lead.phone,
             'lead_email': assoc.lead.email,
             'project_name': assoc.project.name,
-            'assigned_to': assigned_to_name,
+            'assigned_to': assoc.assigned_to.get_full_name() or assoc.assigned_to.username,
             'visit_date': assoc.visit_scheduled_date.strftime('%Y-%m-%d') if assoc.visit_scheduled_date else '',
+            'visit_time': assoc.visit_scheduled_time.strftime('%H:%M') if assoc.visit_scheduled_time else '',
             'revisit_count': assoc.revisit_count,
             'display_text': f"{assoc.lead.name} - {assoc.project.name} - {assoc.lead.phone}"
         })
